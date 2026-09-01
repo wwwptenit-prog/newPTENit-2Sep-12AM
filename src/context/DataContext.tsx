@@ -145,6 +145,8 @@ interface DataContextType {
   submitAssignment: (submission: Omit<AssignmentSubmission, 'id' | 'submittedAt' | 'status'>) => void;
   gradeSubmission: (submissionId: string, points: number, feedback: string) => void;
   updateSubmissionStatus: (submissionId: string, status: AssignmentSubmission['status']) => void;
+  deleteSubmission: (submissionId: string) => void;
+  updateSubmission: (submissionId: string, updates: Partial<AssignmentSubmission>) => void;
   
   // Customer Projects & Service Requests
   createCustomerProject: (project: Omit<CustomerProject, 'id' | 'createdAt' | 'status'>) => void;
@@ -706,6 +708,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: "asgn-1",
         courseId: "course-1",
         courseTitle: "PTE Academic Masterclass 2026",
+        lessonNo: "লেসন নং ১",
         title: "PTE Speaking Describe Image Task Practice",
         description: "প্রদত্ত ছবি পর্যবেক্ষণ করে ৪০ সেকেন্ডের মৌখিক বিবরণ ও নোট ফাইল জমা দিন।",
         dueDate: "2026-08-15",
@@ -716,6 +719,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: "asgn-2",
         courseId: "course-2",
         courseTitle: "Full-Stack Web Development Bootcamp",
+        lessonNo: "লেসন নং ১",
         title: "React Components & Tailwind Layout Project",
         description: "Tailwind CSS ব্যবহার করে একটি সুন্দর ই-কমার্স কার্ড ল্যান্ডিং পেজ ডিজাইন করে ফাইল আপলোড করুন।",
         dueDate: "2026-08-20",
@@ -726,6 +730,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: "asgn-3",
         courseId: "course-1",
         courseTitle: "PTE Academic Masterclass 2026",
+        lessonNo: "লেসন নং ২",
         title: "PTE Retell Lecture & Note Taking",
         description: "অডিও লেকচার শুনে কি-পয়েন্টস সাজিয়ে স্পিকিং রেকর্ড সাবমিট করুন।",
         dueDate: "2026-08-22",
@@ -736,6 +741,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: "asgn-4",
         courseId: "course-2",
         courseTitle: "Full-Stack Web Development Bootcamp",
+        lessonNo: "লেসন নং ২",
         title: "Node.js REST API & JWT Authentication",
         description: "ইউজার অথেনটিকেশন ও টোকেন ভ্যালিডেশনের কোড ফাইল সাবমিট করুন।",
         dueDate: "2026-08-25",
@@ -746,6 +752,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: "asgn-5",
         courseId: "course-2",
         courseTitle: "Full-Stack Web Development Bootcamp",
+        lessonNo: "লেসন নং ৩",
         title: "Responsive Dashboard UI & Dark Mode",
         description: "টেইলউইন্ড সিএসএস দিয়ে ফুল রেসপনসিভ ড্যাশবোর্ড স্ক্রিন সম্পন্ন করে গিটহাব লিঙ্ক বা ফাইল দিন।",
         dueDate: "2026-08-28",
@@ -771,12 +778,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         studentName: "আরিফ হোসেন",
         studentEmail: "arif.pte@ptenit.com",
         studentAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-        submissionText: "আমার ডেসক্রাইব ইমেজ টাস্কের ফাইল ও প্র্যাকটিস নোট সংযোজন করা হলো।",
+        submissionText: "আমার ডেসক্রাইব ইমেজ টাস্কের ফাইল ও প্র্যাকটিস নোট সংযোজন করা হলো। সম্পূর্ণ কোর্স অ্যাসাইনমেন্ট ফাইনাল সাবমিশন।",
         fileName: "PTE_Describe_Image_Arif.mp3",
         fileUrl: "https://example.com/files/arif_speaking.mp3",
+        linkUrl: "https://drive.google.com/drive/folders/arif-pte-final-batch",
+        linkTitle: "Google Drive Portfolio",
         submittedAt: "২০২৬-০৮-০১ ০২:৩০ PM",
         points: 48,
-        feedback: "খুব চমৎকার ফ্লুয়েন্সি ও স্পষ্ট এক্সেন্ট। প্র্যাকটিস অব্যাহত রাখুন!",
+        feedback: "অসাধারণ পারফরম্যান্স! কোর্সের সব কয়টি টাস্কে দারুণ স্কোর অর্জন করেছেন। সার্টিফিকেট প্রস্তুত হয়েছে।",
+        status: "graded"
+      },
+      {
+        id: "sub-1-b",
+        assignmentId: "asgn-3",
+        studentId: "user-student-1",
+        studentName: "আরিফ হোসেন",
+        studentEmail: "arif.pte@ptenit.com",
+        studentAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+        submissionText: "PTE রিটেল লেকচার অডিও রেকর্ড ও ট্রান্সক্রিপ্ট নোট ফাইল।",
+        fileName: "Retell_Lecture_Arif.mp3",
+        fileUrl: "https://example.com/files/arif_retell.mp3",
+        linkUrl: "https://drive.google.com/drive/folders/arif-pte-recordings",
+        linkTitle: "PTE Lecture Audio Folder",
+        submittedAt: "২০২৬-০৮-০৫ ১১:১৫ AM",
+        points: 50,
+        feedback: "পারফেক্ট কি-নোটস এবং চমৎকার ফ্লুয়েন্সি।",
         status: "graded"
       },
       {
@@ -786,9 +812,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         studentName: "তানভীর আহমেদ",
         studentEmail: "tanvir.pte@ptenit.com",
         studentAvatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80",
-        submissionText: "স্যার, ৩টি ডেসক্রাইব ইমেজ টেমপ্লেট রেকর্ড করে ফাইল এটাচ করেছি। প্রোনাউন্সিয়েশন রিভিউ করবেন প্লিজ।",
+        submissionText: "স্যার, ৩টি ডেসক্রাইব ইমেজ টেমপ্লেট রেকর্ড করে ফাইল এটাচ করেছি। প্রোনাউন্সিয়েশন ও অ্যাকসেন্ট রিভিউ করবেন প্লিজ।",
         fileName: "Describe_Image_Task_Tanvir.mp3",
         fileUrl: "https://example.com/files/tanvir_speaking.mp3",
+        linkUrl: "https://drive.google.com/drive/folders/tanvir-pte-audio",
+        linkTitle: "Google Drive Audio Link",
         submittedAt: "আজ দুপুর ১২:৪৫ PM",
         status: "submitted"
       },
@@ -799,9 +827,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         studentName: "নুসরাত জাহান",
         studentEmail: "nusrat.dev@ptenit.com",
         studentAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-        submissionText: "টাস্কের রিকোয়ারমেন্ট অনুযায়ী রেসপনসিভ প্রোডাক্ট গ্রিড এবং কার্ট ড্রয়ার কম্পোনেন্ট তৈরি করেছি। সোর্স কোড ও প্রিভিউ জিপ ফাইল এটাচ করলাম।",
+        submissionText: "টাস্কের রিকোয়ারমেন্ট অনুযায়ী রেসপনসিভ প্রোডাক্ট গ্রিড এবং কার্ট ড্রয়ার কম্পোনেন্ট তৈরি করেছি। সোর্স কোড ও প্রিভিউ জিপ ফাইল এটাচ করলাম। লাইভ ডেমো: https://nusrat-shop.vercel.app",
         fileName: "Ecommerce_Tailwind_Nusrat.zip",
         fileUrl: "https://example.com/files/nusrat_project.zip",
+        linkUrl: "https://github.com/nusrat-dev/ecommerce-tailwind-ui",
+        linkTitle: "GitHub Repository",
         submittedAt: "আজ দুপুর ০১:১৫ PM",
         status: "submitted"
       },
@@ -815,6 +845,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         submissionText: "স্যার, লেকচার কি-পয়েন্টস রেকর্ড করে আপলোড দিয়েছি। ফ্লুয়েন্সি স্কোর কেমন হতে পারে ফিডব্যাক দিলে উপকৃত হব।",
         fileName: "Retell_Lecture_Sakib.mp3",
         fileUrl: "https://example.com/files/sakib_retell.mp3",
+        linkUrl: "https://drive.google.com/drive/folders/sakib-pte-tasks",
+        linkTitle: "Google Drive Task",
         submittedAt: "আজ দুপুর ০২:০০ PM",
         status: "submitted"
       },
@@ -825,9 +857,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         studentName: "মাহিনুর রহমান",
         studentEmail: "mahinur.ui@ptenit.com",
         studentAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-        submissionText: "Node.js এবং JWT দিয়ে ফুল অথেনটিকেশন মিডলওয়্যার সম্পন্ন করে কোড সাবমিট করেছি।",
+        submissionText: "Node.js এবং JWT দিয়ে ফুল অথেনটিকেশন মিডলওয়্যার সম্পন্ন করে কোড সাবমিট করেছি। গিটহাব লিঙ্ক ও পোস্টম্যান কালেকশন যুক্ত আছে।",
         fileName: "JWT_Auth_Backend_Mahinur.zip",
         fileUrl: "https://example.com/files/mahinur_jwt.zip",
+        linkUrl: "https://github.com/mahinur-ui/auth-jwt-express-api",
+        linkTitle: "GitHub Backend Repo",
         submittedAt: "আজ দুপুর ০২:৩০ PM",
         status: "submitted"
       },
@@ -838,9 +872,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         studentName: "রোকসানা আক্তার",
         studentEmail: "roksana.design@ptenit.com",
         studentAvatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&auto=format&fit=crop&q=80",
-        submissionText: "ড্যাশবোর্ডের ডার্ক মোড টগল ও রেসপনসিভ সাইডবার সম্পন্ন করা হয়েছে। প্রিভিউ স্ক্রিনশট ও কোড ফাইল সংযুক্ত।",
+        submissionText: "ড্যাশবোর্ডের ডার্ক মোড টগল ও রেসপনসিভ সাইডবার সম্পন্ন করা হয়েছে। ফিগমা ডিজাইন সিস্টেম লিঙ্ক সংযুক্ত।",
         fileName: "Dashboard_DarkMode_Roksana.zip",
         fileUrl: "https://example.com/files/roksana_dashboard.zip",
+        linkUrl: "https://figma.com/file/roksana-dashboard-design-system",
+        linkTitle: "Figma Design File",
         submittedAt: "আজ বিকাল ০৩:১০ PM",
         status: "submitted"
       },
@@ -851,11 +887,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         studentName: "ফারহান সাদিক",
         studentEmail: "farhan.mern@ptenit.com",
         studentAvatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
-        submissionText: "React Context API ব্যবহার করে সম্পূর্ণ স্টেট ম্যানেজমেন্ট ও কার্ট ক্যালকুলেশন সম্পন্ন করেছি।",
+        submissionText: "React Context API ব্যবহার করে সম্পূর্ণ স্টেট ম্যানেজমেন্ট ও কার্ট ক্যালকুলেশন সম্পন্ন করেছি। লাইভ প্রজেক্ট লিংক সংযুক্ত করা হয়েছে।",
         fileName: "React_State_Farhan.zip",
         fileUrl: "https://example.com/files/farhan_cart.zip",
+        linkUrl: "https://farhan-cart-state.vercel.app",
+        linkTitle: "লাইভ ওয়েব ডেমো",
         submittedAt: "আজ দুপুর ১২:০০ PM",
         status: "under_review"
+      },
+      {
+        id: "sub-8",
+        assignmentId: "asgn-4",
+        studentId: "user-student-7",
+        studentName: "ফারহান সাদিক",
+        studentEmail: "farhan.mern@ptenit.com",
+        studentAvatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+        submissionText: "Node.js ব্যাকএন্ড ও মনগোডিবি ডাটাবেস ইন্টিগ্রেশন সম্পন্ন।",
+        fileName: "Node_MongoDB_Farhan.zip",
+        fileUrl: "https://example.com/files/farhan_backend.zip",
+        linkUrl: "https://github.com/farhan-mern/node-auth-api",
+        linkTitle: "GitHub Repo",
+        submittedAt: "গতকাল বিকাল ০৫:০০ PM",
+        points: 92,
+        feedback: "কোড স্ট্রাকচার খুব পরিষ্কার। এরর হ্যান্ডলিং আরও একটু গুছিয়ে নিলে চমৎকার হবে।",
+        status: "graded"
       }
     ];
   });
@@ -2069,6 +2124,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } : s));
   };
 
+  const deleteSubmission = (submissionId: string) => {
+    setSubmissions(prev => prev.filter(s => s.id !== submissionId));
+  };
+
+  const updateSubmission = (submissionId: string, updates: Partial<AssignmentSubmission>) => {
+    setSubmissions(prev => prev.map(s => s.id === submissionId ? {
+      ...s,
+      ...updates
+    } : s));
+  };
+
   // Customer Project Functions
   const createCustomerProject = (projData: Omit<CustomerProject, 'id' | 'createdAt' | 'status'>) => {
     const createdAtIso = new Date().toISOString();
@@ -2689,6 +2755,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         submitAssignment,
         gradeSubmission,
         updateSubmissionStatus,
+        deleteSubmission,
+        updateSubmission,
         createCustomerProject,
         updateCustomerProjectStatus,
         addCourse,

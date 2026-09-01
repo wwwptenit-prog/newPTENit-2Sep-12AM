@@ -6525,7 +6525,7 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                             <span>কোর্স: {courses.filter(c => c.offerStatus === 'accepted' || (!c.offerStatus && (currentUser?.name?.includes("তানভীর") || c.instructor?.includes("তানভীর") || c.instructor === currentUser?.name))).length || 1}টি</span>
                           </button>
 
-                          {/* TAB 2: অ্যাসাইনমেন্ট with 3 nested/dynamic indicators */}
+                          {/* TAB 2: অ্যাসাইনমেন্ট */}
                           <button
                             onClick={() => setSellerSubTab('submissions')}
                             className={`px-2 sm:px-2.5 py-1 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-black transition cursor-pointer flex items-center gap-1 sm:gap-1.5 whitespace-nowrap shrink-0 border ${
@@ -6536,30 +6536,6 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                           >
                             <FileCheck className="w-3 h-3 shrink-0" />
                             <span>অ্যাসাইনমেন্ট</span>
-                            {/* Counter badges */}
-                            <div className="flex items-center gap-1 ml-0.5">
-                              <span className={`px-1 py-0.2 text-[8px] sm:text-[9px] font-black rounded-full ${
-                                sellerSubTab === 'submissions' || sellerSubTab === 'assignments' || sellerSubTab === 'completed'
-                                  ? 'bg-slate-950 text-purple-300'
-                                  : 'bg-purple-600 text-white'
-                              }`} title="নতুন">
-                                নতুন ({pendingMentorSubmissionsCount})
-                              </span>
-                              <span className={`px-1 py-0.2 text-[8px] sm:text-[9px] font-black rounded-full ${
-                                sellerSubTab === 'submissions' || sellerSubTab === 'assignments' || sellerSubTab === 'completed'
-                                  ? 'bg-slate-950 text-amber-300'
-                                  : 'bg-amber-500 text-white'
-                              }`} title="রিভিউ">
-                                রিভিউ ({reviewMentorSubmissionsCount})
-                              </span>
-                              <span className={`px-1 py-0.2 text-[8px] sm:text-[9px] font-black rounded-full ${
-                                sellerSubTab === 'submissions' || sellerSubTab === 'assignments' || sellerSubTab === 'completed'
-                                  ? 'bg-slate-950 text-emerald-300'
-                                  : 'bg-emerald-500 text-white'
-                              }`} title="সাকসেস">
-                                সাকসেস ({completedMentorSubmissionsCount})
-                              </span>
-                            </div>
                           </button>
                         </div>
 

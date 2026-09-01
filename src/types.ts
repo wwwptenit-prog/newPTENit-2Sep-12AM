@@ -17,6 +17,9 @@ export interface User {
   blocked?: boolean;
   isSpecialist?: boolean;
   specialistStatus?: 'not_applied' | 'pending' | 'approved' | 'rejected';
+  isSeller?: boolean;
+  sellerStatus?: 'not_applied' | 'pending' | 'approved' | 'rejected';
+  marketplaceMode?: 'buying' | 'selling';
   specialistApplication?: {
     expertise: string[];
     experienceYears: string;
@@ -76,6 +79,8 @@ export interface Assignment {
   courseId: string;
   courseTitle?: string;
   instructorId?: string;
+  lessonNo?: string;
+  lessonTitle?: string;
   title: string;
   description: string;
   dueDate: string;
@@ -95,6 +100,8 @@ export interface AssignmentSubmission {
   submissionText: string;
   fileUrl?: string;
   fileName?: string;
+  linkUrl?: string;
+  linkTitle?: string;
   submittedAt: string;
   points?: number;
   feedback?: string;

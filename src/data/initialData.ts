@@ -453,6 +453,8 @@ export const initialUsers: User[] = [
     email: "mdskazisohag@gmail.com",
     mobile: "01700000000",
     role: "admin",
+    isSeller: true,
+    sellerStatus: "approved",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
     title: "Founder, CEO & Lead Admin",
     createdAt: "2026-01-01"
@@ -463,6 +465,8 @@ export const initialUsers: User[] = [
     email: "alamin@ptenit.com",
     mobile: "01711112233",
     role: "instructor",
+    isSeller: true,
+    sellerStatus: "approved",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
     title: "Senior Full Stack Architect & Lead Instructor",
     bio: "১০ বছরের অভিজ্ঞতা সম্পন্ন ফুল-স্ট্যাক ও ক্লাউড ইঞ্জিনিয়ার।",
@@ -474,6 +478,8 @@ export const initialUsers: User[] = [
     email: "student@ptenit.com",
     mobile: "01822334455",
     role: "student",
+    isSeller: false,
+    sellerStatus: "not_applied",
     avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
     title: "Web Developer & Student",
     createdAt: "2026-01-10"
@@ -484,6 +490,8 @@ export const initialUsers: User[] = [
     email: "customer@ptenit.com",
     mobile: "01988776655",
     role: "customer",
+    isSeller: false,
+    sellerStatus: "not_applied",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
     title: "Business Owner & IT Client",
     createdAt: "2026-01-15"
@@ -494,6 +502,8 @@ export const initialUsers: User[] = [
     email: "seller@marketplace.com",
     mobile: "01799887766",
     role: "instructor",
+    isSeller: true,
+    sellerStatus: "approved",
     avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
     title: "Top Rated Freelancer & Full-Stack Pro",
     bio: "মার্কেটপ্লেসের সার্টিফাইড টপ-রেটেড ফ্রিল্যান্সার ও গিগ ক্রিয়েটর।",
@@ -505,6 +515,8 @@ export const initialUsers: User[] = [
     email: "buyer@marketplace.com",
     mobile: "01811223344",
     role: "customer",
+    isSeller: false,
+    sellerStatus: "not_applied",
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80",
     title: "Marketplace Business Buyer & Client",
     createdAt: "2026-01-22"
@@ -2070,45 +2082,6 @@ export const initialGigs: MarketplaceGig[] = [
     rating: 5,
     text: "ক্যানভা কোর্সটি পানির মতো সহজ ছিল! আগে গ্রাফিক্স ডিজাইনারদের পেছনে অনেক টাকা খরচ হতো, এখন নিজেই নিজের ফেসবুক পেজের সব পোস্ট বানাই।",
     avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
-  }
-];
-
-export const initialUsers: User[] = [
-  {
-    id: "admin-1",
-    name: "Mds Kazi Sohag (Admin)",
-    email: "mdskazisohag@gmail.com",
-    mobile: "01700000000",
-    role: "admin",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-    createdAt: "2026-01-01"
-  },
-  {
-    id: "teacher-1",
-    name: "প্রকৌশলী আল-আমিন",
-    email: "alamin@ptenit.com",
-    mobile: "01711122233",
-    role: "instructor",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-    createdAt: "2026-01-15"
-  },
-  {
-    id: "customer-1",
-    name: "মেহেদী হাসান (কাস্টমার)",
-    email: "customer@ptenit.com",
-    mobile: "01988776655",
-    role: "customer",
-    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80",
-    createdAt: "2026-01-20"
-  },
-  {
-    id: "student-1",
-    name: "সাব্বির রহমান (শিক্ষার্থী)",
-    email: "student@ptenit.com",
-    mobile: "01812345678",
-    role: "student",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
-    createdAt: "2026-02-01"
   }
 ];
 

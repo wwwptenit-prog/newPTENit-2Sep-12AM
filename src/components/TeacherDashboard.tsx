@@ -61,7 +61,10 @@ import {
   ChevronUp,
   Star,
   Link as LinkIcon,
-  AlertCircle
+  AlertCircle,
+  RotateCcw,
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { Assignment, AssignmentSubmission, Course, CustomerProject } from '../types';
@@ -97,11 +100,14 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     notifications = [],
     markNotificationRead,
     markAllNotificationsRead,
+    sendCentralNotification,
     requestTeacherPayout,
     addAssignment,
     deleteAssignment,
     gradeSubmission,
     updateSubmissionStatus,
+    deleteSubmission,
+    updateSubmission,
     updateProfile,
     updateCourse,
     issueCertificate,
@@ -202,10 +208,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [lessonTaskAttachmentUrl, setLessonTaskAttachmentUrl] = useState('');
   const [lessonTaskReferenceLink, setLessonTaskReferenceLink] = useState('');
 
-  // Grading Modal state
+  // Grading & Edit Modal state
   const [selectedSubmission, setSelectedSubmission] = useState<AssignmentSubmission | null>(null);
   const [gradePoints, setGradePoints] = useState<number>(0);
   const [gradeFeedback, setGradeFeedback] = useState<string>('');
+  const [gradeLinkUrl, setGradeLinkUrl] = useState<string>('');
+  const [deleteConfirmSubId, setDeleteConfirmSubId] = useState<string | null>(null);
+
+  // Again / Redo Modal state
+  const [againModalSub, setAgainModalSub] = useState<AssignmentSubmission | null>(null);
+  const [againLessonNo, setAgainLessonNo] = useState<string>('লেসন নং ১');
+  const [againReason, setAgainReason] = useState<string>('');
 
   // Profile Edit State
   const [profileName, setProfileName] = useState(currentUser?.name || '');
@@ -218,7 +231,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   // Search/Filter state for assignments
   const [searchQuery, setSearchQuery] = useState('');
-  const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<'all' | 'new' | 'review' | 'success'>('all');
+  const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<'all' | 'new' | 'review' | 'success'>('new');
   const [submissionCourseFilter, setSubmissionCourseFilter] = useState('all');
   const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
   const [targetConfigCourseId, setTargetConfigCourseId] = useState(courses[0]?.id || '');
@@ -632,6 +645,42 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     e.preventDefault();
     if (selectedSubmission) {
       gradeSubmission(selectedSubmission.id, gradePoints, gradeFeedback);
+      if (gradeLinkUrl) {
+        updateSubmission(selectedSubmission.id, { linkUrl: gradeLinkUrl });
+      }
+      setSelectedSubmission(null);
+    }
+  };
+
+  const handleSendAgainRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!againModalSub) return;
+    const asgn = assignments.find(a => a.id === againModalSub.assignmentId);
+    const feedbackMsg = `⚠️ [${againLessonNo} পুনরায় সম্পন্ন করুন]: ${againReason || 'কাজটি সঠিকভাবে সম্পন্ন হয়নি। অনুগ্রহ করে লেসনটি পুনরায় প্র্যাকটিস করে জমা দিন।'}`;
+    
+    updateSubmission(againModalSub.id, {
+      status: 'returned',
+      points: 0,
+      feedback: feedbackMsg
+    });
+
+    if (sendCentralNotification) {
+      sendCentralNotification({
+        title: `🔄 ${againLessonNo} পুনরায় জমা দেওয়ার নির্দেশ`,
+        message: `${againModalSub.studentName}, আপনার "${asgn?.courseTitle || 'কোর্স'}" এর ${againLessonNo} কাজটি সন্তোষজনক না হওয়ায় পুনরায় সম্পন্ন করতে বলা হয়েছে। কারণ: "${againReason || 'সংশোধন করে জমা দিন'}"`,
+        type: 'warning',
+        category: 'mentor'
+      });
+    }
+
+    setAgainModalSub(null);
+    setAgainReason('');
+  };
+
+  const handleDeleteSubmission = (subId: string) => {
+    deleteSubmission(subId);
+    setDeleteConfirmSubId(null);
+    if (selectedSubmission?.id === subId) {
       setSelectedSubmission(null);
     }
   };
@@ -695,13 +744,150 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     return () => clearInterval(interval);
   }, [offeredCourses.length]);
 
+  // Helper to extract or detect links from a submission (URLs, GitHub, Figma, Drive, Live Web)
+  const getSubmissionLinks = (sub: AssignmentSubmission) => {
+    const links: { title: string; url: string; type: 'github' | 'figma' | 'drive' | 'web' }[] = [];
+    
+    if (sub.linkUrl) {
+      let type: 'github' | 'figma' | 'drive' | 'web' = 'web';
+      if (sub.linkUrl.includes('github.com')) type = 'github';
+      else if (sub.linkUrl.includes('figma.com')) type = 'figma';
+      else if (sub.linkUrl.includes('drive.google.com')) type = 'drive';
+      links.push({
+        title: sub.linkTitle || (type === 'github' ? 'GitHub Repo' : type === 'figma' ? 'Figma Design' : type === 'drive' ? 'Google Drive' : 'লাইভ লিংক'),
+        url: sub.linkUrl,
+        type
+      });
+    }
+
+    if (sub.fileUrl && (sub.fileUrl.startsWith('http://') || sub.fileUrl.startsWith('https://')) && !sub.fileUrl.match(/\.(mp3|wav|zip|pdf|docx|png|jpg|jpeg)$/i)) {
+      if (!links.some(l => l.url === sub.fileUrl)) {
+        let type: 'github' | 'figma' | 'drive' | 'web' = 'web';
+        if (sub.fileUrl.includes('github.com')) type = 'github';
+        else if (sub.fileUrl.includes('figma.com')) type = 'figma';
+        else if (sub.fileUrl.includes('drive.google.com')) type = 'drive';
+        links.push({
+          title: type === 'github' ? 'GitHub কোড' : type === 'figma' ? 'Figma ফাইল' : type === 'drive' ? 'ড্রাইভ লিংক' : 'প্রজেক্ট লিংক',
+          url: sub.fileUrl,
+          type
+        });
+      }
+    }
+
+    // Extract any http/https URLs mentioned in the written submission text
+    if (sub.submissionText) {
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      const matched = sub.submissionText.match(urlRegex);
+      if (matched) {
+        matched.forEach(url => {
+          if (!links.some(l => l.url === url)) {
+            let type: 'github' | 'figma' | 'drive' | 'web' = 'web';
+            if (url.includes('github.com')) type = 'github';
+            else if (url.includes('figma.com')) type = 'figma';
+            else if (url.includes('drive.google.com')) type = 'drive';
+            links.push({
+              title: type === 'github' ? 'GitHub' : type === 'figma' ? 'Figma' : type === 'drive' ? 'Drive' : 'ওয়েব লিংক',
+              url,
+              type
+            });
+          }
+        });
+      }
+    }
+
+    return links;
+  };
+
+  // Helper to calculate student's task progress for their course (how many tasks done vs total)
+  const getStudentCourseProgress = (studentId?: string, studentEmail?: string, assignmentId?: string) => {
+    const asgn = assignments.find(a => a.id === assignmentId);
+    const targetCourseId = asgn?.courseId;
+    
+    // Course assignments list
+    const courseAsgns = targetCourseId 
+      ? assignments.filter(a => a.courseId === targetCourseId)
+      : (asgn ? [asgn] : []);
+    
+    // Total course tasks (matches course assignments count, default min 2 for realistic progression)
+    const totalTasks = Math.max(courseAsgns.length, 2);
+
+    // Submissions belonging to this student in this course
+    const studentSubs = submissions.filter(s => 
+      ((studentId && s.studentId === studentId) || (studentEmail && s.studentEmail === studentEmail)) &&
+      (courseAsgns.some(a => a.id === s.assignmentId) || s.assignmentId === assignmentId)
+    );
+
+    const gradedSubs = studentSubs.filter(s => s.status === 'graded');
+    const completedTasks = gradedSubs.length;
+    const isAllCompleted = completedTasks >= totalTasks;
+    const remainingTasks = Math.max(0, totalTasks - completedTasks);
+    const progressPercent = Math.min(100, Math.round((completedTasks / totalTasks) * 100));
+
+    return {
+      totalTasks,
+      completedTasks,
+      submittedTasks: studentSubs.length,
+      remainingTasks,
+      isAllCompleted,
+      progressPercent
+    };
+  };
+
+  const getAssignmentLessonInfo = (asgn?: Assignment) => {
+    if (!asgn) {
+      return {
+        lessonNo: 'লেসন নং ১',
+        taskTitle: 'কোর্স অ্যাসাইনমেন্ট টাস্ক',
+        taskDesc: 'প্রদত্ত লেসনের নির্দেশনা অনুযায়ী টাস্ক সম্পন্ন করে ফাইল বা সমাধান জমা দিন।'
+      };
+    }
+
+    if (asgn.lessonNo) {
+      return {
+        lessonNo: asgn.lessonNo,
+        taskTitle: asgn.title,
+        taskDesc: asgn.description || 'প্রদত্ত লেসনের নির্দেশনা অনুযায়ী টাস্ক সম্পন্ন করে ফাইল বা সমাধান জমা দিন।'
+      };
+    }
+
+    const match = asgn.title.match(/(লেসন\s*\d+|Lesson\s*\d+)/i);
+    if (match) {
+      return {
+        lessonNo: match[0],
+        taskTitle: asgn.title,
+        taskDesc: asgn.description || 'প্রদত্ত লেসনের নির্দেশনা অনুযায়ী টাস্ক সম্পন্ন করে ফাইল বা সমাধান জমা দিন।'
+      };
+    }
+
+    const courseAsgns = assignments.filter(a => a.courseId === asgn.courseId);
+    const idx = courseAsgns.findIndex(a => a.id === asgn.id);
+    const lessonNo = idx >= 0 ? `লেসন নং ${idx + 1}` : 'লেসন নং ১';
+    return {
+      lessonNo,
+      taskTitle: asgn.title,
+      taskDesc: asgn.description || 'প্রদত্ত লেসনের নির্দেশনা অনুযায়ী টাস্ক সম্পন্ন করে ফাইল বা সমাধান জমা দিন।'
+    };
+  };
+
   const teacherCourses = courses.filter(c =>
     c.offerStatus === 'accepted' ||
     (!c.offerStatus && (currentUser?.name?.includes("তানভীর") || c.instructor?.includes("তানভীর") || c.instructor === currentUser?.name))
   );
+
+  // Workflow Categorization:
+  // 1. নতুন (New): status === 'submitted'
+  // 2. রিভিউ (Review): under_review or graded but has remaining course tasks
+  // 3. সাকসেস (Success): graded and all course tasks are completed
   const pendingSubmissions = submissions.filter(s => s.status === 'submitted');
-  const reviewSubmissions = submissions.filter(s => s.status === 'under_review' || s.status === 'review');
-  const totalGraded = submissions.filter(s => s.status === 'graded');
+  const reviewSubmissions = submissions.filter(s => 
+    s.status === 'under_review' || 
+    s.status === 'review' || 
+    s.status === 'returned' ||
+    (s.status === 'graded' && !getStudentCourseProgress(s.studentId, s.studentEmail, s.assignmentId).isAllCompleted)
+  );
+  const totalGraded = submissions.filter(s => 
+    s.status === 'graded' && getStudentCourseProgress(s.studentId, s.studentEmail, s.assignmentId).isAllCompleted
+  );
 
   const filteredAssignments = assignments.filter(a =>
     a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1695,41 +1881,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         {/* TAB: জমা কাজ (SUBMISSIONS / ASSIGNMENTS) */}
         {(activeTab === 'submissions' || activeTab === 'assignments') && (
           <div className="space-y-4 font-bengali animate-fadeIn">
-            {/* Clean 1-Line Header with Search & Create Button */}
-            <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-              <div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileCheck className="w-5 h-5 text-teal-400" />
-                  <span>শিক্ষার্থীদের জমাকৃত অ্যাসাইনমেন্ট</span>
-                </h2>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => {
-                    if (courses.length > 0) setSelectedCourseId(courses[0].id);
-                    setShowCreateModal(true);
-                  }}
-                  className="px-2.5 py-1.5 bg-gradient-to-r from-teal-400 to-emerald-500 hover:opacity-90 text-slate-950 font-black text-[11px] sm:text-xs rounded-lg shadow-xs transition cursor-pointer flex items-center gap-1 shrink-0"
-                >
-                  <PlusCircle className="w-3.5 h-3.5 text-slate-950" />
-                  <span className="text-slate-950">+ অ্যাসাইনমেন্ট</span>
-                </button>
-
-                <div className="relative flex-1 sm:w-56">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="শিক্ষার্থী বা কাজ খুঁজুন..."
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:border-teal-400"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* 3 FILTER BUTTONS & COUNTERS: [ ❗ নতুন (5) ] [ 🕒 রিভিউ (1) ] [ ✅ সাকসেস (1) ] */}
+            {/* 3 FILTER BUTTONS & COUNTERS: [ ❗ নতুন (0) ] [ 🕒 রিভিউ (0) ] [ ✅ সাকসেস (6) ] */}
             <div className="flex items-center justify-center p-1 bg-slate-100 dark:bg-slate-800/90 rounded-full border border-slate-200/90 dark:border-slate-700/80 shadow-xs max-w-md mx-auto w-full">
               <div className="grid grid-cols-3 gap-1 w-full">
                 {/* 1. নতুন */}
@@ -1813,218 +1965,336 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               );
 
               return (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-black text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                      {assignmentStatusFilter === 'new' && <AlertCircle className="w-4 h-4 text-purple-600" />}
-                      {assignmentStatusFilter === 'review' && <Clock className="w-4 h-4 text-amber-500" />}
-                      {assignmentStatusFilter === 'success' && <CheckCircle className="w-4 h-4 text-emerald-500" />}
-                      <span>
-                        {assignmentStatusFilter === 'new' && `নতুন জমা কাজের তালিকা (${pendingSubmissions.length} টি)`}
-                        {assignmentStatusFilter === 'review' && `পর্যালোচনাধীন কাজের তালিকা (${reviewSubmissions.length} টি)`}
-                        {assignmentStatusFilter === 'success' && `সফল ও মূল্যায়িত কাজের তালিকা (${totalGraded.length} টি)`}
-                      </span>
-                    </h3>
-                  </div>
-
+                <div className="space-y-3 font-bengali">
                   {currentList.length === 0 ? (
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 text-center border border-dashed border-slate-200 dark:border-slate-800 space-y-3">
-                      <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 mx-auto flex items-center justify-center text-slate-400">
-                        <FileCheck className="w-7 h-7" />
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 mx-auto flex items-center justify-center text-slate-400">
+                        <FileCheck className="w-5 h-5" />
                       </div>
-                      <h4 className="font-bold text-base text-slate-900 dark:text-white">
+                      <h4 className="font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                         {assignmentStatusFilter === 'new' && 'বর্তমানে কোনো নতুন অপেক্ষমাণ জমা নেই'}
                         {assignmentStatusFilter === 'review' && 'বর্তমানে পর্যালোচনায় কোনো কাজ নেই'}
                         {assignmentStatusFilter === 'success' && 'বর্তমানে মূল্যায়িত কোনো কাজ নেই'}
                       </h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                        {assignmentStatusFilter === 'new' && 'শিক্ষার্থীরা অ্যাসাইনমেন্ট জমা দিলে স্বয়ংক্রিয়ভাবে এখানে তালিকাভুক্ত হবে।'}
-                        {assignmentStatusFilter === 'review' && 'নতুন কাজ থেকে যেকোনো জমা রিভিউ মোডে নিতে "রিভিউতে নিন" বাটনে ক্লিক করুন।'}
-                        {assignmentStatusFilter === 'success' && 'কাজ মূল্যায়ন শেষে সেগুলো সফল তালিকায় সংরক্ষিত থাকবে।'}
-                      </p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5">
                       {currentList.map(sub => {
                         const asgn = assignments.find(a => a.id === sub.assignmentId);
+                        const lessonInfo = getAssignmentLessonInfo(asgn);
                         const isGraded = sub.status === 'graded';
                         const isUnderReview = sub.status === 'under_review' || sub.status === 'review';
+                        const progress = getStudentCourseProgress(sub.studentId, sub.studentEmail, sub.assignmentId);
+                        const links = getSubmissionLinks(sub);
+
+                        let leftAccentBorder = "border-l-[5px] border-l-purple-500";
+                        let badgeClasses = "bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800";
+                        let statusLabel = "নতুন জমা";
+                        let StatusIcon = AlertCircle;
+
+                        if (sub.status === 'returned' || sub.feedback?.includes('পুনরায়')) {
+                          leftAccentBorder = "border-l-[5px] border-l-amber-500";
+                          badgeClasses = "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
+                          statusLabel = "এগেইন আবশ্যক";
+                          StatusIcon = RotateCcw;
+                        } else if (isGraded && progress.isAllCompleted) {
+                          leftAccentBorder = "border-l-[5px] border-l-[#1DB954]";
+                          badgeClasses = "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-[#1DB954] border-emerald-200 dark:border-emerald-800";
+                          statusLabel = `সফল (${sub.points || 50} মার্কস)`;
+                          StatusIcon = CheckCircle2;
+                        } else if (isUnderReview || (isGraded && !progress.isAllCompleted)) {
+                          leftAccentBorder = "border-l-[5px] border-l-amber-500";
+                          badgeClasses = "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
+                          statusLabel = isGraded ? `রিভিউধীন (${progress.remainingTasks}টি বাকি)` : "রিভিউধীন";
+                          StatusIcon = Clock;
+                        }
 
                         return (
                           <div
                             key={sub.id}
-                            className={`bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border-2 transition-all space-y-4 flex flex-col justify-between shadow-md ${
-                              isGraded
-                                ? 'border-emerald-500/40 hover:border-emerald-500'
-                                : isUnderReview
-                                ? 'border-amber-500/40 hover:border-amber-500'
-                                : 'border-purple-500/30 hover:border-purple-500'
-                            }`}
+                            className={`relative overflow-hidden bg-gradient-to-b from-white via-slate-50/60 to-slate-50/20 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all p-3.5 sm:p-4 text-slate-800 dark:text-slate-100 flex flex-col justify-between gap-3 ${leftAccentBorder}`}
                           >
-                            <div className="space-y-3">
-                              <div className="flex justify-between items-start gap-2">
-                                <span className="px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-300 text-[11px] font-black border border-teal-500/20">
-                                  {asgn?.courseTitle || 'সাধারণ কোর্স'}
-                                </span>
-                                
-                                {isGraded ? (
-                                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[11px] font-black border border-emerald-500/30 flex items-center gap-1">
-                                    <CheckCircle className="w-3 h-3 text-emerald-500" /> সফল / গ্রেডেড ({sub.points || 50} মার্কস)
-                                  </span>
-                                ) : isUnderReview ? (
-                                  <span className="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[11px] font-black border border-amber-500/30 flex items-center gap-1">
-                                    <Clock className="w-3 h-3 text-amber-500" /> পর্যালোচনায় রয়েছে
-                                  </span>
-                                ) : (
-                                  <span className="px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-400 text-[11px] font-black border border-purple-500/30 flex items-center gap-1 animate-pulse">
-                                    <AlertCircle className="w-3 h-3 text-purple-600" /> নতুন জমা
-                                  </span>
-                                )}
-                              </div>
-
-                              <div>
-                                <h4 className="font-extrabold text-base text-slate-900 dark:text-white">
-                                  {asgn?.title || 'কোর্স অ্যাসাইনমেন্ট'}
-                                </h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <div className="w-6 h-6 rounded-full bg-teal-500/20 text-teal-400 font-black text-xs flex items-center justify-center">
+                            {/* Row 1: Student Profile, ID & Status Badge */}
+                            <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="relative shrink-0">
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 text-white font-black text-xs flex items-center justify-center ring-2 ring-teal-500 shadow-xs">
                                     {sub.studentName?.charAt(0) || 'S'}
                                   </div>
-                                  <span className="font-bold text-xs text-slate-800 dark:text-slate-200">{sub.studentName}</span>
-                                  <span className="text-[10px] text-slate-400 font-mono">({sub.studentEmail})</span>
+                                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-xs sm:text-[13px] font-black text-slate-900 dark:text-white truncate">
+                                      {sub.studentName}
+                                    </span>
+                                    <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-[#1DB954] shrink-0" />
+                                  </div>
+                                  <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-bold block leading-none truncate">
+                                    {sub.studentEmail || 'শিক্ষার্থী'} • {sub.submittedAt || 'আজ'}
+                                  </span>
                                 </div>
                               </div>
 
-                              {/* Written submission / notes */}
-                              {sub.submissionText && (
-                                <div className="bg-slate-50 dark:bg-slate-800/70 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 text-xs text-slate-800 dark:text-slate-200">
-                                  <span className="text-[10px] font-black text-slate-400 block mb-1 uppercase tracking-wider">শিক্ষার্থীর নোট / উত্তর:</span>
-                                  <p className="italic leading-relaxed">"{sub.submissionText}"</p>
-                                </div>
-                              )}
-
-                              {/* Graded Feedback & Points if graded */}
-                              {isGraded && (
-                                <div className="p-3.5 bg-emerald-500/10 dark:bg-emerald-950/30 rounded-2xl border border-emerald-500/30 text-xs text-emerald-900 dark:text-emerald-200 space-y-1.5">
-                                  <div className="flex items-center justify-between font-black text-[11px]">
-                                    <span className="flex items-center gap-1 text-[#1DB954]">
-                                      <Award className="w-4 h-4" /> অর্জিত পয়েন্ট: {sub.points || 50} / {asgn?.totalPoints || 50}
-                                    </span>
-                                    <span className="text-slate-400 font-normal">মূল্যায়িত</span>
-                                  </div>
-                                  {sub.feedback && (
-                                    <p className="text-slate-700 dark:text-slate-300 italic">
-                                      "{sub.feedback}"
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Attached file */}
-                              {(sub.fileName || sub.fileUrl) && (
-                                <div className="p-3 bg-teal-500/5 dark:bg-slate-800/80 rounded-2xl border border-teal-500/20 flex items-center justify-between gap-2 text-xs">
-                                  <div className="flex items-center gap-2 truncate">
-                                    <Paperclip className="w-4 h-4 text-teal-400 shrink-0" />
-                                    <span className="font-bold truncate text-slate-800 dark:text-slate-200">
-                                      {sub.fileName || 'সংযুক্ত ফাইল'}
-                                    </span>
-                                  </div>
-                                  {sub.fileUrl && (
-                                    <a
-                                      href={sub.fileUrl}
-                                      download={sub.fileName || 'submission_file'}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="px-3 py-1 bg-teal-500 hover:bg-teal-600 text-white font-bold rounded-lg text-xs transition shrink-0 flex items-center gap-1"
-                                    >
-                                      <Download className="w-3 h-3" />
-                                      <span>ডাউনলোড</span>
-                                    </a>
-                                  )}
-                                </div>
-                              )}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[9px] sm:text-[10px] font-bold rounded-md border border-slate-200 dark:border-slate-700">
+                                  #{sub.id.slice(-5).toUpperCase()}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black border flex items-center gap-1 shadow-2xs ${badgeClasses}`}>
+                                  <StatusIcon className="w-3 h-3 shrink-0" />
+                                  <span>{statusLabel}</span>
+                                </span>
+                              </div>
                             </div>
 
-                            {/* Action Buttons */}
-                            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
-                              <span className="text-[11px] text-slate-400">
+                            {/* Row 2: Prominent Lesson Number & Assigned Task Details */}
+                            <div className="p-3 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 space-y-2">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="px-2.5 py-0.5 rounded-lg bg-indigo-600 dark:bg-indigo-500 text-white text-[10px] sm:text-[11px] font-black flex items-center gap-1 shadow-2xs">
+                                    <BookOpen className="w-3 h-3 shrink-0" />
+                                    <span>{lessonInfo.lessonNo}</span>
+                                  </span>
+                                  <span className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-md text-[10px] sm:text-[11px] font-bold truncate max-w-[180px]">
+                                    {asgn?.courseTitle || 'কোর্স প্রজেক্ট'}
+                                  </span>
+                                </div>
+                                <span className="px-2 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-md text-[10px] sm:text-[11px] font-black flex items-center gap-1 shrink-0">
+                                  <Award className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
+                                  <span>{asgn?.totalPoints || 50} মার্কস</span>
+                                </span>
+                              </div>
+
+                              {/* Task Title & What was assigned */}
+                              <div className="space-y-1 pt-0.5">
+                                <div className="text-xs font-black text-slate-900 dark:text-white leading-snug">
+                                  {asgn?.title || lessonInfo.taskTitle}
+                                </div>
+                                <div className="p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-[11px] leading-relaxed">
+                                  <span className="font-black text-indigo-700 dark:text-indigo-300 block text-[10px] mb-0.5">
+                                    📋 যে কাজটি করতে দেওয়া হয়েছে (টাস্ক বিবরণী):
+                                  </span>
+                                  <p className="text-slate-700 dark:text-slate-300 font-medium">
+                                    {asgn?.description || lessonInfo.taskDesc}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Row 2.5: Task Completion Progress Tracker (কতটা টাস্ক থেকে কতটা করছে) */}
+                            <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-1.5">
+                              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold">
+                                <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                  <Layers className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                                  <span>টাস্ক অগ্রগতি:</span>
+                                  <span className="font-mono font-black text-slate-900 dark:text-white">
+                                    {progress.completedTasks}/{progress.totalTasks} সম্পন্ন
+                                  </span>
+                                  <span className="text-teal-600 dark:text-teal-400">({progress.progressPercent}%)</span>
+                                </span>
+                                <span className={`text-[9px] sm:text-[10px] font-black ${
+                                  progress.isAllCompleted
+                                    ? 'text-[#1DB954]'
+                                    : 'text-amber-600 dark:text-amber-400'
+                                }`}>
+                                  {progress.isAllCompleted ? '🎉 সব টাস্ক সম্পন্ন (সফল)' : `⏳ আরও ${progress.remainingTasks}টি টাস্ক বাকি`}
+                                </span>
+                              </div>
+                              <div className="w-full bg-slate-200 dark:bg-slate-700/80 rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    progress.isAllCompleted
+                                      ? 'bg-[#1DB954]'
+                                      : 'bg-gradient-to-r from-amber-500 to-indigo-500'
+                                  }`}
+                                  style={{ width: `${progress.progressPercent}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Row 3: Compact 2-Column Evaluation Box with Subtle Dashed Border (Like Buyer Order Style) */}
+                            <div className="grid grid-cols-2 gap-2 p-2 sm:p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 shadow-2xs ${
+                                  isGraded ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600' : 'bg-purple-50 dark:bg-purple-950/40 text-purple-600'
+                                }`}>
+                                  <Award className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold block leading-none">
+                                    {isGraded ? 'অর্জিত স্কোর' : 'মোট নম্বর'}
+                                  </span>
+                                  <span className="text-xs sm:text-sm font-black font-mono text-slate-800 dark:text-slate-200 leading-tight">
+                                    {isGraded ? `${sub.points || 50} / ${asgn?.totalPoints || 50}` : `${asgn?.totalPoints || 50} পয়েন্ট`}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="border-l border-dashed border-slate-300 dark:border-slate-700 pl-2.5 flex items-center justify-between">
+                                <div>
+                                  <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold block leading-none">ফলাফল</span>
+                                  <span className={`text-xs sm:text-sm font-black leading-tight ${
+                                    isGraded && progress.isAllCompleted
+                                      ? 'text-emerald-700 dark:text-[#1DB954]'
+                                      : isUnderReview || (isGraded && !progress.isAllCompleted)
+                                      ? 'text-amber-500'
+                                      : 'text-purple-600 dark:text-purple-400'
+                                  }`}>
+                                    {isGraded && progress.isAllCompleted
+                                      ? 'সফল ও উত্তীর্ণ'
+                                      : isUnderReview || (isGraded && !progress.isAllCompleted)
+                                      ? 'রিভিউধীন (টাস্ক বাকি)'
+                                      : 'নতুন জমা'}
+                                  </span>
+                                </div>
+                                <span className={`hidden sm:inline-block px-1.5 py-0.5 text-[8px] font-black rounded ${
+                                  isGraded && progress.isAllCompleted
+                                    ? 'bg-emerald-600 text-white'
+                                    : isUnderReview || (isGraded && !progress.isAllCompleted)
+                                    ? 'bg-amber-500 text-white'
+                                    : 'bg-purple-600 text-white'
+                                }`}>
+                                  {isGraded && progress.isAllCompleted ? 'সাকসেস' : isUnderReview || isGraded ? 'রিভিউ' : 'নতুন'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Row 3.5: Student Solution / Note */}
+                            {sub.submissionText && (
+                              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2 text-[11px] text-slate-700 dark:text-slate-300">
+                                <MessageSquare className="w-3.5 h-3.5 text-teal-500 shrink-0 mt-0.5" />
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-bold text-slate-800 dark:text-slate-200 block text-[10px] mb-0.5 text-teal-600 dark:text-teal-400">
+                                    📤 শিক্ষার্থীর জমা দেওয়া উত্তর / সমাধান:
+                                  </span>
+                                  <p className="italic line-clamp-3 leading-snug">"{sub.submissionText}"</p>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* If again requested (status is returned / redo / has lesson notice) */}
+                            {(sub.status === 'returned' || sub.feedback?.includes('পুনরায়')) ? (
+                              <div className="p-2.5 rounded-xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 flex items-start gap-2 text-xs">
+                                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-black text-amber-700 dark:text-amber-300 block">
+                                    যে লেসনটি হয়নি (এগেইন নির্দেশিত):
+                                  </span>
+                                  <p className="text-[11px] text-amber-800 dark:text-amber-200 mt-0.5 leading-snug font-medium">
+                                    {sub.feedback}
+                                  </p>
+                                </div>
+                              </div>
+                            ) : isGraded && sub.feedback ? (
+                              <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-500/20 flex items-start gap-1.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                                <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                                <p className="italic line-clamp-2 leading-tight font-medium">মন্তব্য: "{sub.feedback}"</p>
+                              </div>
+                            ) : null}
+
+                            {/* Row 4: Attached File & Live / External Links */}
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                              {(sub.fileName || (sub.fileUrl && !links.some(l => l.url === sub.fileUrl))) && (
+                                <a
+                                  href={sub.fileUrl || '#'}
+                                  download={sub.fileName || 'submission_file'}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition flex items-center gap-1 truncate max-w-[150px] border border-slate-200 dark:border-slate-700"
+                                  title={sub.fileName || 'ফাইল ডাউনলোড'}
+                                >
+                                  <Paperclip className="w-3 h-3 text-teal-500 shrink-0" />
+                                  <span className="truncate">{sub.fileName || 'ফাইল'}</span>
+                                  <Download className="w-2.5 h-2.5 ml-0.5 shrink-0 text-slate-400" />
+                                </a>
+                              )}
+
+                              {links.map((link, idx) => (
+                                <a
+                                  key={idx}
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-2.5 py-1 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800 rounded-lg text-[10px] font-bold transition flex items-center gap-1 truncate max-w-[170px]"
+                                  title={link.url}
+                                >
+                                  <Globe className="w-3 h-3 text-teal-600 dark:text-teal-400 shrink-0" />
+                                  <span className="truncate">{link.title}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 shrink-0 ml-0.5 text-teal-500" />
+                                </a>
+                              ))}
+                            </div>
+
+                            {/* Row 5: Action Buttons (Edit, Again & Delete - Clean Single Icons) */}
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                              <span className="text-[10px] text-slate-400 font-medium truncate">
                                 জমা: {sub.submittedAt || 'আজ'}
                               </span>
 
-                              <div className="flex items-center gap-2">
-                                {assignmentStatusFilter === 'new' && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => updateSubmissionStatus(sub.id, 'under_review')}
-                                      className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-xs rounded-xl border border-amber-500/30 transition cursor-pointer flex items-center gap-1"
-                                    >
-                                      <Clock className="w-3.5 h-3.5" />
-                                      <span>রিভিউতে নিন</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedSubmission(sub);
-                                        setGradePoints(asgn?.totalPoints || 50);
-                                        setGradeFeedback('খুব চমৎকার কাজ হয়েছে! নিয়মিত প্র্যাকটিস অব্যাহত রাখুন।');
-                                      }}
-                                      className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 text-white font-black text-xs rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 active:scale-95"
-                                    >
-                                      <Award className="w-4 h-4 text-white" />
-                                      <span>🔍 চেক ও মূল্যায়ন</span>
-                                    </button>
-                                  </>
-                                )}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {/* 1. Edit / Evaluate Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedSubmission(sub);
+                                    setGradePoints(sub.points || asgn?.totalPoints || 50);
+                                    setGradeFeedback(sub.feedback || (assignmentStatusFilter === 'new' ? 'কাজ খুব ভালো হয়েছে! নিয়মিত প্র্যাকটিস অব্যাহত রাখুন।' : 'পর্যালোচনা সম্পন্ন হয়েছে।'));
+                                    setGradeLinkUrl(sub.linkUrl || (links.length > 0 ? links[0].url : ''));
+                                  }}
+                                  className={`px-2.5 sm:px-3 py-1.5 font-bold text-[11px] rounded-lg sm:rounded-xl border transition cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                                    assignmentStatusFilter === 'new'
+                                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 text-white border-transparent shadow-xs font-black'
+                                      : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                                  }`}
+                                  title="মূল্যায়ন ও এডিট করুন"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                  <span>{assignmentStatusFilter === 'new' ? 'মূল্যায়ন ও এডিট' : 'এডিট'}</span>
+                                </button>
 
-                                {assignmentStatusFilter === 'review' && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => updateSubmissionStatus(sub.id, 'submitted')}
-                                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer"
-                                    >
-                                      নতুন তালিকায় ফেরত
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedSubmission(sub);
-                                        setGradePoints(asgn?.totalPoints || 50);
-                                        setGradeFeedback('পর্যালোচনা সম্পন্ন! দারুণ পারফরম্যান্স।');
-                                      }}
-                                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 active:scale-95"
-                                    >
-                                      <Award className="w-4 h-4 text-white" />
-                                      <span>✍️ মূল্যায়ন ও মার্কস দিন</span>
-                                    </button>
-                                  </>
-                                )}
+                                {/* 2. Again / Redo Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAgainModalSub(sub);
+                                    const defaultLesson = asgn?.lessonNo || asgn?.title?.match(/লেসন\s*\d+|Lesson\s*\d+/i)?.[0] || 'লেসন নং ১';
+                                    setAgainLessonNo(defaultLesson);
+                                    setAgainReason('');
+                                  }}
+                                  className="px-2.5 sm:px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-[11px] rounded-lg sm:rounded-xl border border-amber-500/30 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                                  title="যে লেসনটি হয়নি সেটি আবার করার জন্য এগেইন পাঠান"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                  <span>এগেইন</span>
+                                </button>
 
-                                {assignmentStatusFilter === 'success' && (
-                                  <>
+                                {/* 3. Delete Button */}
+                                {deleteConfirmSubId === sub.id ? (
+                                  <div className="flex items-center gap-1 animate-fadeIn">
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setSelectedSubmission(sub);
-                                        setGradePoints(sub.points || asgn?.totalPoints || 50);
-                                        setGradeFeedback(sub.feedback || 'খুব ভালো কাজ!');
-                                      }}
-                                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer flex items-center gap-1"
+                                      onClick={() => handleDeleteSubmission(sub.id)}
+                                      className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] rounded-lg transition cursor-pointer"
                                     >
-                                      <span>✏️ পুনর্মূল্যায়ন</span>
+                                      হ্যাঁ, মুছুন
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setActiveTabState('completed');
-                                      }}
-                                      className="px-4 py-2 bg-[#1DB954] hover:bg-emerald-600 text-white font-black text-xs rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                                      onClick={() => setDeleteConfirmSubId(null)}
+                                      className="px-2 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] rounded-lg font-bold"
                                     >
-                                      <CheckCircle2 className="w-4 h-4 text-white" />
-                                      <span>📜 সার্টিফিকেট তৈরি</span>
+                                      বাতিল
                                     </button>
-                                  </>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteConfirmSubId(sub.id)}
+                                    className="p-1.5 sm:px-2.5 sm:py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-[11px] rounded-lg sm:rounded-xl border border-rose-500/30 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                                    title="সাবমিশনটি ডিলিট করুন"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                    <span className="hidden sm:inline">ডিলিট</span>
+                                  </button>
                                 )}
                               </div>
                             </div>
@@ -2114,79 +2384,197 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   <p className="text-xs text-slate-400">এখনো কোনো কাজ মূল্যায়িত হয়নি। 'জমা কাজ' ট্যাব থেকে কাজ চেক করে মূল্যায়ন সম্পন্ন করুন।</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5">
                   {totalGraded.map(sub => {
                     const asgn = assignments.find(a => a.id === sub.assignmentId);
+                    const lessonInfo = getAssignmentLessonInfo(asgn);
                     return (
                       <div
                         key={sub.id}
-                        className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border-2 border-emerald-500/30 shadow-md space-y-4 flex flex-col justify-between"
+                        className="relative overflow-hidden bg-gradient-to-b from-white via-slate-50/60 to-slate-50/20 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 border-l-[5px] border-l-[#1DB954] shadow-xs hover:shadow-md transition-all p-3.5 sm:p-4 text-slate-800 dark:text-slate-100 flex flex-col justify-between gap-3"
                       >
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-start gap-2">
-                            <span className="px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-300 text-[11px] font-black border border-teal-500/20">
-                              {asgn?.courseTitle || 'সাধারণ কোর্স'}
-                            </span>
-                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[11px] font-black border border-emerald-500/20 flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> সফল ও মূল্যায়িত
-                            </span>
-                          </div>
-
-                          <div>
-                            <h4 className="font-extrabold text-base text-slate-900 dark:text-white">
-                              {asgn?.title || 'কোর্স অ্যাসাইনমেন্ট'}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-black text-xs flex items-center justify-center">
+                        {/* Row 1: Student Profile, ID & Status Badge */}
+                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="relative shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-black text-xs flex items-center justify-center ring-2 ring-emerald-500 shadow-xs">
                                 {sub.studentName?.charAt(0) || 'S'}
                               </div>
-                              <span className="font-bold text-xs text-slate-800 dark:text-slate-200">{sub.studentName}</span>
-                              <span className="text-[10px] text-slate-400 font-mono">({sub.studentEmail})</span>
+                              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs sm:text-[13px] font-black text-slate-900 dark:text-white truncate">
+                                  {sub.studentName}
+                                </span>
+                                <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-[#1DB954] shrink-0" />
+                              </div>
+                              <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-bold block leading-none truncate">
+                                {sub.studentEmail || 'শিক্ষার্থী'} • {sub.submittedAt || 'আজ'}
+                              </span>
                             </div>
                           </div>
 
-                          {/* Points badge & feedback box */}
-                          <div className="bg-emerald-500/5 dark:bg-slate-800/80 p-3.5 rounded-2xl border border-emerald-500/20 space-y-2">
-                            <div className="flex justify-between items-center text-xs">
-                              <span className="font-bold text-slate-700 dark:text-slate-300">প্রাপ্ত নম্বর / মার্কস:</span>
-                              <span className="px-3 py-1 bg-emerald-500 text-white font-black rounded-lg text-xs shadow-xs">
-                                ✓ {sub.points} / {asgn?.totalPoints || 50} পয়েন্ট ({Math.round(((sub.points || 50) / (asgn?.totalPoints || 50)) * 100)}%)
-                              </span>
-                            </div>
-                            {sub.feedback && (
-                              <div className="pt-2 border-t border-emerald-500/15 text-xs text-slate-600 dark:text-slate-300">
-                                <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 block mb-0.5">মেন্টর ফিডব্যাক:</span>
-                                <p className="italic">"{sub.feedback}"</p>
-                              </div>
-                            )}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[9px] sm:text-[10px] font-bold rounded-md border border-slate-200 dark:border-slate-700">
+                              #{sub.id.slice(-5).toUpperCase()}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-[#1DB954] flex items-center gap-1 shadow-2xs">
+                              <CheckCircle2 className="w-3 h-3 shrink-0" />
+                              <span>সফল ও মূল্যায়িত</span>
+                            </span>
                           </div>
                         </div>
 
-                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-                          <button
-                            onClick={() => {
-                              setSelectedSubmission(sub);
-                              setGradePoints(sub.points || 50);
-                              setGradeFeedback(sub.feedback || '');
-                            }}
-                            className="py-1.5 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition flex items-center gap-1 cursor-pointer"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                            <span>রি-ইভ্যালুয়েশন / এডিট</span>
-                          </button>
+                        {/* Row 2: Prominent Lesson Number & Assigned Task Details */}
+                        <div className="p-3 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 space-y-2">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="px-2.5 py-0.5 rounded-lg bg-emerald-600 text-white text-[10px] sm:text-[11px] font-black flex items-center gap-1 shadow-2xs">
+                                <BookOpen className="w-3 h-3 shrink-0" />
+                                <span>{lessonInfo.lessonNo}</span>
+                              </span>
+                              <span className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-md text-[10px] sm:text-[11px] font-bold truncate max-w-[180px]">
+                                {asgn?.courseTitle || 'কোর্স প্রজেক্ট'}
+                              </span>
+                            </div>
+                            <span className="px-2 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-md text-[10px] sm:text-[11px] font-black flex items-center gap-1 shrink-0">
+                              <Award className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
+                              <span>{asgn?.totalPoints || 50} মার্কস</span>
+                            </span>
+                          </div>
 
-                          <button
-                            onClick={() => {
-                              setCertStudentId(sub.studentId || 'stu-demo-1');
-                              if (sub.courseId) setCertCourseId(sub.courseId);
-                              const certElem = document.getElementById('cert-issue-form');
-                              if (certElem) certElem.scrollIntoView({ behavior: 'smooth' });
-                            }}
-                            className="py-1.5 px-3 bg-[#1DB954] hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1 cursor-pointer"
-                          >
-                            <Award className="w-3.5 h-3.5" />
-                            <span>সার্টিফিকেট দিন</span>
-                          </button>
+                          {/* Task Title & What was assigned */}
+                          <div className="space-y-1 pt-0.5">
+                            <div className="text-xs font-black text-slate-900 dark:text-white leading-snug">
+                              {asgn?.title || lessonInfo.taskTitle}
+                            </div>
+                            <div className="p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-[11px] leading-relaxed">
+                              <span className="font-black text-emerald-700 dark:text-emerald-400 block text-[10px] mb-0.5">
+                                📋 যে কাজটি করতে দেওয়া হয়েছে (টাস্ক বিবরণী):
+                              </span>
+                              <p className="text-slate-700 dark:text-slate-300 font-medium">
+                                {asgn?.description || lessonInfo.taskDesc}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Row 3: Evaluation Stats Box */}
+                        <div className="grid grid-cols-2 gap-2 p-2 sm:p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs">
+                              <Award className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold block leading-none">অর্জিত স্কোর</span>
+                              <span className="text-xs sm:text-sm font-black font-mono text-emerald-600 dark:text-[#1DB954] leading-tight">
+                                {sub.points || 50} / {asgn?.totalPoints || 50}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="border-l border-dashed border-slate-300 dark:border-slate-700 pl-2.5 flex items-center justify-between">
+                            <div>
+                              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold block leading-none">গ্রেডিং অবস্থা</span>
+                              <span className="text-xs sm:text-sm font-black text-emerald-600 dark:text-[#1DB954] leading-tight">
+                                পাস ({Math.round(((sub.points || 50) / (asgn?.totalPoints || 50)) * 100)}%)
+                              </span>
+                            </div>
+                            <span className="hidden sm:inline-block px-1.5 py-0.5 text-[8px] font-black rounded bg-emerald-600 text-white">
+                              উত্তীর্ণ
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Row 3.5: Student Solution and Mentor Feedback */}
+                        {sub.submissionText && (
+                          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2 text-[11px] text-slate-700 dark:text-slate-300">
+                            <MessageSquare className="w-3.5 h-3.5 text-teal-500 shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <span className="font-bold text-slate-800 dark:text-slate-200 block text-[10px] mb-0.5 text-teal-600 dark:text-teal-400">
+                                📤 শিক্ষার্থীর সমাধান / লিখিত নোট:
+                              </span>
+                              <p className="italic line-clamp-2 leading-snug">"{sub.submissionText}"</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {sub.feedback && (
+                          <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-500/20 flex items-start gap-1.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                            <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                            <p className="italic line-clamp-2 leading-tight font-medium">মন্তব্য: "{sub.feedback}"</p>
+                          </div>
+                        )}
+
+                        {/* Row 4: Footer with Actions (Edit, Again & Delete - Clean Single Icons) */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                          <span className="text-[10px] text-slate-400 font-medium truncate">
+                            জমা: {sub.submittedAt || 'আজ'}
+                          </span>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {/* Edit Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSubmission(sub);
+                                setGradePoints(sub.points || asgn?.totalPoints || 50);
+                                setGradeFeedback(sub.feedback || 'খুব ভালো কাজ!');
+                                setGradeLinkUrl(sub.linkUrl || '');
+                              }}
+                              className="px-2.5 sm:px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px] rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                              title="মূল্যায়ন এডিট করুন"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>এডিট</span>
+                            </button>
+
+                            {/* Again Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAgainModalSub(sub);
+                                const defaultLesson = asgn?.lessonNo || asgn?.title?.match(/লেসন\s*\d+|Lesson\s*\d+/i)?.[0] || 'লেসন নং ১';
+                                setAgainLessonNo(defaultLesson);
+                                setAgainReason('');
+                              }}
+                              className="px-2.5 sm:px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-[11px] rounded-lg sm:rounded-xl border border-amber-500/30 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                              title="যে লেসনটি হয়নি সেটি আবার করার জন্য এগেইন পাঠান"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                              <span>এগেইন</span>
+                            </button>
+
+                            {/* Delete Button */}
+                            {deleteConfirmSubId === sub.id ? (
+                              <div className="flex items-center gap-1 animate-fadeIn">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteSubmission(sub.id)}
+                                  className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] rounded-lg transition cursor-pointer"
+                                >
+                                  হ্যাঁ, মুছুন
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteConfirmSubId(null)}
+                                  className="px-2 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] rounded-lg font-bold"
+                                >
+                                  বাতিল
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setDeleteConfirmSubId(sub.id)}
+                                className="p-1.5 sm:px-2.5 sm:py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-[11px] rounded-lg sm:rounded-xl border border-rose-500/30 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                                title="সাবমিশনটি ডিলিট করুন"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                                <span className="hidden sm:inline">ডিলিট</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -3165,132 +3553,392 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           );
         })()}
 
-        {/* MODAL: VIEW & GRADE SUBMISSION */}
-        {selectedSubmission && (
-          <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto font-bengali">
-            <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 sm:p-8 rounded-3xl max-w-xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-6 my-auto max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-4">
-                <div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-[#1DB954] text-[10px] font-extrabold border border-emerald-500/20">
-                    শিক্ষার্থীর উত্তরপত্র মূল্যায়ন ও গ্রেডিং
-                  </span>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white mt-1 flex items-center gap-2">
-                    <User className="w-5 h-5 text-[#1DB954]" />
-                    {selectedSubmission.studentName}
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {selectedSubmission.studentEmail} • জমা দেওয়ার সময়: {selectedSubmission.submittedAt}
+        {/* MODAL: VIEW & GRADE / EDIT SUBMISSION */}
+        {selectedSubmission && (() => {
+          const asgn = assignments.find(a => a.id === selectedSubmission.assignmentId);
+          const lessonInfo = getAssignmentLessonInfo(asgn);
+          const progress = getStudentCourseProgress(selectedSubmission.studentId, selectedSubmission.studentEmail, selectedSubmission.assignmentId);
+          const links = getSubmissionLinks(selectedSubmission);
+
+          return (
+            <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto font-bengali">
+              <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 sm:p-8 rounded-3xl max-w-xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5 my-auto max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-[#1DB954] text-[10px] font-extrabold border border-emerald-500/20">
+                      শিক্ষার্থীর উত্তরপত্র মূল্যায়ন ও এডিট
+                    </span>
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white mt-1 flex items-center gap-2">
+                      <User className="w-5 h-5 text-[#1DB954]" />
+                      {selectedSubmission.studentName}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {selectedSubmission.studentEmail} • কোর্স: <span className="text-teal-600 dark:text-teal-400 font-bold">{asgn?.courseTitle || 'কোর্স প্রজেক্ট'}</span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedSubmission(null)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl bg-slate-100 dark:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Assigned Lesson & Task Information Box */}
+                <div className="p-3.5 bg-indigo-50/80 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200/80 dark:border-indigo-800/60 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-lg bg-indigo-600 text-white text-[11px] font-black flex items-center gap-1 shadow-2xs">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>{lessonInfo.lessonNo}</span>
+                      </span>
+                      <span className="text-xs font-black text-slate-900 dark:text-white">
+                        {asgn?.title || lessonInfo.taskTitle}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-black text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/60 px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-800">
+                      মোট পয়েন্ট: {asgn?.totalPoints || 50}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900/50 text-xs leading-relaxed">
+                    <span className="font-bold text-indigo-700 dark:text-indigo-300 block mb-0.5 text-[11px]">
+                      📋 যে কাজটি করতে দেওয়া হয়েছে (টাস্ক নির্দেশনা):
+                    </span>
+                    <p className="text-slate-700 dark:text-slate-300 font-medium">
+                      {asgn?.description || lessonInfo.taskDesc}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Course Tasks Progress Tracker */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/70 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-teal-500" />
+                      <span>শিক্ষার্থীর কোর্সের টাস্ক অগ্রগতি:</span>
+                      <span className="font-mono font-black text-teal-600 dark:text-teal-400">
+                        {progress.completedTasks} / {progress.totalTasks} টাস্ক সম্পন্ন
+                      </span>
+                    </span>
+                    <span className={`text-[11px] font-black ${
+                      progress.isAllCompleted ? 'text-[#1DB954]' : 'text-amber-600 dark:text-amber-400'
+                    }`}>
+                      {progress.isAllCompleted ? '🎉 সব টাস্ক সম্পন্ন (সাকসেস)' : `⏳ আরও ${progress.remainingTasks}টি টাস্ক বাকি`}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        progress.isAllCompleted ? 'bg-[#1DB954]' : 'bg-gradient-to-r from-amber-500 to-indigo-500'
+                      }`}
+                      style={{ width: `${progress.progressPercent}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                    💡 টিচারের দেখার পর যদি টাস্ক বাকি থাকে তাহলে 'রিভিউ' তালিকায় থাকবে, আর সব টাস্ক সম্পন্ন হলে স্বয়ংক্রিয়ভাবে 'সাকসেস' তালিকায় যাবে।
                   </p>
                 </div>
-                <button
-                  onClick={() => setSelectedSubmission(null)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl bg-slate-100 dark:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              {/* Student Response Content Section */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-[#1DB954]" /> শিক্ষার্থীর লিখিত উত্তর / নোট:
-                </h4>
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-medium whitespace-pre-wrap">
-                  {selectedSubmission.submissionText || 'কোনো লিখিত নোট প্রদান করা হয়নি।'}
-                </div>
+                {/* Student Response Content Section */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-[#1DB954]" /> শিক্ষার্থীর লিখিত উত্তর / বিবরণ:
+                  </h4>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-medium whitespace-pre-wrap">
+                    {selectedSubmission.submissionText || 'কোনো লিখিত নোট প্রদান করা হয়নি।'}
+                  </div>
 
-                {/* Submitted File / Audio / Document Section */}
-                {selectedSubmission.fileName || selectedSubmission.fileUrl ? (
-                  <div className="p-4 bg-emerald-500/10 dark:bg-slate-800 rounded-2xl border border-emerald-500/30 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Paperclip className="w-4 h-4 text-[#1DB954] shrink-0" />
-                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                          {selectedSubmission.fileName || 'সংযুক্ত ফাইল/নোট'}
-                        </span>
+                  {/* Submitted File / Audio / Document Section */}
+                  {selectedSubmission.fileName || selectedSubmission.fileUrl ? (
+                    <div className="p-4 bg-emerald-500/10 dark:bg-slate-800 rounded-2xl border border-emerald-500/30 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Paperclip className="w-4 h-4 text-[#1DB954] shrink-0" />
+                          <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                            {selectedSubmission.fileName || 'সংযুক্ত ফাইল/নোট'}
+                          </span>
+                        </div>
+                        {selectedSubmission.fileUrl && (
+                          <a
+                            href={selectedSubmission.fileUrl}
+                            download={selectedSubmission.fileName || 'submission_file'}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 bg-[#1DB954] hover:bg-emerald-600 text-white font-bold text-xs rounded-xl transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>ডাউনলোড / দেখুন</span>
+                          </a>
+                        )}
                       </div>
-                      {selectedSubmission.fileUrl && (
-                        <a
-                          href={selectedSubmission.fileUrl}
-                          download={selectedSubmission.fileName || 'submission_file'}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1.5 bg-[#1DB954] hover:bg-emerald-600 text-white font-bold text-xs rounded-xl transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>ডাউনলোড / দেখুন</span>
-                        </a>
+
+                      {/* Audio Preview if audio data */}
+                      {selectedSubmission.fileUrl && (selectedSubmission.fileUrl.startsWith('data:audio') || selectedSubmission.fileName?.match(/\.(mp3|wav|m4a|ogg)$/i)) && (
+                        <div className="pt-2">
+                          <audio src={selectedSubmission.fileUrl} controls className="w-full h-9 rounded-lg" />
+                        </div>
                       )}
                     </div>
+                  ) : null}
 
-                    {/* Audio Preview if audio data */}
-                    {selectedSubmission.fileUrl && (selectedSubmission.fileUrl.startsWith('data:audio') || selectedSubmission.fileName?.match(/\.(mp3|wav|m4a|ogg)$/i)) && (
-                      <div className="pt-2">
-                        <audio src={selectedSubmission.fileUrl} controls className="w-full h-9 rounded-lg" />
+                  {/* Live / External links */}
+                  {links.length > 0 && (
+                    <div className="space-y-1.5">
+                      <h5 className="text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                        <Globe className="w-3.5 h-3.5 text-teal-500" /> সংযুক্ত প্রজেক্ট লিংকসমূহ:
+                      </h5>
+                      <div className="flex flex-wrap gap-2">
+                        {links.map((lnk, i) => (
+                          <a
+                            key={i}
+                            href={lnk.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-xl text-xs font-bold flex items-center gap-1.5 transition"
+                          >
+                            <Globe className="w-3.5 h-3.5 text-teal-500" />
+                            <span>{lnk.title}</span>
+                            <ExternalLink className="w-3 h-3 ml-1 text-teal-400" />
+                          </a>
+                        ))}
                       </div>
-                    )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Grading & Edit Form */}
+                <form onSubmit={handleGradeSubmit} className="bg-slate-50 dark:bg-slate-800/80 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+                  <h4 className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-amber-500" /> পয়েন্ট প্রদান ও ইনস্ট্রাক্টর মার্কস
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        প্রাপ্ত নম্বর (পয়েন্ট) *
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={asgn?.totalPoints || 100}
+                        required
+                        value={gradePoints}
+                        onChange={e => setGradePoints(Number(e.target.value))}
+                        className="w-full p-2.5 sm:p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:border-[#1DB954]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        ফাইল / লাইভ প্রজেক্ট লিংক (ঐচ্ছিক)
+                      </label>
+                      <input
+                        type="url"
+                        value={gradeLinkUrl}
+                        onChange={e => setGradeLinkUrl(e.target.value)}
+                        placeholder="https://github.com/... বা লিংক"
+                        className="w-full p-2.5 sm:p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#1DB954]"
+                      />
+                    </div>
                   </div>
-                ) : (
-                  <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-2">
-                    <Paperclip className="w-4 h-4 shrink-0" />
-                    <span>শিক্ষার্থী কোনো আলাদা ফাইল বা ভয়েস রেকর্ড সংযুক্ত করেনি।</span>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      ইনস্ট্রাক্টর মন্তব্য / ফিডব্যাক
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={gradeFeedback}
+                      onChange={e => setGradeFeedback(e.target.value)}
+                      placeholder="শিক্ষার্থীর মূল্যায়নের ওপর শিক্ষক হিসেবে আপনার মন্তব্য বা পরামর্শ লিখুন..."
+                      className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#1DB954]"
+                    />
                   </div>
-                )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSubmission(selectedSubmission.id)}
+                        className="py-2.5 sm:py-3 px-3 sm:px-4 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-xl border border-rose-500/30 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>ডিলিট</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const subToAgain = selectedSubmission;
+                          setSelectedSubmission(null);
+                          setAgainModalSub(subToAgain);
+                          const defaultLesson = asgn?.lessonNo || asgn?.title?.match(/লেসন\s*\d+|Lesson\s*\d+/i)?.[0] || 'লেসন নং ১';
+                          setAgainLessonNo(defaultLesson);
+                          setAgainReason('');
+                        }}
+                        className="py-2.5 sm:py-3 px-3 sm:px-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-xs rounded-xl border border-amber-500/30 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                      >
+                        <RotateCcw className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        <span>এগেইন পাঠান</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-1 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSubmission(null)}
+                        className="py-2.5 sm:py-3 px-3 sm:px-4 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+                      >
+                        বাতিল
+                      </button>
+                      <button
+                        type="submit"
+                        className="py-2.5 sm:py-3 px-4 sm:px-5 bg-[#1DB954] hover:bg-emerald-600 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        <span>মূল্যায়ন সংরক্ষণ করুন</span>
+                      </button>
+                    </div>
+                  </div>
+                </form>
               </div>
-
-              {/* Grading Form */}
-              <form onSubmit={handleGradeSubmit} className="bg-slate-50 dark:bg-slate-800/80 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
-                <h4 className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
-                  <Award className="w-4 h-4 text-amber-500" /> পয়েন্ট প্রদান ও ইনস্ট্রাক্টর মার্কস
-                </h4>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    প্রাপ্ত নম্বর (পয়েন্ট) *
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={gradePoints}
-                    onChange={e => setGradePoints(Number(e.target.value))}
-                    className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:border-[#1DB954]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    ইনস্ট্রাক্টর মন্তব্য / ফিডব্যাক
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={gradeFeedback}
-                    onChange={e => setGradeFeedback(e.target.value)}
-                    placeholder="শিক্ষার্থীর মূল্যায়নের ওপর শিক্ষক হিসেবে আপনার মন্তব্য বা পরামর্শ লিখুন..."
-                    className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:outline-none focus:border-[#1DB954]"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSubmission(null)}
-                    className="flex-1 py-3 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
-                  >
-                    বাতিল
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 py-3 bg-[#1DB954] hover:bg-emerald-600 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    <span>মূল্যায়ন সংরক্ষণ করুন</span>
-                  </button>
-                </div>
-              </form>
             </div>
-          </div>
-        )}
+          );
+        })()}
+
+        {/* AGAIN / REDO LESSON MODAL (যে লেসনটি হয়নি সেটি আবার করার জন্য) */}
+        {againModalSub && (() => {
+          const asgn = assignments.find(a => a.id === againModalSub.assignmentId);
+          const lessonInfo = getAssignmentLessonInfo(asgn);
+          const targetCourse = courses.find(c => c.id === asgn?.courseId);
+          
+          // Generate list of lessons for quick selection
+          const courseLessons = targetCourse?.modules?.flatMap(m => m.lessons) || [];
+          const lessonOptions = courseLessons.length > 0 
+            ? courseLessons.map((l, i) => `লেসন নং ${i + 1}: ${l.title}`)
+            : ['লেসন নং ১', 'লেসন নং ২', 'লেসন নং ৩', 'লেসন নং ৪', 'লেসন নং ৫', 'লেসন নং ৬'];
+
+          return (
+            <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto font-bengali">
+              <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 sm:p-8 rounded-3xl max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5 my-auto">
+                <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
+                      <RotateCcw className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                        লেসন পুনরায় করার জন্য 'এগেইন' পাঠান
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        শিক্ষার্থী: <span className="font-bold text-slate-800 dark:text-slate-200">{againModalSub.studentName}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setAgainModalSub(null)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl bg-slate-100 dark:bg-slate-800 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSendAgainRequest} className="space-y-4">
+                  {/* Target Course & Assignment Banner */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/70 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between gap-1 text-slate-500 dark:text-slate-400 font-bold">
+                      <span>কোর্স ও বর্তমান টাস্ক:</span>
+                      <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black">
+                        {lessonInfo.lessonNo}
+                      </span>
+                    </div>
+                    <div className="font-black text-slate-900 dark:text-white">{asgn?.courseTitle || 'কোর্স'}</div>
+                    <div className="text-teal-600 dark:text-teal-400 font-semibold">{asgn?.title || lessonInfo.taskTitle}</div>
+                    <div className="text-[11px] text-slate-600 dark:text-slate-300 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                      <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">টাস্ক নির্দেশনা:</span>
+                      {asgn?.description || lessonInfo.taskDesc}
+                    </div>
+                  </div>
+
+                  {/* Lesson Number Selection */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                      <BookOpen className="w-4 h-4 text-amber-500" />
+                      <span>কোন লেসন নং হয়নি / পুনরায় করতে হবে? *</span>
+                    </label>
+                    <select
+                      value={againLessonNo}
+                      onChange={e => setAgainLessonNo(e.target.value)}
+                      className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
+                    >
+                      {lessonOptions.map((opt, idx) => (
+                        <option key={idx} value={opt}>{opt}</option>
+                      ))}
+                      <option value="সম্পূর্ণ অ্যাসাইনমেন্ট">সম্পূর্ণ অ্যাসাইনমেন্ট</option>
+                    </select>
+                  </div>
+
+                  {/* Quick Preset Reasons */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                      কুইক রিজন / কারণ সিলেক্ট করুন:
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        'অডিও ফ্লুয়েন্সি ও প্রোনাউন্সিয়েশন সঠিক হয়নি',
+                        'কোডে সিনট্যাক্স এরর ও রেসপনসিভনেস মিসিং',
+                        'রিকোয়ারমেন্ট অনুযায়ী সম্পূর্ণ ফাইল যুক্ত হয়নি',
+                        'ফাইল করাপ্ট বা ওপেন হচ্ছে না'
+                      ].map((reasonText, rIdx) => (
+                        <button
+                          key={rIdx}
+                          type="button"
+                          onClick={() => setAgainReason(reasonText)}
+                          className="px-2.5 py-1 text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/10 hover:text-amber-600 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium transition cursor-pointer"
+                        >
+                          + {reasonText}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Reason / Custom Notes */}
+                  <div>
+                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
+                      শিক্ষার্থীর জন্য সংশোধনের বিস্তারিত নোট / মন্তব্য *
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={againReason}
+                      onChange={e => setAgainReason(e.target.value)}
+                      placeholder="শিক্ষার্থী কোন বিষয়টি সঠিকভাবে সম্পন্ন করেনি এবং কীভাবে আবার করতে হবে তা লিখুন..."
+                      className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setAgainModalSub(null)}
+                      className="py-2.5 px-4 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-xs rounded-xl transition cursor-pointer"
+                    >
+                      বাতিল
+                    </button>
+                    <button
+                      type="submit"
+                      className="py-2.5 px-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>এগেইন পাঠান (পুনরায় করার নির্দেশ)</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          );
+        })()}
 
 
 
