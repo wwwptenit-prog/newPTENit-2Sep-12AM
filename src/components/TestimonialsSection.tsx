@@ -29,9 +29,6 @@ export const TestimonialsSection: React.FC = () => {
       <div className="max-w-[1920px] mx-auto px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 space-y-6 sm:space-y-10">
         
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto gap-2.5 sm:gap-4">
-          <span className="inline-flex items-center gap-1.5 text-[#1DB954] font-bold text-xs uppercase tracking-widest bg-[#1DB954]/10 px-3 py-1 rounded-full border border-[#1DB954]/20">
-            {t('সাকসেস স্টোরি', 'Success Stories')}
-          </span>
           <h2 className="text-2xl sm:text-4xl font-black font-bengali text-slate-900 dark:text-white leading-tight">
             {t('আমাদের শিক্ষার্থী ও ক্লায়েন্টদের মতামত', 'Student & Client Reviews')}
           </h2>

@@ -55,9 +55,6 @@ export const WhyChooseUs: React.FC = () => {
       <div className="max-w-[1920px] mx-auto px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
         
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto mb-8 sm:mb-10 gap-2.5 sm:gap-3">
-          <span className="inline-flex items-center gap-1.5 text-[#1DB954] font-bold text-xs uppercase tracking-widest bg-[#1DB954]/10 px-3 py-1 rounded-full border border-[#1DB954]/20">
-            {t('কেন PTENit', 'Why Choose PTENit')}
-          </span>
           <h2 className="text-2xl sm:text-4xl font-black font-bengali text-slate-900 dark:text-white leading-tight">
             {t('কেন PTENit নির্বাচন করবেন?', 'Why Choose PTENit?')}
           </h2>

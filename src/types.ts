@@ -163,6 +163,20 @@ export interface Course {
   isPublicOffer?: boolean;
   liveSchedule?: string;
   batch?: string;
+  liveClassLink?: string;
+  liveClassPlatform?: 'google_meet' | 'zoom' | 'youtube' | 'teams' | 'custom';
+  liveClassTopic?: string;
+  liveClassDate?: string;
+  liveClassTime?: string;
+  liveClassModuleId?: string;
+  liveClassLessonId?: string;
+  liveClassModuleNo?: string;
+  liveClassModuleTitle?: string;
+  liveClassLessonNo?: string;
+  liveClassLessonTitle?: string;
+  liveClassSerialNo?: string;
+  liveClassNote?: string;
+  liveClassStatus?: 'scheduled' | 'live_now' | 'completed' | 'cancelled';
 }
 
 export interface Service {
@@ -193,9 +207,10 @@ export interface Enrollment {
   progress: number; // 0 to 100
   completedLessons: string[]; // lessonIds
   enrolledAt: string;
-  status: 'active' | 'completed';
+  status: 'active' | 'completed' | 'pending' | 'cancelled';
   certificateIssued: boolean;
   certificateId?: string;
+  orderId?: string;
 }
 
 export interface Certificate {
@@ -263,7 +278,7 @@ export interface PaymentOrder {
   paymentMethod: 'bKash' | 'Nagad' | 'Rocket' | 'SSLCommerz';
   transactionId: string;
   senderPhone: string;
-  status: 'Pending' | 'Paid' | 'Failed' | 'Cancelled';
+  status: 'Pending' | 'Paid' | 'Approved' | 'Failed' | 'Cancelled' | 'Rejected';
   createdAt: string;
 }
 
@@ -302,7 +317,23 @@ export interface SiteSettings {
   instagramUrl: string;
   linkedinUrl: string;
   logoUrl?: string;
+  marketplaceLogoUrl?: string;
+  // Logo & Branding Settings
+  logoMode?: 'box_text' | 'text_only' | 'image';
+  showLogoBox?: boolean;
+  logoBoxLetter?: string;
+  logoTextMain?: string;
+  logoTextHighlight?: string;
+  logoSubtitle?: string;
+  marketplaceLogoSubtitle?: string;
   heroBannerUrl?: string;
+  // Hero Visual Customization (Code Mockup vs Glowing Photo Showcase)
+  heroVisualType?: 'photo' | 'code_mockup';
+  heroPhotoUrl?: string;
+  heroPhotoTitle?: string;
+  heroPhotoSubtitle?: string;
+  heroPhotoBadge?: string;
+  heroPhotoGlowColor?: 'emerald' | 'cyan' | 'purple' | 'amber';
   bkashNumber?: string;
   nagadNumber?: string;
   rocketNumber?: string;
@@ -311,6 +342,20 @@ export interface SiteSettings {
   bankAccountNumber?: string;
   bankBranch?: string;
   paymentLogos?: PaymentMethodItem[];
+  // Payment Automation Gateway Settings
+  paymentAutomationMode?: 'manual' | 'automated'; // 'manual' = Admin TrxID verification, 'automated' = Instant Gateway API
+  selectedGateway?: 'bkash_pgw' | 'sslcommerz' | 'aamarpay' | 'shurjopay';
+  gatewaySandboxMode?: boolean; // true = testing/sandbox, false = live production
+  // bKash Merchant PGW API
+  bkashAppKey?: string;
+  bkashAppSecret?: string;
+  bkashUsername?: string;
+  bkashPassword?: string;
+  // SSLCommerz / AamarPay / Shurjopay
+  gatewayStoreId?: string;
+  gatewayStorePassword?: string;
+  // Automation Preferences
+  autoApproveOnGatewaySuccess?: boolean; // auto-activate course immediately on gateway success
   enableMoneyBackGuarantee?: boolean;
   moneyBackGuaranteeDays?: number;
   moneyBackGuaranteeText?: string;
@@ -369,7 +414,8 @@ export interface NotificationItem {
   time: string;
   read: boolean;
   type: 'info' | 'success' | 'warning' | 'error';
-  category?: 'seller' | 'mentor' | 'message' | 'payout' | 'system';
+  category?: 'seller' | 'mentor' | 'message' | 'payout' | 'system' | 'buyer' | 'course';
+  recipientRole?: 'seller' | 'buyer' | 'all';
   targetTab?: string;
   targetId?: string;
   senderName?: string;
@@ -391,7 +437,7 @@ export interface DirectMessageItem {
   senderName: string;
   senderRole?: string;
   senderAvatar?: string;
-  recipientRole?: 'customer' | 'instructor' | 'admin' | 'all';
+  recipientRole?: 'customer' | 'instructor' | 'admin' | 'all' | 'seller' | 'buyer';
   text: string;
   time: string;
   read: boolean;
@@ -617,4 +663,31 @@ export interface DigitalProduct {
   demoUrl?: string;
   createdAt?: string;
 }
+
+export interface LiveClassSession {
+  id: string;
+  courseId: string;
+  courseTitle: string;
+  instructorId?: string;
+  instructorName?: string;
+  topic: string;
+  moduleNo: string;
+  moduleTitle?: string;
+  lessonNo: string;
+  lessonTitle?: string;
+  serialNo: string;
+  classSerialNo?: string;
+  date: string; // "YYYY-MM-DD"
+  time: string; // "HH:mm"
+  durationMinutes?: number; // default 90 minutes
+  meetLink: string;
+  meetingLink?: string;
+  platform?: 'google_meet' | 'zoom' | 'youtube' | 'custom';
+  note?: string;
+  specialNotes?: string;
+  thumbnail?: string;
+  courseThumbnail?: string;
+  createdAt: string;
+}
+
 

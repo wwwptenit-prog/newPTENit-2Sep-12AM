@@ -382,10 +382,6 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         <div className="space-y-6 sm:space-y-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
             <div className="space-y-1.5 text-center sm:text-left flex flex-col items-center sm:items-start">
-              <span className="inline-flex items-center gap-1.5 text-[#1DB954] font-bold text-xs uppercase tracking-widest bg-[#1DB954]/10 px-3 py-1 rounded-full border border-[#1DB954]/20">
-                <BadgeCheck className="w-4 h-4 text-[#1DB954]" />
-                {t('প্রফেশনাল আইটি সলিউশন', 'Professional IT Solutions')}
-              </span>
               <h2 className="text-2xl sm:text-3xl font-black font-bengali text-slate-900 dark:text-white leading-tight">
                 {t('আমাদের অফিশিয়াল এজেন্সি প্যাকেজসমূহ', 'Our Official Agency Packages')}
               </h2>

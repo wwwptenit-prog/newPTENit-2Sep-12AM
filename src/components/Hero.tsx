@@ -11,26 +11,16 @@ export const Hero: React.FC<HeroProps> = ({ setActiveTab }) => {
   const { siteSettings, t } = useData();
 
   return (
-    <div className="relative bg-gradient-to-b from-[#142B4D] via-[#10223E] to-[#142B4D] text-white py-10 sm:py-14 lg:py-16 overflow-hidden border-b border-slate-800">
+    <div className="relative bg-gradient-to-b from-[#142B4D] via-[#10223E] to-[#142B4D] text-white pt-8 sm:pt-12 lg:pt-14 pb-0 overflow-hidden border-b border-slate-800">
       {/* Abstract Glowing Background Orbs */}
       <div className="absolute top-1/4 left-10 w-96 h-96 bg-[#1DB954]/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-end">
           
           {/* Left Text Column */}
-          <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1DB954]/15 border border-[#1DB954]/40 text-[#1DB954] text-xs font-extrabold uppercase tracking-wider"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {t('প্রফেশনাল IT ও LMS প্ল্যাটফর্ম', 'Professional IT & LMS Platform')}
-            </motion.div>
-
+          <div className="lg:col-span-7 space-y-6 text-center lg:text-left pb-8 sm:pb-12 lg:pb-16">
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -101,95 +91,116 @@ export const Hero: React.FC<HeroProps> = ({ setActiveTab }) => {
             </motion.div>
           </div>
 
-          {/* Right Interactive Tech Graphics */}
-          <div className="lg:col-span-5 relative">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7 }}
-              className="relative mx-auto max-w-md lg:max-w-none"
-            >
-              {/* Glass Computer Mockup Container */}
-              <div className="bg-slate-900/90 rounded-2xl border border-slate-700/80 p-4 shadow-2xl shadow-emerald-950/50 backdrop-blur-md relative overflow-hidden">
-                {/* Browser Top Header */}
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-rose-500 inline-block" />
-                    <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
-                    <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
+          {/* Right Column: Model Image positioned flush to the bottom edge right against the Promotional Offer Banner */}
+          <div className="lg:col-span-5 relative flex items-end justify-center lg:justify-end self-end w-full">
+            {(() => {
+              const isCodeMockupMode = siteSettings.heroVisualType === 'code_mockup';
+              const photoUrl = siteSettings.heroPhotoUrl || siteSettings.heroBannerUrl || "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=1200&q=85";
+
+              if (!isCodeMockupMode) {
+                return (
+                  <div className="relative w-full flex items-end justify-center lg:justify-end self-end select-none">
+                    {/* Glowing Aura Backlight */}
+                    <div className="absolute top-1/4 right-4 sm:right-10 w-72 sm:w-96 h-72 sm:h-96 bg-gradient-to-tr from-[#1DB954]/20 via-emerald-500/15 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
+
+                    {/* Unboxed Model Image - Attached cleanly to the bottom edge */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.7, ease: "easeOut" }}
+                      className="relative w-full max-w-[420px] sm:max-w-[460px] lg:max-w-[500px] flex items-end self-end"
+                    >
+                      {/* Mask to blend smoothly on the left toward headline */}
+                      <div
+                        className="relative w-full overflow-visible"
+                        style={{
+                          WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 100%)',
+                          maskImage: 'linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 100%)'
+                        }}
+                      >
+                        <img
+                          src={photoUrl}
+                          alt="PTENit Career Model"
+                          className="w-full h-auto max-h-[440px] sm:max-h-[500px] lg:max-h-[560px] object-cover object-top origin-bottom block align-bottom"
+                          style={{
+                            filter: 'drop-shadow(0 15px 25px rgba(10, 25, 47, 0.6)) contrast(1.04) brightness(1.02)'
+                          }}
+                        />
+                      </div>
+
+                      {/* Soft Side Blending Gradient on the left */}
+                      <div className="absolute inset-y-0 left-0 w-20 sm:w-28 bg-gradient-to-r from-[#142B4D] via-[#142B4D]/70 to-transparent pointer-events-none" />
+                      <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-[#142B4D]/35 to-transparent pointer-events-none" />
+                    </motion.div>
                   </div>
-                  <span className="text-[11px] font-mono text-slate-400 bg-slate-800 px-3 py-1 rounded-md">
-                    https://ptenit.com/platform
-                  </span>
-                </div>
+                );
+              }
 
-                {/* Dashboard / Analytics Graphic Simulation */}
-                <div className="space-y-4">
-                  {/* Top Stats Banner */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 flex items-center gap-3">
-                      <div className="p-2.5 bg-[#1DB954]/20 rounded-lg text-[#1DB954]">
-                        <Code2 className="w-5 h-5" />
+              // Code Mockup fallback
+              return (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.7 }}
+                  className="relative mx-auto max-w-md lg:max-w-none"
+                >
+                  <div className="bg-slate-900/90 rounded-2xl border border-slate-700/80 p-4 shadow-2xl shadow-emerald-950/50 backdrop-blur-md relative overflow-hidden">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-rose-500 inline-block" />
+                        <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
+                        <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
                       </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400">Active Code Stack</p>
-                        <p className="text-sm font-bold text-white">React + Next.js</p>
-                      </div>
+                      <span className="text-[11px] font-mono text-slate-400 bg-slate-800 px-3 py-1 rounded-md">
+                        https://ptenit.com/platform
+                      </span>
                     </div>
-                    <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 flex items-center gap-3">
-                      <div className="p-2.5 bg-blue-500/20 rounded-lg text-blue-400">
-                        <LineChart className="w-5 h-5" />
+
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 flex items-center gap-3">
+                          <div className="p-2.5 bg-[#1DB954]/20 rounded-lg text-[#1DB954]">
+                            <Code2 className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-slate-400">Active Code Stack</p>
+                            <p className="text-sm font-bold text-white">React + Next.js</p>
+                          </div>
+                        </div>
+                        <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 flex items-center gap-3">
+                          <div className="p-2.5 bg-blue-500/20 rounded-lg text-blue-400">
+                            <LineChart className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-slate-400">SEO & Marketing</p>
+                            <p className="text-sm font-bold text-white">+245% ROI</p>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[11px] text-slate-400">SEO & Marketing</p>
-                        <p className="text-sm font-bold text-white">+245% ROI</p>
+
+                      <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-left font-mono text-xs text-slate-300 space-y-2 relative">
+                        <div className="text-slate-500">// PTENit Digital Core Engine</div>
+                        <div className="text-emerald-400">
+                          const <span className="text-sky-300">ptenItPlatform</span> = &#123;
+                        </div>
+                        <div className="pl-4 text-amber-300">
+                          services: <span className="text-slate-200">['Web', 'SEO', 'Marketing', 'Graphics']</span>,
+                        </div>
+                        <div className="pl-4 text-emerald-300">
+                          trainingStatus: <span className="text-[#1DB954]">'Enrollment Open'</span>
+                        </div>
+                        <div className="text-emerald-400">&#125;;</div>
+                      </div>
+
+                      <div className="bg-gradient-to-r from-[#1DB954] to-emerald-600 p-3.5 rounded-xl text-white font-bold text-xs flex items-center justify-between shadow-lg">
+                        <span className="font-bengali">{t('লাইভ ক্লাস ও ফ্রিল্যান্সিং গাইডলাইন', 'Live Classes & Freelancing Guidance')}</span>
+                        <span className="bg-white/20 px-2 py-1 rounded text-[10px]">ACTIVE</span>
                       </div>
                     </div>
                   </div>
-
-                  {/* Code / Visual Preview Box or Custom Uploaded Hero Banner */}
-                  {siteSettings.heroBannerUrl ? (
-                    <div className="rounded-xl overflow-hidden border border-slate-800 shadow-lg max-h-48">
-                      <img src={siteSettings.heroBannerUrl} alt="Hero Banner" className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-left font-mono text-xs text-slate-300 space-y-2 relative">
-                      <div className="text-slate-500">// PTENit Digital Core Engine</div>
-                      <div className="text-emerald-400">
-                        const <span className="text-sky-300">ptenItPlatform</span> = &#123;
-                      </div>
-                      <div className="pl-4 text-amber-300">
-                        services: <span className="text-slate-200">['Web', 'SEO', 'Marketing', 'Graphics']</span>,
-                      </div>
-                      <div className="pl-4 text-emerald-300">
-                        trainingStatus: <span className="text-[#1DB954]">'Enrollment Open'</span>
-                      </div>
-                      <div className="text-emerald-400">&#125;;</div>
-                    </div>
-                  )}
-
-                  {/* Floating Action Badge */}
-                  <div className="bg-gradient-to-r from-[#1DB954] to-emerald-600 p-3.5 rounded-xl text-white font-bold text-xs flex items-center justify-between shadow-lg">
-                    <span className="font-bengali">{t('লাইভ ক্লাস ও ফ্রিল্যান্সিং গাইডলাইন', 'Live Classes & Freelancing Guidance')}</span>
-                    <span className="bg-white/20 px-2 py-1 rounded text-[10px]">ACTIVE</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Floating Badge 1 */}
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                className="absolute -top-6 -right-6 bg-slate-800/95 border border-[#1DB954]/50 text-white p-3 rounded-xl shadow-xl hidden sm:flex items-center gap-3"
-              >
-                <div className="w-3 h-3 rounded-full bg-[#1DB954] animate-ping" />
-                <div>
-                  <p className="text-xs font-bold text-[#1DB954]">{t('নতুন ব্যাচ শুরু', 'New Batch Admission')}</p>
-                  <p className="text-[11px] text-slate-300 font-bengali">{t('ক্যানভা ও ইউটিউব এসইও', 'Canva & YouTube SEO')}</p>
-                </div>
-              </motion.div>
-
-            </motion.div>
+                </motion.div>
+              );
+            })()}
           </div>
 
         </div>
