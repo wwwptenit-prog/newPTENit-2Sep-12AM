@@ -1,20 +1,58 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, Sparkles, ShieldCheck, Play, Code2, LineChart, Award, Users, Bot, BadgeCheck, GraduationCap, Headphones, ShoppingBag } from 'lucide-react';
+import { ArrowRight, Sparkles, ShieldCheck, Play, Code2, LineChart, Award, Users } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { GlitterParticles } from './GlitterParticles';
 
 interface HeroProps {
   setActiveTab: (tab: string) => void;
+  mouseCoords?: { x: number; y: number } | null;
 }
 
-export const Hero: React.FC<HeroProps> = ({ setActiveTab }) => {
+export const Hero: React.FC<HeroProps> = ({ setActiveTab, mouseCoords: parentMouseCoords }) => {
   const { siteSettings, t } = useData();
+  const [internalMouseCoords, setInternalMouseCoords] = useState<{ x: number; y: number } | null>(null);
+
+  const mouseCoords = parentMouseCoords !== undefined ? parentMouseCoords : internalMouseCoords;
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setInternalMouseCoords({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setInternalMouseCoords({
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setInternalMouseCoords(null);
+  };
 
   return (
-    <div className="relative bg-gradient-to-b from-[#142B4D] via-[#10223E] to-[#142B4D] text-white pt-8 sm:pt-12 lg:pt-14 pb-0 overflow-hidden border-b border-slate-800">
-      {/* Abstract Glowing Background Orbs */}
-      <div className="absolute top-1/4 left-10 w-96 h-96 bg-[#1DB954]/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
-      <div className="absolute bottom-10 right-10 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+    <div
+      onMouseMove={handleMouseMove}
+      onTouchMove={handleTouchMove}
+      onMouseLeave={handleMouseLeave}
+      className="relative bg-gradient-to-b from-[#142B4D] via-[#0D1E38] to-[#142B4D] text-white pt-8 sm:pt-12 lg:pt-14 pb-0 overflow-hidden"
+    >
+      {/* Dynamic Cursor-Following Radiant Spotlight Glow */}
+      {mouseCoords && (
+        <div
+          className="absolute inset-0 pointer-events-none transition-opacity duration-300 z-0"
+          style={{
+            background: `radial-gradient(550px circle at ${mouseCoords.x}px ${mouseCoords.y}px, rgba(29, 185, 84, 0.22), rgba(14, 165, 233, 0.12), transparent 70%)`,
+          }}
+        />
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-end">
@@ -100,22 +138,19 @@ export const Hero: React.FC<HeroProps> = ({ setActiveTab }) => {
               if (!isCodeMockupMode) {
                 return (
                   <div className="relative w-full flex items-end justify-center lg:justify-end self-end select-none">
-                    {/* Glowing Aura Backlight */}
-                    <div className="absolute top-1/4 right-4 sm:right-10 w-72 sm:w-96 h-72 sm:h-96 bg-gradient-to-tr from-[#1DB954]/20 via-emerald-500/15 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
-
-                    {/* Unboxed Model Image - Attached cleanly to the bottom edge */}
+                    {/* Unboxed Model Image with Gentle Bottom Mask */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.7, ease: "easeOut" }}
                       className="relative w-full max-w-[420px] sm:max-w-[460px] lg:max-w-[500px] flex items-end self-end"
                     >
-                      {/* Mask to blend smoothly on the left toward headline */}
+                      {/* Model Image with Subtle, Gentle Bottom Mask */}
                       <div
-                        className="relative w-full overflow-visible"
+                        className="relative w-full overflow-hidden"
                         style={{
-                          WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 100%)',
-                          maskImage: 'linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 100%)'
+                          WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 68%, rgba(0,0,0,0.85) 80%, rgba(0,0,0,0.3) 92%, rgba(0,0,0,0) 100%)',
+                          maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 68%, rgba(0,0,0,0.85) 80%, rgba(0,0,0,0.3) 92%, rgba(0,0,0,0) 100%)'
                         }}
                       >
                         <img
@@ -123,14 +158,10 @@ export const Hero: React.FC<HeroProps> = ({ setActiveTab }) => {
                           alt="PTENit Career Model"
                           className="w-full h-auto max-h-[440px] sm:max-h-[500px] lg:max-h-[560px] object-cover object-top origin-bottom block align-bottom"
                           style={{
-                            filter: 'drop-shadow(0 15px 25px rgba(10, 25, 47, 0.6)) contrast(1.04) brightness(1.02)'
+                            filter: 'drop-shadow(0 15px 30px rgba(0, 0, 0, 0.4)) contrast(1.04) brightness(1.02)'
                           }}
                         />
                       </div>
-
-                      {/* Soft Side Blending Gradient on the left */}
-                      <div className="absolute inset-y-0 left-0 w-20 sm:w-28 bg-gradient-to-r from-[#142B4D] via-[#142B4D]/70 to-transparent pointer-events-none" />
-                      <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-[#142B4D]/35 to-transparent pointer-events-none" />
                     </motion.div>
                   </div>
                 );

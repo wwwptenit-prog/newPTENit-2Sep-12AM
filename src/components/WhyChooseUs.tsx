@@ -51,14 +51,14 @@ export const WhyChooseUs: React.FC = () => {
   ];
 
   return (
-    <section className="py-8 sm:py-12 bg-white dark:bg-slate-900 border-t border-slate-200/80 dark:border-slate-800">
+    <section className="py-10 sm:py-16 bg-slate-100/90 text-slate-900 dark:bg-slate-950 dark:text-white border-y border-slate-200/70 dark:border-slate-800/80">
       <div className="max-w-[1920px] mx-auto px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
         
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto mb-8 sm:mb-10 gap-2.5 sm:gap-3">
           <h2 className="text-2xl sm:text-4xl font-black font-bengali text-slate-900 dark:text-white leading-tight">
             {t('কেন PTENit নির্বাচন করবেন?', 'Why Choose PTENit?')}
           </h2>
-          <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base font-bengali">
+          <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base font-bengali">
             {t('আমরা শুধু কাজ করে দেওয়া বা ট্রেনিং দেওয়ায় সীমাবদ্ধ নই, আপনার সফলতার পথে দীর্ঘমেয়াদী অংশীদার হিসেবে কাজ করি।', 'We go beyond providing services or training — we act as your long-term success partner.')}
           </p>
         </div>
@@ -69,7 +69,7 @@ export const WhyChooseUs: React.FC = () => {
             return (
               <div
                 key={idx}
-                className="bg-slate-50 dark:bg-slate-800/60 p-3.5 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-700/80 shadow-xs hover:shadow-xl hover:border-[#1DB954] transition-all duration-300 space-y-2 sm:space-y-4 flex flex-col justify-start"
+                className="bg-white dark:bg-slate-900 p-3.5 sm:p-6 lg:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-xl hover:border-[#1DB954] transition-all duration-300 space-y-2 sm:space-y-4 flex flex-col justify-start"
               >
                 <div className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl ${feat.bgColor} ${feat.color} w-fit`}>
                   <Icon className="w-5 h-5 sm:w-7 sm:h-7" />
@@ -77,7 +77,7 @@ export const WhyChooseUs: React.FC = () => {
                 <h3 className="text-xs sm:text-lg lg:text-xl font-bold font-heading text-slate-900 dark:text-white leading-tight">
                   {feat.title}
                 </h3>
-                <p className="text-[10px] sm:text-xs lg:text-sm text-slate-600 dark:text-slate-300 font-bengali leading-relaxed line-clamp-4 sm:line-clamp-none">
+                <p className="text-[10px] sm:text-xs lg:text-sm text-slate-600 dark:text-slate-400 font-bengali leading-relaxed line-clamp-4 sm:line-clamp-none">
                   {feat.desc}
                 </p>
               </div>

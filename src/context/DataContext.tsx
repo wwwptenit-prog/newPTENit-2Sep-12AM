@@ -139,8 +139,6 @@ interface DataContextType {
   logout: () => void;
   demoLogin: (role: 'student' | 'instructor' | 'customer' | 'admin') => void;
   switchRole: (newRole: 'customer' | 'specialist' | 'instructor' | 'admin' | 'student') => void;
-  marketplaceMode: 'buying' | 'selling';
-  setMarketplaceMode: (mode: 'buying' | 'selling') => void;
   updateProfile: (data: Partial<User>) => void;
   addUser: (userData: Omit<User, 'id' | 'createdAt'>) => void;
   
@@ -170,7 +168,7 @@ interface DataContextType {
   declineCourseOffer: (courseId: string) => void;
   
   // Enrollments & Learning
-  enrollCourse: (courseId: string, paymentDetails?: { method: PaymentOrder['paymentMethod']; phone: string; txId: string; amount: number; isAutomated?: boolean }) => Promise<boolean>;
+  enrollCourse: (courseId: string, paymentDetails?: { method: PaymentOrder['paymentMethod']; phone: string; txId: string; amount: number }) => Promise<boolean>;
   updateLessonProgress: (courseId: string, lessonId: string) => void;
   
   // Services
@@ -213,9 +211,9 @@ interface DataContextType {
   sendCentralNotification: (notif: Omit<NotificationItem, 'id' | 'time' | 'read'>) => void;
   
   // Shared Audio Synthesizer for Distinct Alerts
+  playAppSound: (type?: 'notification' | 'message' | 'order' | 'success') => void;
   isOfferSoundEnabled: boolean;
   toggleOfferSound: () => void;
-  playAppSound: (type?: 'notification' | 'message' | 'order' | 'success') => void;
 
   // Mentorship Application & Role Actions
   applyForMentorship: (data: { expertise: string[]; experienceYears: string; bio: string; portfolioUrl?: string; proposedCourseTopic?: string; phone?: string }) => void;
@@ -223,11 +221,8 @@ interface DataContextType {
   rejectMentorApplication: (userId?: string, reason?: string) => void;
   
   // Direct Messages & Popovers
-  readConversationIds: string[];
-  markConversationRead: (id: string) => void;
-  markAllConversationsRead: (mode?: 'buying' | 'selling') => void;
   markDirectMessageRead: (id: string) => void;
-  markAllDirectMessagesRead: (mode?: 'buying' | 'selling') => void;
+  markAllDirectMessagesRead: () => void;
   sendDirectMessage: (msg: Omit<DirectMessageItem, 'id' | 'read'>) => void;
   openChatWindow: (contact: { id?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string }) => void;
   closeChatWindow: (id: string) => void;
@@ -370,31 +365,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setDarkModeState(prev => !prev);
   };
 
-  // Global Sound Toggle State (Synchronized across marketplace, floating messenger & notifications)
-  const [isOfferSoundEnabled, setIsOfferSoundEnabled] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('ptenit_offer_sound_enabled');
-      return saved !== null ? JSON.parse(saved) === true : true;
-    } catch {
-      return true;
-    }
-  });
-
-  const toggleOfferSound = () => {
-    setIsOfferSoundEnabled(prev => {
-      const next = !prev;
-      try {
-        localStorage.setItem('ptenit_offer_sound_enabled', JSON.stringify(next));
-        localStorage.setItem('ptenit_toolkit_sound', String(next));
-      } catch {}
-      return next;
-    });
-  };
-
   // Shared Global Web Audio API Synthesizer for Distinct Alerts & Chimes
   const playAppSound = (type: 'notification' | 'message' | 'order' | 'success' = 'notification') => {
     try {
-      if (!isOfferSoundEnabled) return;
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtxClass) return;
       const ctx = new AudioCtxClass();
@@ -486,6 +459,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Audio autoplay restriction fallback
     }
   };
+
+  // Offer & Alert Sound Enablement State (Persisted in localStorage)
+  const [isOfferSoundEnabled, setIsOfferSoundEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('ptenit_offer_sound_enabled');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const toggleOfferSound = useCallback(() => {
+    setIsOfferSoundEnabled(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('ptenit_offer_sound_enabled', JSON.stringify(next));
+      } catch {}
+      if (next) {
+        // Provide immediate audible feedback that sound is enabled
+        try {
+          playAppSound('notification');
+        } catch {}
+      }
+      return next;
+    });
+  }, [playAppSound]);
 
   // Load state from localStorage or initialData
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
@@ -621,111 +620,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem(`${STORAGE_KEY}_notifications`);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        return JSON.parse(saved);
       } catch {
         // fallback
       }
     }
     return [
-      // Seller-specific notifications
       {
-        id: "notif-s1",
-        title: "ক্লাইন্ট অর্ডার #ORD-8821 গৃহীত",
-        message: "বায়ার সোহাগ কাজী আপনার 'Full Stack E-Commerce' গিগে অর্ডার করেছেন। ৳১২,০০০ এস্ক্রো জমা হয়েছে।",
+        id: "notif-1",
+        title: "ক্লাইন্ট অর্ডার #ORD-8821 আপডেট",
+        message: "আপনার ই-কমার্স প্রজেক্টের এস্ক্রো ওয়ালেটে ৳১২,০০০ জমা হয়েছে। প্রজেক্ট স্ট্যাটাস দেখতে ক্লিক করুন।",
         time: "১০ মিনিট আগে",
         read: false,
         type: "success",
-        category: "seller",
-        recipientRole: "seller",
-        targetTab: "marketplace",
-        actionLabel: "ক্লায়েন্ট অর্ডার দেখুন"
+        targetTab: "marketplace"
       },
       {
-        id: "notif-s2",
-        title: "মার্কেটপ্লেস গিগ মেসেজ ও প্রস্তাবনা",
-        message: "সুমাইয়া ইসলাম আপনার মোবাইল অ্যাপ ডেভেলপমেন্ট গিগে কাস্টম অফার পাঠিয়েছেন।",
-        time: "৩৫ মিনিট আগে",
-        read: false,
-        type: "info",
-        category: "seller",
-        recipientRole: "seller",
-        targetTab: "marketplace",
-        actionLabel: "মেসেজ ওপেন করুন"
-      },
-      {
-        id: "notif-s3",
-        title: "ইনস্ট্যান্ট সেলার ওয়ালেট পেআউট বোনাস",
-        message: "আপনার PTENit সেলার ওয়ালেটে ৳৫,০০০ বোনাস ক্রেডিট জমা হয়েছে। পেআউট রিকোয়েস্ট করুন।",
-        time: "২ ঘণ্টা আগে",
-        read: false,
-        type: "success",
-        category: "payout",
-        recipientRole: "seller",
-        targetTab: "financials",
-        actionLabel: "পেআউট হাব দেখুন"
-      },
-      {
-        id: "notif-s4",
-        title: "ক্লায়েন্ট ফাইভ-স্টার রিভিউ",
-        message: "তানজিম আহমেদ আপনার সম্পূর্ণ ডেলিভারিতে ৫-স্টার রেটিং ও পজিটিভ রিভিউ দিয়েছেন।",
-        time: "৪ ঘণ্টা আগে",
-        read: false,
-        type: "success",
-        category: "seller",
-        recipientRole: "seller",
-        targetTab: "marketplace",
-        actionLabel: "রিভিউ দেখুন"
-      },
-
-      // Buyer-specific notifications
-      {
-        id: "notif-b1",
-        title: "অর্ডার ডেলিভারি প্রস্তুত #ORD-7741",
-        message: "আপনার অর্ডারকৃত 'UI/UX ডিজাইন ও ব্র্যান্ডিং' সার্ভিস ডেলিভারি সম্পন্ন হয়েছে। ফাইল রিভিউ করুন।",
-        time: "১৫ মিনিট আগে",
-        read: false,
-        type: "success",
-        category: "buyer",
-        recipientRole: "buyer",
-        targetTab: "marketplace",
-        actionLabel: "অর্ডার ফাইল চেক করুন"
-      },
-      {
-        id: "notif-b2",
+        id: "notif-2",
         title: "React Assignment রিভিউ সমাপ্ত",
         message: "আপনার জমা দেওয়া 'e-Commerce Frontend' অ্যাসাইনমেন্ট গ্রাডিং সম্পন্ন (95/100)।",
         time: "৪৫ মিনিট আগে",
         read: false,
         type: "info",
-        category: "course",
-        recipientRole: "buyer",
-        targetTab: "student-dashboard",
-        actionLabel: "গ্রেড ও ফিডব্যাক দেখুন"
+        targetTab: "student-dashboard"
       },
       {
-        id: "notif-b3",
+        id: "notif-3",
         title: "কোর্স মডিউল ৫ লাইভ আনলক!",
         message: "Full Stack Masterclass - Module 5 Live API Streaming আপডেট প্রকাশিত হয়েছে।",
-        time: "২ ঘণ্টা আগে",
+        time: "২ ঘন্টা আগে",
         read: false,
         type: "info",
-        category: "course",
-        recipientRole: "buyer",
-        targetTab: "courses",
-        actionLabel: "ক্লাস দেখুন"
+        targetTab: "courses"
       },
       {
-        id: "notif-b4",
-        title: "কাস্টম প্রজেক্টে ৩টি নতুন বিড",
-        message: "আপনার পোস্ট করা 'React Native App' প্রজেক্টে এক্সপার্ট ফ্রিল্যান্সাররা প্রপোজাল দিয়েছেন।",
-        time: "৫ ঘণ্টা আগে",
+        id: "notif-4",
+        title: "মার্কেটপ্লেস গিগ প্রস্তাবনা",
+        message: "সোহাগ কাজী আপনার সার্ভিস অর্ডারে মেসেজ ও কাজ সংক্রান্ত আপডেট পাঠিয়েছেন।",
+        time: "৩ ঘন্টা আগে",
         read: false,
-        type: "info",
-        category: "buyer",
-        recipientRole: "buyer",
-        targetTab: "marketplace",
-        actionLabel: "প্রপোজাল দেখুন"
+        type: "success",
+        targetTab: "marketplace"
+      },
+      {
+        id: "notif-5",
+        title: "ইনস্ট্যান্ট পেমেন্ট ওয়ালেট বোনাস",
+        message: "আপনার PTENit ওয়ালেটে ৳৫,০০০ বোনাস ক্রেডিট জমা হয়েছে।",
+        time: "৪ ঘন্টা আগে",
+        read: false,
+        type: "success",
+        targetTab: "financials"
       }
     ];
   });
@@ -734,370 +678,73 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const saved = localStorage.getItem(`${STORAGE_KEY}_direct_messages`);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Sanitize any mock default messages so that default state has no phantom unread count
-          return parsed.map(m => (m.id.startsWith('dmsg-') ? { ...m, read: true, unreadCount: 0 } : m));
-        }
+        return JSON.parse(saved);
       } catch {}
     }
     return [
-      // Seller Messages (Buyers messaging the Seller)
       {
-        id: "dmsg-s1",
-        senderName: "সোহাগ কাজী (বায়ার / ক্লায়েন্ট)",
+        id: "dmsg-1",
+        senderName: "সোহাগ কাজী (বায়ার)",
         senderRole: "customer",
         senderAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80",
         recipientRole: "instructor",
         text: "ভাইয়া, আমার ই-কমার্স প্রজেক্টের ডিজাইন ডেমো কি তৈরি হয়েছে? একটু আপডেট দিবেন।",
         time: "১০ মিনিট আগে",
-        read: true,
-        unreadCount: 0,
-        orderId: "ORD-8821",
-        targetTab: "marketplace",
-        mode: "selling"
+        read: false,
+        targetTab: "marketplace"
       },
       {
-        id: "dmsg-s2",
-        senderName: "তানজিম আহমেদ (সেবাগ্রহীতা বায়ার)",
+        id: "dmsg-2",
+        senderName: "তানজিম আহমেদ (সেবাগ্রহীতা)",
         senderRole: "customer",
         senderAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80",
         recipientRole: "instructor",
         text: "আপনার গিগ সার্ভিস অর্ডার করেছি, এস্ক্রো ওয়ালেটে টাকা জমা হয়েছে। কোড শুরু করুন।",
-        time: "৩৫ মিনিট আগে",
-        read: true,
-        unreadCount: 0,
-        orderId: "ORD-5542",
-        targetTab: "marketplace",
-        mode: "selling"
+        time: "৪৫ মিনিট আগে",
+        read: false,
+        targetTab: "marketplace"
       },
       {
-        id: "dmsg-s3",
-        senderName: "সুমাইয়া ইসলাম (ক্লায়েন্ট)",
-        senderRole: "customer",
-        senderAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80",
-        recipientRole: "instructor",
-        text: "আমাদের মোবাইল অ্যাপের API ডকুমেন্টেশন ইনবক্সে পাঠিয়েছি, একটু দেখে নিন।",
-        time: "১ ঘণ্টা আগে",
-        read: true,
-        unreadCount: 0,
-        targetTab: "marketplace",
-        mode: "selling"
-      },
-      {
-        id: "dmsg-s4",
-        senderName: "PTENit এসক্রো সাপোর্ট",
+        id: "dmsg-3",
+        senderName: "PTENit সাপোর্ট ও এজেন্সী",
         senderRole: "admin",
         senderAvatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80",
         recipientRole: "all",
-        text: "আপনার সেলার ওয়ালেটের এস্ক্রো পেমেন্ট ভেরিফিকেশন সফল হয়েছে।",
-        time: "৩ ঘণ্টা আগে",
-        read: true,
-        unreadCount: 0,
-        targetTab: "admin",
-        mode: "selling"
-      },
-
-      // Buyer Messages (Sellers messaging the Buyer)
-      {
-        id: "dmsg-b1",
-        senderName: "Tanvir Ahmed (টপ রেটেড সেলার)",
-        senderRole: "teacher",
-        senderAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80",
-        recipientRole: "customer",
-        text: "আপনার প্রজেক্টের সোর্স কোড ও লাইভ প্রিভিউ লিংক পাঠিয়েছি, চেক করে জানাবেন।",
-        time: "১৫ মিনিট আগে",
-        read: true,
-        unreadCount: 0,
-        orderId: "ORD-7741",
-        targetTab: "marketplace",
-        mode: "buying"
+        text: "অভিনন্দন! আপনার বায়ার/সেলার প্রোফাইল ৫ তারকা ভেরিফাইড হিসেবে লেভেল ২ ব্যাজ পেয়েছে।",
+        time: "২ ঘন্টা আগে",
+        read: false,
+        targetTab: "admin"
       },
       {
-        id: "dmsg-b2",
-        senderName: "Creative Pixels Studio (ডিজাইনার)",
-        senderRole: "teacher",
-        senderAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80",
-        recipientRole: "customer",
-        text: "Figma ডিজাইন ফাইল আপডেট করা হয়েছে, ক্লায়েন্ট রিভিশন রেডি।",
-        time: "৪৫ মিনিট আগে",
-        read: true,
-        unreadCount: 0,
-        targetTab: "marketplace",
-        mode: "buying"
-      },
-      {
-        id: "dmsg-b3",
-        senderName: "Shahinur Rahman (প্রো সেলার)",
+        id: "dmsg-4",
+        senderName: "রাশেদুল ইসলাম (এক্সপার্ট ডেভেলপার)",
         senderRole: "teacher",
         senderAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80",
-        recipientRole: "customer",
-        text: "পেমেন্ট গেটওয়ে এবং ডাটাবেস এপিআই ইন্টিগ্রেশন সম্পন্ন।",
-        time: "২ ঘণ্টা আগে",
-        read: true,
-        unreadCount: 0,
-        targetTab: "marketplace",
-        mode: "buying"
+        recipientRole: "all",
+        text: "আপনার প্রজেক্ট কোড রিভিউ সম্পন্ন। ইনবক্সে ফাইল চেক করে নিন।",
+        time: "৩ ঘন্টা আগে",
+        read: false,
+        targetTab: "student-dashboard"
       },
       {
-        id: "dmsg-b4",
+        id: "dmsg-5",
         senderName: "মার্কেটপ্লেস সাপোর্ট হেল্পডেস্ক",
         senderRole: "admin",
         senderAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80",
         recipientRole: "all",
-        text: "আপনার কাস্টম সার্ভিস অর্ডার ১০০% সিকিউরড ও ডেলিভারি মেসেজ আপডেট প্রস্তুত।",
-        time: "৪ ঘণ্টা আগে",
-        read: true,
-        unreadCount: 0,
-        targetTab: "marketplace",
-        mode: "buying"
+        text: "আপনার কাস্টম সার্ভিস অর্ডার ভেরিফাইড হয়েছে এবং ডেলিভারি মেসেজ আপডেট প্রসেসিংয়ে।",
+        time: "৫ ঘন্টা আগে",
+        read: false,
+        targetTab: "marketplace"
       }
     ];
   });
 
-  // Persistent tracked read conversation IDs
-  const [readConversationIds, setReadConversationIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}_read_convo_ids`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-    return [];
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(readConversationIds));
-    } catch {}
-  }, [readConversationIds]);
-
-  const DEFAULT_INITIAL_CHAT_WINDOWS: ActiveChatWindow[] = [
-    {
-      id: 'chat-tanvir-ahmed',
-      senderName: 'Tanvir Ahmed',
-      senderRole: 'Full Stack Developer',
-      senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-      minimized: false,
-      messages: [
-        {
-          id: 'msg-tanvir-1',
-          senderName: 'Tanvir Ahmed',
-          senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'আসসালামু আলাইকুম! আপনার ওয়েব ডেভেলপমেন্ট প্রজেক্টের রিকোয়ারমেন্ট পেয়েছি।',
-          time: '১৫ মিনিট আগে'
-        },
-        {
-          id: 'msg-tanvir-2',
-          senderName: 'আমি',
-          isSelf: true,
-          text: 'ওয়ালাইকুম আসসালাম! লাইভ ডেমো লিংকটি কি শেয়ার করতে পারবেন?',
-          time: '১২ মিনিট আগে'
-        },
-        {
-          id: 'msg-tanvir-3',
-          senderName: 'Tanvir Ahmed',
-          senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'প্রজেক্টের সোর্স কোড ও লাইভ প্রিভিউ লিংক পাঠিয়েছি, চেক করে জানাবেন।',
-          time: '১০ মিনিট আগে'
-        }
-      ]
-    },
-    {
-      id: 'chat-client-sohag',
-      senderName: 'Sohag Hossain (Client)',
-      senderRole: 'buyer',
-      senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-      minimized: false,
-      messages: [
-        {
-          id: 'msg-sohag-1',
-          senderName: 'Sohag Hossain (Client)',
-          senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'ভাইয়া, আমার ই-কমার্স সাইটের পেমেন্ট গেটওয়ে সেটআপের কাজ কতদূর?',
-          time: '১০ মিনিট আগে'
-        }
-      ]
-    },
-    {
-      id: 'chat-client-tanjim',
-      senderName: 'Tanjim Ahmed (Buyer)',
-      senderRole: 'buyer',
-      senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-      minimized: false,
-      messages: [
-        {
-          id: 'msg-tanjim-1',
-          senderName: 'Tanjim Ahmed (Buyer)',
-          senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'লোগো ডিজাইনটা বেশ চমৎকার হয়েছে। কালার প্যালেটের একটা ছোট রিভিশন প্রয়োজন।',
-          time: '২৫ মিনিট আগে'
-        }
-      ]
-    },
-    {
-      id: 'chat-creative-pixels',
-      senderName: 'Creative Pixels Agency',
-      senderRole: 'Top Rated Agency',
-      senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-      minimized: false,
-      messages: [
-        {
-          id: 'msg-pixels-1',
-          senderName: 'Creative Pixels Agency',
-          senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'UI/UX রিডিজাইনের ১ম ড্রাফট সম্পূর্ণ তৈরি হয়েছে।',
-          time: '১ ঘণ্টা আগে'
-        },
-        {
-          id: 'msg-pixels-2',
-          senderName: 'Creative Pixels Agency',
-          senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'Figma ডিজাইন ফাইল আপডেট করা হয়েছে, ক্লায়েন্ট রিভিশন রেডি।',
-          time: '৪৫ মিনিট আগে'
-        }
-      ]
-    },
-    {
-      id: 'chat-piten-support',
-      senderName: 'PiTen Marketplace Official',
-      senderRole: 'সাপোর্ট ও ভেরিফিকেশন',
-      senderAvatar: 'https://images.unsplash.com/photo-1556742049-0a67e557224f?auto=format&fit=crop&w=120&q=80',
-      minimized: false,
-      messages: [
-        {
-          id: 'msg-support-1',
-          senderName: 'PiTen Marketplace Official',
-          senderAvatar: 'https://images.unsplash.com/photo-1556742049-0a67e557224f?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'স্বাগতম! আপনার অর্ডার ও একাউন্ট সিকিউরিটি সম্পূর্ণ এনক্রিপ্টেড।',
-          time: '৩ ঘণ্টা আগে'
-        },
-        {
-          id: 'msg-support-2',
-          senderName: 'PiTen Marketplace Official',
-          senderAvatar: 'https://images.unsplash.com/photo-1556742049-0a67e557224f?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'অর্ডার #PT-8942 এর এস্ক্রো পেমেন্ট ভেরিফিকেশন সফল হয়েছে।',
-          time: '২ ঘণ্টা আগে'
-        }
-      ]
-    },
-    {
-      id: 'chat-shahinur-rahman',
-      senderName: 'Shahinur Rahman',
-      senderRole: 'Backend Specialist',
-      senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
-      minimized: false,
-      messages: [
-        {
-          id: 'msg-shahinur-1',
-          senderName: 'Shahinur Rahman',
-          senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'পেমেন্ট গেটওয়ে এবং ডাটাবেস এপিআই ইন্টিগ্রেশন সম্পন্ন।',
-          time: '৩ ঘণ্টা আগে'
-        }
-      ]
-    },
-    {
-      id: 'chat-zubair-hossain',
-      senderName: 'Zubair Hossain',
-      senderRole: 'Mobile App Developer',
-      senderAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=120&q=80',
-      minimized: false,
-      messages: [
-        {
-          id: 'msg-zubair-1',
-          senderName: 'Zubair Hossain',
-          senderAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'Android APK ও iOS টেস্টফ্লাইট বিল্ড ডাউনলোড লিংক পাঠানো হয়েছে।',
-          time: '৫ ঘণ্টা আগে'
-        }
-      ]
-    },
-    {
-      id: 'chat-sadia-afrin',
-      senderName: 'Sadia Afrin',
-      senderRole: 'SEO & Growth Expert',
-      senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-      minimized: false,
-      messages: [
-        {
-          id: 'msg-sadia-1',
-          senderName: 'Sadia Afrin',
-          senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'অন-পেজ এসইও ও কিওয়ার্ড র‍্যাংকিং অডিট রিপোর্ট পাঠানো হয়েছে।',
-          time: '১ দিন আগে'
-        }
-      ]
-    },
-    {
-      id: 'chat-mouson-art',
-      senderName: 'Mouson Branding Studio',
-      senderRole: 'Creative Director',
-      senderAvatar: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=120&q=80',
-      minimized: false,
-      messages: [
-        {
-          id: 'msg-mouson-1',
-          senderName: 'Mouson Branding Studio',
-          senderAvatar: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=120&q=80',
-          isSelf: false,
-          text: 'লোগো ভেক্টর ফাইল ও ব্র্যান্ডিং কিট প্যাকেজ রেডি।',
-          time: '১ দিন আগে'
-        }
-      ]
-    }
-  ];
-
-  const [activeChatWindows, setActiveChatWindows] = useState<ActiveChatWindow[]>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}_active_chat_windows`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return DEFAULT_INITIAL_CHAT_WINDOWS;
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${STORAGE_KEY}_active_chat_windows`, JSON.stringify(activeChatWindows));
-    } catch {}
-  }, [activeChatWindows]);
-
+  const [activeChatWindows, setActiveChatWindows] = useState<ActiveChatWindow[]>([]);
   const [activeMessengerConversationId, setActiveMessengerConversationId] = useState<string | null>(null);
   const [activeMessengerOrderId, setActiveMessengerOrderId] = useState<string | null>(null);
   const [isMessengerInboxOpen, setIsMessengerInboxOpen] = useState(false);
   const [initialMessengerTab, setInitialMessengerTab] = useState<'messages' | 'notifications' | 'courses'>('messages');
-
-  // Unified persistent Marketplace Mode ('buying' | 'selling')
-  const [marketplaceMode, setMarketplaceModeState] = useState<'buying' | 'selling'>(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_KEY}_marketplace_view_mode`);
-      return saved === 'selling' ? 'selling' : 'buying';
-    } catch {
-      return 'buying';
-    }
-  });
-
-  const setMarketplaceMode = (mode: 'buying' | 'selling') => {
-    setMarketplaceModeState(mode);
-    try {
-      localStorage.setItem(`${STORAGE_KEY}_marketplace_view_mode`, mode);
-    } catch {}
-  };
 
   const [assignments, setAssignments] = useState<Assignment[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_assignments`);
@@ -1502,7 +1149,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         return prev;
       });
-    }, 15000);
+    }, 5000);
     return () => clearInterval(checkOverdueInterval);
   }, []);
 
@@ -1640,15 +1287,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // If typing admin credentials
-    if (!user && (
-      cleanInput === 'mdskazisohag@gmail.com' ||
-      cleanInput === 'admin@ptenit.com' ||
-      cleanInput === 'admin' ||
-      cleanInput.includes("admin") ||
-      cleanInput.includes("sohag") ||
-      cleanInput === 'tanvir122978@gmail.com' ||
-      cleanInput.includes('tanvir')
-    )) {
+    if (!user && (cleanInput === 'mdskazisohag@gmail.com' || cleanInput === 'admin@ptenit.com' || cleanInput.includes("admin") || cleanInput.includes("sohag"))) {
       user = users.find(u => u.role === 'admin') || initialUsers[0];
     }
 
@@ -1766,18 +1405,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (role === 'instructor') {
       const seller = users.find(u => u.id === 'mkt-seller-1') || initialUsers.find(u => u.id === 'mkt-seller-1') || initialUsers[4];
       setMarketplaceUser(seller);
-      setMarketplaceMode('selling');
     } else if (role === 'customer') {
       const buyer = users.find(u => u.id === 'mkt-buyer-1') || initialUsers.find(u => u.id === 'mkt-buyer-1') || initialUsers[5];
       setMarketplaceUser(buyer);
-      setMarketplaceMode('buying');
     } else if (role === 'admin') {
       const adminMkt = users.find(u => u.role === 'admin') || initialUsers[0];
       setMarketplaceUser(adminMkt);
     } else {
       const studentBuyer = users.find(u => u.id === 'mkt-buyer-1') || initialUsers.find(u => u.id === 'mkt-buyer-1') || initialUsers[5];
       setMarketplaceUser(studentBuyer);
-      setMarketplaceMode('buying');
     }
   };
 
@@ -1917,138 +1553,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Enrollments & Learning
   const enrollCourse = async (
     courseId: string,
-    paymentDetails?: { 
-      method: PaymentOrder['paymentMethod']; 
-      phone: string; 
-      txId: string; 
-      amount: number;
-      isAutomated?: boolean;
-    }
+    paymentDetails?: { method: PaymentOrder['paymentMethod']; phone: string; txId: string; amount: number }
   ): Promise<boolean> => {
-    let activeUser = currentUser;
-    if (!activeUser && paymentDetails?.phone) {
-      const phone = paymentDetails.phone.trim();
-      let found = users.find(u => u.mobile === phone);
-      if (!found) {
-        found = {
-          id: `usr-${Date.now()}`,
-          name: `স্টুডেন্ট (${phone.slice(-4)})`,
-          email: `${phone}@ptenit.com`,
-          mobile: phone,
-          role: 'student',
-          createdAt: new Date().toISOString().split('T')[0]
-        };
-        setUsers(prev => [...prev, found]);
-      }
-      setCurrentUser(found);
-      activeUser = found;
-    } else if (!activeUser) {
-      return false;
-    }
-
+    if (!currentUser) return false;
     const course = courses.find(c => c.id === courseId);
     if (!course) return false;
 
     // Check if already enrolled
-    const existing = enrollments.find(e => e.userId === activeUser.id && e.courseId === courseId);
+    const existing = enrollments.find(e => e.userId === currentUser.id && e.courseId === courseId);
     if (existing) return true;
 
     if (!course.isFree && paymentDetails) {
-      const isAuto = !!paymentDetails.isAutomated;
-      const orderStatus: PaymentOrder['status'] = isAuto ? 'Paid' : 'Pending';
-      const enrollmentStatus: Enrollment['status'] = isAuto ? 'active' : 'pending';
-
-      const newOrderId = `ord-${Date.now().toString().slice(-6)}`;
+      // Create Order
       const newOrder: PaymentOrder = {
-        id: newOrderId,
-        userId: activeUser.id,
-        userName: activeUser.name,
-        userEmail: activeUser.email,
-        userMobile: activeUser.mobile,
+        id: `ord-${Date.now().toString().slice(-6)}`,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        userMobile: currentUser.mobile,
         courseId: course.id,
         courseTitle: course.title,
         amount: paymentDetails.amount,
         paymentMethod: paymentDetails.method,
         transactionId: paymentDetails.txId,
         senderPhone: paymentDetails.phone,
-        status: orderStatus,
+        status: 'Paid', // Instantly activate for great user experience
         createdAt: new Date().toLocaleString('en-US', { hour12: true })
       };
       setOrders(prev => [newOrder, ...prev]);
-
-      // Add Enrollment
-      const newEnrollment: Enrollment = {
-        id: `enr-${Date.now()}`,
-        userId: activeUser.id,
-        courseId: course.id,
-        progress: 0,
-        completedLessons: [],
-        enrolledAt: new Date().toISOString().split('T')[0],
-        status: enrollmentStatus,
-        certificateIssued: false,
-        orderId: newOrderId
-      };
-
-      setEnrollments(prev => [...prev, newEnrollment]);
-
-      if (isAuto) {
-        // Increment course enrolledCount immediately for automated payment
-        setCourses(prev => prev.map(c => c.id === courseId ? { ...c, enrolledCount: (c.enrolledCount || 0) + 1 } : c));
-
-        // Instant Congratulations notification
-        setNotifications(prev => [
-          {
-            id: `notif-${Date.now()}-student`,
-            title: '🎉 কোর্স পেমেন্ট সম্পন্ন হয়েছে!',
-            message: `অভিনন্দন ${activeUser.name}! '${course.title}' কোর্সে আপনার স্বয়ংক্রিয় গেটওয়ে পেমেন্ট (৳${paymentDetails.amount}) সফল হয়েছে। এখন আপনি সম্পূর্ণ কোর্সের লেকচার এক্সেস করতে পারবেন।`,
-            time: 'এখনই',
-            read: false,
-            type: 'success',
-            targetTab: 'student'
-          },
-          {
-            id: `notif-${Date.now()}-admin`,
-            title: '⚡ স্বয়ংক্রিয় কোর্স পেমেন্ট সফল!',
-            message: `${activeUser.name} '${course.title}' কোর্সের জন্য গেটওয়ের মাধ্যমে ৳${paymentDetails.amount} প্রদান করেছেন (TrxID: ${paymentDetails.txId})। কোর্সটি স্বয়ংক্রিয়ভাবে সক্রিয় হয়েছে।`,
-            time: 'এখনই',
-            read: false,
-            type: 'success',
-            targetTab: 'admin'
-          },
-          ...prev
-        ]);
-      } else {
-        // Manual verification required notification
-        setNotifications(prev => [
-          {
-            id: `notif-${Date.now()}-student`,
-            title: '⏳ পেমেন্ট ভেরিফিকেশন অপেক্ষমান',
-            message: `'${course.title}' কোর্সের জন্য আপনার পেমেন্ট তথ্য (TrxID: ${paymentDetails.txId}) জমা হয়েছে। অ্যাডমিন ম্যানুয়ালি যাচাই করে অনুমোদন করলেই সমস্ত লেকচার আনলক হবে।`,
-            time: 'এখনই',
-            read: false,
-            type: 'warning',
-            targetTab: 'student'
-          },
-          {
-            id: `notif-${Date.now()}-admin`,
-            title: '🔔 নতুন কোর্স পেমেন্ট যাচাই প্রয়োজন!',
-            message: `${activeUser.name} '${course.title}' কোর্সের জন্য ${paymentDetails.method}-এ ৳${paymentDetails.amount} প্রদান করেছেন (TrxID: ${paymentDetails.txId})। অনুগ্রহ করে অ্যাডমিন প্যানেলে যাচাই করে অনুমোদন দিন।`,
-            time: 'এখনই',
-            read: false,
-            type: 'info',
-            targetTab: 'admin'
-          },
-          ...prev
-        ]);
-      }
-
-      return true;
     }
 
-    // For 100% Free Courses, instantly activate
+    // Add Enrollment
     const newEnrollment: Enrollment = {
       id: `enr-${Date.now()}`,
-      userId: activeUser.id,
+      userId: currentUser.id,
       courseId: course.id,
       progress: 0,
       completedLessons: [],
@@ -2181,98 +1719,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Orders
   const updateOrderStatus = (orderId: string, status: PaymentOrder['status']) => {
-    let affectedOrder: PaymentOrder | undefined;
-    setOrders(prev => {
-      return prev.map(o => {
-        if (o.id === orderId) {
-          affectedOrder = { ...o, status };
-          return affectedOrder;
-        }
-        return o;
-      });
-    });
-
-    if (!affectedOrder) return;
-
-    // If Admin approves payment (sets to 'Paid' or 'Approved')
-    if (status === 'Paid' || status === 'Approved') {
-      // Activate the student's enrollment
-      setEnrollments(prev => {
-        const found = prev.find(e => 
-          (e.orderId && e.orderId === affectedOrder?.id) || 
-          (e.userId === affectedOrder?.userId && e.courseId === affectedOrder?.courseId)
-        );
-        if (found) {
-          return prev.map(e => {
-            if (e.id === found.id) {
-              return { ...e, status: 'active' };
-            }
-            return e;
-          });
-        } else if (affectedOrder) {
-          // If enrollment not yet recorded, create active enrollment
-          return [
-            ...prev,
-            {
-              id: `enr-${Date.now()}`,
-              userId: affectedOrder.userId,
-              courseId: affectedOrder.courseId,
-              progress: 0,
-              completedLessons: [],
-              enrolledAt: new Date().toISOString().split('T')[0],
-              status: 'active',
-              certificateIssued: false,
-              orderId: affectedOrder.id
-            }
-          ];
-        }
-        return prev;
-      });
-
-      // Increment course enrolledCount
-      setCourses(prev => prev.map(c => 
-        c.id === affectedOrder?.courseId ? { ...c, enrolledCount: (c.enrolledCount || 0) + 1 } : c
-      ));
-
-      // Send Congratulations Notification to Student
-      setNotifications(prev => [
-        {
-          id: `notif-${Date.now()}-approval`,
-          title: '🎉 কোর্স পেমেন্ট অনুমোদিত হয়েছে!',
-          message: `অভিনন্দন ${affectedOrder?.userName}! '${affectedOrder?.courseTitle}' কোর্সের জন্য আপনার পেমেন্ট (৳${affectedOrder?.amount}) অ্যাডমিন কর্তৃক সফলভাবে অনুমোদিত হয়েছে। এখন আপনি সম্পূর্ণ কোর্সের লেকচার এক্সেস করতে পারবেন।`,
-          time: 'এখনই',
-          read: false,
-          type: 'success',
-          targetTab: 'student'
-        },
-        ...prev
-      ]);
-    } else if (status === 'Cancelled' || status === 'Failed' || status === 'Rejected') {
-      // Deactivate enrollment if cancelled or failed
-      setEnrollments(prev => prev.map(e => {
-        if (
-          (e.orderId && e.orderId === affectedOrder?.id) || 
-          (e.userId === affectedOrder?.userId && e.courseId === affectedOrder?.courseId)
-        ) {
-          return { ...e, status: 'cancelled' };
-        }
-        return e;
-      }));
-
-      // Send rejection notification
-      setNotifications(prev => [
-        {
-          id: `notif-${Date.now()}-rejection`,
-          title: '❌ কোর্স পেমেন্ট বাতিল / ভেরিফিকেশন ব্যর্থ',
-          message: `দুঃখিত ${affectedOrder?.userName}, '${affectedOrder?.courseTitle}' কোর্সের জন্য আপনার দেওয়া TrxID (${affectedOrder?.transactionId}) যাচাই করা সম্ভব হয়নি বা বাতিল হয়েছে। বিস্তারিত জানতে অফিসে বা হেল্পলাইনে যোগাযোগ করুন।`,
-          time: 'এখনই',
-          read: false,
-          type: 'error',
-          targetTab: 'student'
-        },
-        ...prev
-      ]);
-    }
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
   };
 
   // Contact
@@ -2437,149 +1884,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const CONVERSATION_DIRECT_MAP: Record<string, string> = {
-    'chat-client-sohag': 'dmsg-s1',
-    'chat-client-tanjim': 'dmsg-s2',
-    'chat-client-sumaiya': 'dmsg-s3',
-    'chat-piten-support': 'dmsg-s4',
-    'chat-client-ariful': 'dmsg-s5',
-    'chat-tanvir-ahmed': 'dmsg-b1',
-    'chat-creative-pixels': 'dmsg-b2',
-    'chat-shahinur-rahman': 'dmsg-b3',
-    'chat-piten-official': 'dmsg-b4',
-    'chat-zubair-hossain': 'dmsg-b5',
-    'chat-sadia-afrin': 'dmsg-b6',
-    'chat-mouson-art': 'dmsg-b7',
-    'dmsg-s1': 'chat-client-sohag',
-    'dmsg-s2': 'chat-client-tanjim',
-    'dmsg-s3': 'chat-client-sumaiya',
-    'dmsg-s4': 'chat-piten-support',
-    'dmsg-s5': 'chat-client-ariful',
-    'dmsg-b1': 'chat-tanvir-ahmed',
-    'dmsg-b2': 'chat-creative-pixels',
-    'dmsg-b3': 'chat-shahinur-rahman',
-    'dmsg-b4': 'chat-piten-official',
-    'dmsg-b5': 'chat-zubair-hossain',
-    'dmsg-b6': 'chat-sadia-afrin',
-    'dmsg-b7': 'chat-mouson-art',
+  const markDirectMessageRead = (id: string) => {
+    setDirectMessages(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
   };
 
-  const markDirectMessageRead = useCallback((id: string) => {
-    if (!id) return;
-    const alias = CONVERSATION_DIRECT_MAP[id];
-    
-    // Add to read conversation IDs
-    setReadConversationIds(prev => {
-      const next = new Set(prev);
-      next.add(id);
-      if (alias) next.add(alias);
-      return Array.from(next);
-    });
+  const markAllDirectMessagesRead = () => {
+    setDirectMessages(prev => prev.map(m => ({ ...m, read: true })));
+  };
 
-    setDirectMessages(prev => {
-      let hasChanges = false;
-      const next = prev.map(m => {
-        if (m.id === id || m.orderId === id || (alias && (m.id === alias || m.orderId === alias))) {
-          if (!m.read || (m.unreadCount && m.unreadCount > 0)) {
-            hasChanges = true;
-            return { ...m, read: true, unreadCount: 0 };
-          }
-          return m;
-        }
-        const idLower = (id || '').toLowerCase().replace('chat-', '').replace('dmsg-', '');
-        const sender = (m.senderName || '').toLowerCase();
-        if (
-          (idLower.includes('sohag') && (sender.includes('সোহাগ') || sender.includes('sohag'))) ||
-          (idLower.includes('tanjim') && (sender.includes('তানজিম') || sender.includes('tanjim'))) ||
-          (idLower.includes('sumaiya') && (sender.includes('সুমাইয়া') || sender.includes('sumaiya'))) ||
-          (idLower.includes('ariful') && (sender.includes('আরিফুল') || sender.includes('ariful'))) ||
-          (idLower.includes('tanvir') && (sender.includes('তানভীর') || sender.includes('tanvir'))) ||
-          (idLower.includes('creative') && (sender.includes('ক্রিয়েটিভ') || sender.includes('creative'))) ||
-          (idLower.includes('shahinur') && (sender.includes('শাহিনুর') || sender.includes('shahinur') || sender.includes('রাশেদুল'))) ||
-          (idLower.includes('zubair') && (sender.includes('জুবায়ের') || sender.includes('zubair'))) ||
-          (idLower.includes('sadia') && (sender.includes('সাদিয়া') || sender.includes('sadia'))) ||
-          (idLower.includes('piten') && (sender.includes('pten') || sender.includes('piten') || sender.includes('এসক্রো') || sender.includes('মার্কেটপ্লেস') || sender.includes('সাপোর্ট')))
-        ) {
-          if (!m.read || (m.unreadCount && m.unreadCount > 0)) {
-            hasChanges = true;
-            return { ...m, read: true, unreadCount: 0 };
-          }
-        }
-        return m;
-      });
-      return hasChanges ? next : prev;
-    });
-  }, []);
-
-  const markConversationRead = useCallback((id: string) => {
-    markDirectMessageRead(id);
-  }, [markDirectMessageRead]);
-
-  const markAllDirectMessagesRead = useCallback((mode?: 'buying' | 'selling') => {
-    const buyerConvoIds = [
-      'chat-tanvir-ahmed', 'chat-creative-pixels', 'chat-shahinur-rahman',
-      'chat-piten-support', 'chat-piten-official', 'chat-zubair-hossain',
-      'chat-sadia-afrin', 'chat-mouson-art',
-      'dmsg-b1', 'dmsg-b2', 'dmsg-b3', 'dmsg-b4', 'dmsg-b5', 'dmsg-b6', 'dmsg-b7'
-    ];
-    const sellerConvoIds = [
-      'chat-client-sohag', 'chat-client-tanjim', 'chat-client-sumaiya',
-      'chat-piten-support', 'chat-client-ariful',
-      'dmsg-s1', 'dmsg-s2', 'dmsg-s3', 'dmsg-s4', 'dmsg-s5'
-    ];
-
-    setReadConversationIds(prev => {
-      const next = new Set(prev);
-      if (!mode || mode === 'buying') {
-        buyerConvoIds.forEach(cId => next.add(cId));
-      }
-      if (!mode || mode === 'selling') {
-        sellerConvoIds.forEach(cId => next.add(cId));
-      }
-      return Array.from(next);
-    });
-
-    setDirectMessages(prev => {
-      let hasChanges = false;
-      const next = prev.map(m => {
-        if (!mode) {
-          if (!m.read || (m.unreadCount && m.unreadCount > 0)) {
-            hasChanges = true;
-            return { ...m, read: true, unreadCount: 0 };
-          }
-          return m;
-        }
-        if (mode === 'selling') {
-          const isSeller = m.mode === 'selling' || m.recipientRole === 'seller' || m.recipientRole === 'instructor' || m.senderRole?.includes('Buyer') || m.senderRole?.includes('বায়ার') || m.senderRole?.includes('customer');
-          if (isSeller && m.mode !== 'buying') {
-            if (!m.read || (m.unreadCount && m.unreadCount > 0)) {
-              hasChanges = true;
-              return { ...m, read: true, unreadCount: 0 };
-            }
-          }
-          return m;
-        }
-        if (mode === 'buying') {
-          const isBuyer = m.mode === 'buying' || m.recipientRole === 'buyer' || m.recipientRole === 'customer' || m.senderRole?.includes('teacher') || m.senderRole?.includes('সেলার') || m.senderRole?.includes('Seller');
-          if (isBuyer && m.mode !== 'selling') {
-            if (!m.read || (m.unreadCount && m.unreadCount > 0)) {
-              hasChanges = true;
-              return { ...m, read: true, unreadCount: 0 };
-            }
-          }
-          return m;
-        }
-        return m;
-      });
-      return hasChanges ? next : prev;
-    });
-  }, []);
-
-  const markAllConversationsRead = useCallback((mode?: 'buying' | 'selling') => {
-    markAllDirectMessagesRead(mode);
-  }, [markAllDirectMessagesRead]);
-
-  const sendDirectMessage = useCallback((msg: Omit<DirectMessageItem, 'id' | 'read'>) => {
+  const sendDirectMessage = (msg: Omit<DirectMessageItem, 'id' | 'read'>) => {
     const newMsg: DirectMessageItem = {
       ...msg,
       id: `dmsg-${Date.now()}`,
@@ -2587,9 +1900,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setDirectMessages(prev => [newMsg, ...prev]);
     playAppSound('message');
-  }, []);
+  };
 
-  const openChatWindow = useCallback((contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string }) => {
+  const openChatWindow = (contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string }) => {
     const windowId = contact.id || `chat-${contact.senderName.replace(/\s+/g, '-').toLowerCase()}`;
     setActiveMessengerConversationId(windowId);
     
@@ -2628,13 +1941,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       return [...prev, newWin];
     });
-  }, []);
 
-  const closeChatWindow = useCallback((id: string) => {
+    // Floating mini chat popup window opens on screen directly over the current view
+    // (User can view their orders and close popup with 'X' button)
+  };
+
+  const closeChatWindow = (id: string) => {
     setActiveChatWindows(prev => prev.filter(w => w.id !== id));
-  }, []);
+  };
 
-  const openMessengerInbox = useCallback((conversationId?: string, initialTab: 'messages' | 'notifications' | 'courses' = 'messages', orderId?: string) => {
+  const openMessengerInbox = (conversationId?: string, initialTab: 'messages' | 'notifications' | 'courses' = 'messages', orderId?: string) => {
     setInitialMessengerTab(initialTab);
     if (conversationId) {
       setActiveMessengerConversationId(conversationId);
@@ -2653,29 +1969,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setActiveMessengerConversationId(null);
       setActiveMessengerOrderId(null);
     }
-    // Minimize floating popup windows without erasing message history
-    setActiveChatWindows(prev => prev.map(w => ({ ...w, minimized: true })));
+    // Clear floating popup windows so full messenger is focused
+    setActiveChatWindows([]);
     setIsNotificationCenterOpen(false);
     setIsMessengerInboxOpen(true);
-  }, []);
+  };
 
-  const closeMessengerInbox = useCallback(() => {
+  const closeMessengerInbox = () => {
     setActiveMessengerConversationId(null);
     setActiveMessengerOrderId(null);
     setIsMessengerInboxOpen(false);
     setIsNotificationCenterOpen(false);
-  }, []);
+  };
 
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
-  const openNotificationCenter = useCallback(() => {
+  const openNotificationCenter = () => {
     openMessengerInbox(undefined, 'notifications');
-  }, [openMessengerInbox]);
+  };
 
-  const closeNotificationCenter = useCallback(() => {
+  const closeNotificationCenter = () => {
     setIsNotificationCenterOpen(false);
     setIsMessengerInboxOpen(false);
-  }, []);
+  };
 
   const clearAllNotifications = () => {
     setNotifications([]);
@@ -2690,8 +2006,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const sendChatMessage = (windowId: string, text: string, meetLink?: string) => {
-    if (!text && !meetLink) return;
-
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       senderName: currentUser?.name || 'আমি',
@@ -2722,46 +2036,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return o;
     }));
 
-    setActiveChatWindows(prev => {
-      const exists = prev.some(w => w.id === windowId);
-      if (exists) {
-        return prev.map(w => {
-          if (w.id === windowId) {
-            return {
-              ...w,
-              messages: [...w.messages, userMsg]
-            };
-          }
-          return w;
-        });
-      } else {
-        // Window wasn't in activeChatWindows yet: register it immediately with initial intro + user message
-        const cleanName = windowId.replace(/^chat-/, '').replace(/-/g, ' ');
-        const displayName = targetSenderName || (cleanName ? cleanName.split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') : 'সাপোর্ট / সেলার');
-        return [
-          ...prev,
-          {
-            id: windowId,
-            orderId: targetOrderId,
-            senderName: displayName,
-            senderRole: 'seller',
-            senderAvatar: targetWin?.senderAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-            minimized: false,
-            messages: [
-              {
-                id: `msg-${windowId}-init`,
-                senderName: displayName,
-                senderAvatar: targetWin?.senderAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-                isSelf: false,
-                text: 'আসসালামু আলাইকুম! আপনার প্রজেক্টের রিকোয়ারমেন্ট বা সার্ভিস সম্পর্কে জানান।',
-                time: '১০ মিনিট আগে'
-              },
-              userMsg
-            ]
-          }
-        ];
+    setActiveChatWindows(prev => prev.map(w => {
+      if (w.id === windowId) {
+        return {
+          ...w,
+          messages: [...w.messages, userMsg]
+        };
       }
-    });
+      return w;
+    }));
     playAppSound('message');
 
     // Auto response for ongoing active messaging thread
@@ -3592,9 +2875,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         applyForMentorship,
         approveMentorApplication,
         rejectMentorApplication,
-        readConversationIds,
-        markConversationRead,
-        markAllConversationsRead,
         markDirectMessageRead,
         markAllDirectMessagesRead,
         sendDirectMessage,
@@ -3604,11 +2884,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sendChatMessage,
         createGoogleMeetCall,
         toggleUserBlock,
-        isOfferSoundEnabled,
-        toggleOfferSound,
         playAppSound,
-        marketplaceMode,
-        setMarketplaceMode
+        isOfferSoundEnabled,
+        toggleOfferSound
       }}
     >
       {children}

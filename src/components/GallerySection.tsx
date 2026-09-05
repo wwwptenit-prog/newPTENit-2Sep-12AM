@@ -33,7 +33,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ onBack }) => {
     : gallery.filter(g => g.category === selectedCategory);
 
   return (
-    <section className="py-8 sm:py-12 bg-slate-100/80 dark:bg-slate-900/60 text-slate-900 dark:text-white font-bengali">
+    <section className="py-10 sm:py-16 bg-slate-100/90 text-slate-900 dark:bg-slate-950 dark:text-white border-y border-slate-200/70 dark:border-slate-800/80 font-bengali">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-12">
         
         {/* Header */}
@@ -43,7 +43,7 @@ export const GallerySection: React.FC<GallerySectionProps> = ({ onBack }) => {
               <button
                 type="button"
                 onClick={onBack}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs transition cursor-pointer border-0"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs transition cursor-pointer border-0 shadow-xs"
                 title={t('পূর্ববর্তী স্থানে ফিরে যান', 'Go back to previous page')}
               >
                 <ArrowLeft className="w-4 h-4 text-[#1DB954]" />

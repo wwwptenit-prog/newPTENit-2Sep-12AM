@@ -3,6 +3,7 @@ import { DataProvider, useData } from './context/DataContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Hero } from './components/Hero';
+import { GlitterParticles } from './components/GlitterParticles';
 import { StatsCounter } from './components/StatsCounter';
 import { PromotionalOfferBanner } from './components/PromotionalOfferBanner';
 import { ServicesSection } from './components/ServicesSection';
@@ -46,6 +47,29 @@ const MainAppContent: React.FC = () => {
   const [learningCourseId, setLearningCourseId] = useState<string | null>(null);
   const [activeCertificateCode, setActiveCertificateCode] = useState<string | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [heroZoneMouseCoords, setHeroZoneMouseCoords] = useState<{ x: number; y: number } | null>(null);
+
+  const handleHeroZoneMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHeroZoneMouseCoords({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  const handleHeroZoneTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length > 0) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setHeroZoneMouseCoords({
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      });
+    }
+  };
+
+  const handleHeroZoneMouseLeave = () => {
+    setHeroZoneMouseCoords(null);
+  };
 
   // Robust Multi-level Navigation History Stack
   interface NavHistoryItem {
@@ -298,8 +322,23 @@ const MainAppContent: React.FC = () => {
           {/* VIEW 1: HOME PAGE */}
           {activeTab === 'home' && (
             <>
-              <Hero setActiveTab={handleSetActiveTab} />
-              <PromotionalOfferBanner setActiveTab={handleSetActiveTab} />
+              {/* Combined Hero & Eid Mega Offer Zone with unified glittering starfield ("সেইম হিরো শেকশন এবং (ঈদ মেগা অফার!) পযন্ত কনটাইনিয়ারে স্টার গুলা বিসন্ত থাকবে, বাট কালার স্ব স্ব থাকবে") */}
+              <div
+                onMouseMove={handleHeroZoneMouseMove}
+                onTouchMove={handleHeroZoneTouchMove}
+                onMouseLeave={handleHeroZoneMouseLeave}
+                className="relative w-full overflow-hidden"
+              >
+                {/* 1. Hero Section (signature deep navy background) */}
+                <Hero setActiveTab={handleSetActiveTab} mouseCoords={heroZoneMouseCoords} />
+
+                {/* 2. Eid Mega Offer Banner (emerald-to-teal gradient background) */}
+                <PromotionalOfferBanner setActiveTab={handleSetActiveTab} />
+
+                {/* 3. Continuous Glittering Starfield spanning seamlessly across Hero down through Eid Mega Offer Banner */}
+                <GlitterParticles mouseCoords={heroZoneMouseCoords} />
+              </div>
+
               <StatsCounter />
               <ServicesSection setActiveTab={handleSetActiveTab} isStandalonePage={false} />
               <CoursesSection
