@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { MarketplaceGig, User as UserType } from "../types";
 import { useData } from "../context/DataContext";
+import { getSingleBadgeInfo } from "../utils/badgeHelper";
 
 interface GigCardProps {
   gig: MarketplaceGig;
@@ -163,19 +164,15 @@ export const GigCard: React.FC<GigCardProps> = ({
 
           {/* Top Floating Badges Section */}
           <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 z-10 flex items-center gap-1 sm:gap-1.5 flex-wrap max-w-[70%] pointer-events-none">
-            {/* Offer / Discount Badge */}
-            {gig.offerBadge === "work_first" ||
-            gig.offerBadge === "আগে কাজ শুরু" ? (
-              <span className="bg-amber-500 text-slate-950 text-[9px] sm:text-[11px] font-bold font-bengali px-1.5 py-0.5 sm:px-2 rounded-md shadow-xs">
-                আগে কাজ শুরু
-              </span>
-            ) : (
-              <span className="bg-[#1DB954] text-white text-[9px] sm:text-[11px] font-bold font-bengali px-1.5 py-0.5 sm:px-2 rounded-md shadow-xs">
-                {gig.offerBadge === "৩০% ক্যাশব্যাক"
-                  ? "৩০% ছাড়"
-                  : gig.offerBadge || "৩০% ছাড়"}
-              </span>
-            )}
+            {/* Offer / Single Badge (গিগ বা সার্ভিস হলে: আগে কাজ শুরু বা প্রিমিয়াম সার্ভিস) */}
+            {(() => {
+              const singleBadge = getSingleBadgeInfo(gig, 'gig');
+              return (
+                <span className={`${singleBadge.cardClass} text-[9px] sm:text-[11px] font-bold font-bengali px-1.5 py-0.5 sm:px-2 rounded-md shadow-xs`}>
+                  {singleBadge.label}
+                </span>
+              );
+            })()}
 
             {/* Ordered Status Badge */}
             {userOrder && (
@@ -260,7 +257,7 @@ export const GigCard: React.FC<GigCardProps> = ({
         <div className="p-2.5 sm:p-3.5 space-y-2 flex-1 flex flex-col justify-between">
           {/* Seller Identity Bar */}
           <div className="flex items-center justify-between gap-1.5 border-b border-slate-100 dark:border-slate-800/80 pb-2">
-            <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <div className="relative shrink-0">
                 <img
                   src={
@@ -268,13 +265,13 @@ export const GigCard: React.FC<GigCardProps> = ({
                     "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
                   }
                   alt={gig.sellerName}
-                  className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover border border-[#1DB954]"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover"
                 />
-                <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-white dark:ring-slate-900 animate-pulse" />
+                <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
-                  <span className="text-[11px] sm:text-xs font-bold text-slate-900 dark:text-slate-100 truncate group-hover:text-[#1DB954] transition-colors">
+                  <span className="text-[10px] sm:text-sm md:text-[15px] font-bold text-slate-900 dark:text-slate-100 truncate group-hover:text-[#1DB954] transition-colors whitespace-nowrap">
                     {gig.sellerName}
                   </span>
                   <CheckCircle2
@@ -282,25 +279,19 @@ export const GigCard: React.FC<GigCardProps> = ({
                     title="ভেরিফাইড প্রোফাইল"
                   />
                 </div>
-                <span className="text-[9px] sm:text-[11px] text-slate-500 dark:text-slate-400 block truncate font-medium">
-                  {gig.sellerLevel || "Top Rated"}
-                </span>
+                <div className="flex items-center gap-1.5 text-[8px] sm:text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate whitespace-nowrap mt-0.5">
+                  <span className="text-amber-500 dark:text-amber-400 font-semibold">{gig.sellerLevel || "Top Rated"}</span>
+                  <span className="text-slate-300 dark:text-slate-600">•</span>
+                  <span className={isAgency ? "text-[#1DB954] font-semibold" : "text-slate-600 dark:text-slate-300 font-medium"}>
+                    {isAgency ? 'Agency' : (gig.sellerTitle ? gig.sellerTitle.split('&')[0].trim() : 'Pro')}
+                  </span>
+                </div>
               </div>
             </div>
-
-            {isAgency ? (
-              <span className="px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md bg-[#1DB954]/15 text-[#1DB954] text-[8px] sm:text-[10px] font-bold border border-[#1DB954]/30 shrink-0">
-                Agency
-              </span>
-            ) : (
-              <span className="px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[8px] sm:text-[10px] font-bold border border-slate-200 dark:border-slate-700 shrink-0">
-                Pro
-              </span>
-            )}
           </div>
 
-          {/* Gig Title - Harmonized size for phone & PC */}
-          <h3 className="text-xs sm:text-sm md:text-[15px] font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug group-hover:text-[#1DB954] transition-colors min-h-[2.25rem] sm:min-h-[2.5rem]">
+          {/* Gig Title - Harmonized size for phone & PC, up to 3 lines on phone view */}
+          <h3 className="text-[11px] sm:text-sm md:text-[15px] font-bold text-slate-900 dark:text-white line-clamp-3 sm:line-clamp-2 leading-[1.35] sm:leading-snug group-hover:text-[#1DB954] transition-colors min-h-[2.75rem] sm:min-h-[2.5rem]">
             {gig.title}
           </h3>
 

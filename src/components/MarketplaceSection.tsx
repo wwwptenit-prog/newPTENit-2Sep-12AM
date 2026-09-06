@@ -98,8 +98,9 @@ import {
 } from 'lucide-react';
 import { useData, checkAndAutoCancelOverdueOrders } from '../context/DataContext';
 import { getLiveSessionDynamicStatus, formatBanglaLiveSchedule } from '../services/liveClassService';
-import { MarketplaceGig, MarketplaceJob, MarketplaceOrder } from '../types';
+import { MarketplaceGig, MarketplaceJob, MarketplaceOrder, Service } from '../types';
 import { GigDetailPage } from './GigDetailPage';
+import { ServiceDetailModal } from './ServiceDetailModal';
 import { GigCard } from './GigCard';
 import { StudentDashboard } from './StudentDashboard';
 import { CustomerDashboard } from './CustomerDashboard';
@@ -2735,6 +2736,9 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
     return null;
   });
 
+  // Selected Official Agency Service Modal (Matching DigitalProductDetailModal!)
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+
   useEffect(() => {
     try {
       const savedGigData = localStorage.getItem('ptenit_selected_gig_data');
@@ -4984,13 +4988,21 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
         </div>
       )}
 
-        {/* FREELANCER SELLER PROFILE WORKSPACE VS BUYER MARKETPLACE */}
+        {/* OFFICIAL SERVICE DETAIL MODAL (Matching DigitalProductDetailModal!) */}
+        {selectedService && (
+          <ServiceDetailModal
+            service={selectedService}
+            onClose={() => setSelectedService(null)}
+            setActiveTab={setActiveTab}
+            openAuthModal={openAuthModal}
+          />
+        )}
+
+        {/* FREELANCER SELLER PROFILE WORKSPACE VS BUYER MARKETPLACE - Rendered with ServiceDetailModal (পিটেন এর গিগ গুলার মত) */}
         {selectedGig ? (
-          <GigDetailPage
-            gig={selectedGig}
-            allGigs={gigs}
-            currentUser={currentUser}
-            onBack={() => {
+          <ServiceDetailModal
+            service={selectedGig}
+            onClose={() => {
               const returnTab = localStorage.getItem('ptenit_return_tab');
               setSelectedGig(null);
               if (returnTab) {
@@ -5001,19 +5013,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
               }
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            onSelectGig={(g) => {
-              setSelectedGig(g);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            openAuthModal={openAuthModal}
-            createDirectGigOrder={createDirectGigOrder}
             setActiveTab={setActiveTab}
-            onOrderSuccess={() => {
-              setSelectedGig(null);
-              setActiveSubTab('my-orders');
-              setViewMode('buying');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            openAuthModal={openAuthModal}
           />
         ) : viewMode === 'selling' ? (
         /* SELLER WORKSPACE */
@@ -5151,18 +5152,34 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                             </select>
                           </div>
 
-                          <div className="space-y-1 sm:col-span-2 md:col-span-1">
-                            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                              প্রজেক্ট টাইটেল <span className="text-rose-500">*</span>
-                            </label>
+                          <div className="space-y-1.5 sm:col-span-2 md:col-span-1">
+                            <div className="flex items-center justify-between">
+                              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                                {t('প্রজেক্ট টাইটেল', 'Project Title')} <span className="text-rose-500">*</span>
+                              </label>
+                              <span className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                                newGigTitle.length > 90 
+                                  ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400' 
+                                  : newGigTitle.length >= 45 && newGigTitle.length <= 90 
+                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' 
+                                    : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                              }`}>
+                                {newGigTitle.length}/৯০ ক্যারেক্টার
+                              </span>
+                            </div>
                             <input
                               type="text"
                               required
-                              placeholder="যেমন: I will build a full stack AI web application..."
+                              maxLength={95}
+                              placeholder="যেমন: আমি আধুনিক ফুল-স্ট্যাক ওয়েব অ্যাপ্লিকেশন ডেভেলপ করবো"
                               value={newGigTitle}
                               onChange={(e) => setNewGigTitle(e.target.value)}
                               className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-[#1DB954]"
                             />
+                            <div className="p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/50 rounded-lg text-[11px] leading-relaxed text-amber-800 dark:text-amber-300 flex items-start gap-1.5">
+                              <span className="text-sm shrink-0">💡</span>
+                              <span><strong>হিন্ট:</strong> টাইটেল <strong>৫০ থেকে ৯০ ক্যারেক্টারের</strong> মধ্যে রাখা সবচেয়ে উপযুক্ত, যাতে ফোন ভিউতে সুন্দরভাবে ৩ লাইনে স্পষ্টভাবে দেখা যায়।</span>
+                            </div>
                           </div>
                         </div>
 
@@ -8709,7 +8726,7 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                                   {/* Card Content & Details */}
                                   <div className="p-2 sm:p-3 flex-1 flex flex-col justify-between space-y-2">
                                     <div>
-                                      <h4 className="text-[11px] sm:text-xs md:text-sm font-black text-slate-900 dark:text-white line-clamp-2 leading-snug group-hover:text-[#1DB954] transition-colors min-h-[1.9rem] sm:min-h-[2.2rem]">
+                                      <h4 className="text-[11px] sm:text-xs md:text-sm font-black text-slate-900 dark:text-white line-clamp-3 sm:line-clamp-2 leading-snug group-hover:text-[#1DB954] transition-colors min-h-[2.6rem] sm:min-h-[2.2rem]">
                                         {g.title}
                                       </h4>
                                       <div className="mt-1 flex items-center justify-between">
@@ -9870,29 +9887,7 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                   <div
                     key={serv.id}
                     onClick={() => {
-                      const matchedGig: MarketplaceGig = gigs.find(
-                        g => g.id === serv.id || g.title.toLowerCase() === serv.title.toLowerCase()
-                      ) || {
-                        id: serv.id,
-                        sellerId: 'ptenit-agency',
-                        sellerName: 'PTENit Official Agency',
-                        sellerAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-                        sellerLevel: 'Top Rated Official Agency',
-                        title: serv.title,
-                        category: serv.category,
-                        description: serv.fullDescription || serv.shortDescription,
-                        thumbnail: serv.thumbnail || 'https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=800&q=80',
-                        rating: serv.rating || 5.0,
-                        reviewsCount: serv.reviewsCount || 48,
-                        packages: serv.packages || {
-                          basic: { name: 'Basic Package', price: 10000, deliveryDays: 3, revisions: '3', features: serv.features || ['কাস্টম ডিজাইন'] },
-                          standard: { name: 'Standard Package', price: 20000, deliveryDays: 5, revisions: '5', features: serv.features || ['কাস্টম ডিজাইন', 'এসইও'] },
-                          premium: { name: 'Premium Package', price: 35000, deliveryDays: 7, revisions: 'Unlimited', features: serv.features || ['কাস্টম ডিজাইন', 'এসইও', 'সাপোর্ট'] }
-                        },
-                        tags: ['Official', 'PTENit', serv.category],
-                        status: 'active' as const
-                      };
-                      setSelectedGig(matchedGig);
+                      setSelectedService(serv);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                     className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 hover:border-[#1DB954] transition shadow-sm hover:shadow-md cursor-pointer flex flex-col justify-between space-y-4 group"
@@ -14917,14 +14912,30 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
 
             <form onSubmit={handleSaveEditGig} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">{t('গিগ টাইটেল', 'Gig Title')}</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">{t('গিগ টাইটেল', 'Gig Title')} <span className="text-rose-500">*</span></label>
+                  <span className={`text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                    editGigTitle.length > 90 
+                      ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400' 
+                      : editGigTitle.length >= 45 && editGigTitle.length <= 90 
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' 
+                        : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                  }`}>
+                    {editGigTitle.length}/৯০ ক্যারেক্টার
+                  </span>
+                </div>
                 <input
                   type="text"
                   required
+                  maxLength={95}
                   value={editGigTitle}
                   onChange={(e) => setEditGigTitle(e.target.value)}
                   className="w-full p-3 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-[#1DB954]"
                 />
+                <div className="mt-1.5 p-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/50 rounded-lg text-[11px] leading-relaxed text-amber-800 dark:text-amber-300 flex items-start gap-1.5">
+                  <span className="text-sm shrink-0">💡</span>
+                  <span><strong>হিন্ট:</strong> টাইটেল <strong>৫০ থেকে ৯০ ক্যারেক্টারের</strong> মধ্যে রাখা সবচেয়ে উপযুক্ত, যাতে ফোন ভিউতে সুন্দরভাবে ৩ লাইনে স্পষ্টভাবে দেখা যায়।</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
