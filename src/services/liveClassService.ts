@@ -1,90 +1,88 @@
 import { LiveClassSession } from '../types';
 
-export type LiveSessionStatus = 'live_now' | 'scheduled' | 'ended';
-
 /**
- * Checks the dynamic status of a live session based on date, start time, and duration
+ * Automatically computes whether a live class session is:
+ * - 'live_now': Current time is within [startTime, startTime + duration]
+ * - 'scheduled': Current time is before startTime
+ * - 'expired': Current time has passed [startTime + duration] -> Auto Removed
  */
-export function getLiveSessionDynamicStatus(session: LiveClassSession): LiveSessionStatus {
-  if (!session || !session.date) return 'scheduled';
-
+export function getLiveSessionDynamicStatus(session: LiveClassSession): 'live_now' | 'scheduled' | 'expired' {
+  if (!session.date || !session.time) return 'scheduled';
+  
   try {
-    const timeStr = session.time || '20:00';
-    const [hours, minutes] = timeStr.split(':').map(n => parseInt(n, 10) || 0);
+    const [year, month, day] = session.date.split('-').map(Number);
+    const [hours, minutes] = session.time.split(':').map(Number);
 
-    const sessionStart = new Date(session.date);
-    sessionStart.setHours(hours, minutes, 0, 0);
-
-    const duration = session.durationMinutes || 90;
-    const sessionEnd = new Date(sessionStart.getTime() + duration * 60 * 1000);
-
-    const now = new Date();
-
-    if (now >= sessionStart && now <= sessionEnd) {
-      return 'live_now';
-    } else if (now < sessionStart) {
+    if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hours) || isNaN(minutes)) {
       return 'scheduled';
-    } else {
-      return 'ended';
     }
-  } catch {
+
+    const startDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    const startTime = startDate.getTime();
+    
+    // Duration in minutes (default 90 mins)
+    const durationMinutes = session.durationMinutes && session.durationMinutes > 0 ? session.durationMinutes : 90;
+    const endTime = startTime + durationMinutes * 60 * 1000;
+    const now = Date.now();
+
+    if (now < startTime) {
+      return 'scheduled';
+    } else if (now >= startTime && now <= endTime) {
+      return 'live_now';
+    } else {
+      // Time and duration have elapsed -> Automatically expired / removed
+      return 'expired';
+    }
+  } catch (e) {
     return 'scheduled';
   }
 }
 
 /**
- * Returns active live sessions (live now or upcoming scheduled sessions)
+ * Filter only active live classes (removes expired ones) and sorts:
+ * 1. Live Now sessions first
+ * 2. Upcoming scheduled sessions sorted chronologically by start date/time
  */
 export function getActiveLiveSessions(sessions: LiveClassSession[]): LiveClassSession[] {
   if (!Array.isArray(sessions)) return [];
-  return sessions.filter(session => {
+
+  const active = sessions.filter(session => {
     const status = getLiveSessionDynamicStatus(session);
-    return status === 'live_now' || status === 'scheduled';
+    return status !== 'expired';
+  });
+
+  return active.sort((a, b) => {
+    const statusA = getLiveSessionDynamicStatus(a);
+    const statusB = getLiveSessionDynamicStatus(b);
+
+    if (statusA === 'live_now' && statusB !== 'live_now') return -1;
+    if (statusB === 'live_now' && statusA !== 'live_now') return 1;
+
+    const timeA = new Date(`${a.date}T${a.time || '00:00'}:00`).getTime() || 0;
+    const timeB = new Date(`${b.date}T${b.time || '00:00'}:00`).getTime() || 0;
+    return timeA - timeB;
   });
 }
 
 /**
- * Formats date and time into a readable Bangla schedule string
+ * Helper to format date & time into friendly Bengali strings
  */
-export function formatBanglaLiveSchedule(dateStr?: string, timeStr?: string): string {
-  if (!dateStr) return 'শীঘ্রই সময় নির্ধারিত হবে';
-
-  const banglaDigits: Record<string, string> = {
-    '0': '০', '1': '১', '2': '২', '3': '৩', '4': '৪',
-    '5': '৫', '6': '৬', '7': '৭', '8': '৮', '9': '৯'
-  };
-
-  const toBn = (num: number | string) =>
-    num.toString().replace(/\d/g, d => banglaDigits[d] || d);
-
+export function formatBanglaLiveSchedule(dateStr: string, timeStr: string): string {
   try {
-    const dateObj = new Date(dateStr);
-    const months = [
-      'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
-      'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
-    ];
-    const days = ['রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'];
-
-    const dayName = days[dateObj.getDay()] || '';
-    const day = toBn(dateObj.getDate());
-    const month = months[dateObj.getMonth()] || '';
-    const year = toBn(dateObj.getFullYear());
-
-    let timeFormatted = '';
-    if (timeStr) {
-      const [h, m] = timeStr.split(':').map(n => parseInt(n, 10) || 0);
-      const isPm = h >= 12;
-      const hour12 = h % 12 === 0 ? 12 : h % 12;
-      const minutePad = m < 10 ? `0${m}` : `${m}`;
-      const period = isPm
-        ? (h >= 17 ? 'সন্ধ্যা' : h >= 20 ? 'রাত' : 'দুপুর')
-        : (h < 6 ? 'রাত' : 'সকাল');
-
-      timeFormatted = `, ${period} ${toBn(hour12)}:${toBn(minutePad)} মিনিট`;
-    }
-
-    return `${day} ${month} ${year} (${dayName})${timeFormatted}`;
-  } catch {
-    return dateStr;
+    const [y, m, d] = dateStr.split('-');
+    const [hh, mm] = (timeStr || '20:00').split(':');
+    const hourNum = parseInt(hh, 10);
+    const minuteNum = parseInt(mm, 10);
+    
+    const isPm = hourNum >= 12;
+    const displayHour = hourNum % 12 === 0 ? 12 : hourNum % 12;
+    const period = hourNum >= 5 && hourNum < 12 ? 'সকাল' : hourNum >= 12 && hourNum < 16 ? 'দুপুর' : hourNum >= 16 && hourNum < 19 ? 'বিকাল' : 'রাত';
+    
+    const bnDate = `${d}/${m}/${y}`;
+    const bnTime = `${period} ${displayHour.toLocaleString('bn-BD')}:${minuteNum < 10 ? '০' : ''}${minuteNum.toLocaleString('bn-BD')} মি.`;
+    
+    return `${bnDate} (${bnTime})`;
+  } catch (e) {
+    return `${dateStr} ${timeStr}`;
   }
 }

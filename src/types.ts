@@ -15,6 +15,9 @@ export interface User {
   institution?: string;
   createdAt: string;
   blocked?: boolean;
+  isRestricted?: boolean;
+  restrictionReason?: string;
+  restrictedAt?: string;
   isSpecialist?: boolean;
   specialistStatus?: 'not_applied' | 'pending' | 'approved' | 'rejected';
   isSeller?: boolean;
@@ -44,6 +47,9 @@ export interface User {
     status: 'pending' | 'approved' | 'rejected';
     rejectionReason?: string;
   };
+  staffPermissions?: Record<string, boolean>;
+  staffDepartment?: string;
+  staffMember?: any;
 }
 
 export interface Lesson {
@@ -198,6 +204,9 @@ export interface Service {
     standard: MarketplaceGigPackage;
     premium: MarketplaceGigPackage;
   };
+  demoImages?: string[];
+  galleryImages?: string[];
+  demoUrl?: string;
 }
 
 export interface Enrollment {
@@ -335,8 +344,25 @@ export interface SiteSettings {
   heroPhotoBadge?: string;
   heroPhotoGlowColor?: 'emerald' | 'cyan' | 'purple' | 'amber';
   bkashNumber?: string;
+  bkashLogoUrl?: string;
+  bkashAccountType?: 'Personal' | 'Merchant' | 'Agent';
   nagadNumber?: string;
+  nagadLogoUrl?: string;
+  nagadAccountType?: 'Personal' | 'Merchant' | 'Agent';
   rocketNumber?: string;
+  rocketLogoUrl?: string;
+  rocketAccountType?: 'Personal' | 'Merchant' | 'Agent';
+  upayNumber?: string;
+  upayLogoUrl?: string;
+  upayAccountType?: 'Personal' | 'Merchant' | 'Agent';
+  customMfsMethods?: Array<{
+    id: string;
+    name: string;
+    number: string;
+    logoUrl: string;
+    accountType: string;
+    isActive: boolean;
+  }>;
   bankName?: string;
   bankAccountName?: string;
   bankAccountNumber?: string;
@@ -537,6 +563,8 @@ export interface MarketplaceGig {
   status: 'active' | 'paused';
   offerBadge?: 'cashback' | 'work_first' | string;
   tags?: string[];
+  demoImages?: string[];
+  demoUrl?: string;
   createdAt?: string;
 }
 
@@ -640,7 +668,21 @@ export interface MarketplaceOrder {
   offerType?: string;
   isWorkFirst?: boolean;
   requirements?: string;
+  deliveryType?: 'canva_auto' | 'file_download' | 'email_whatsapp' | 'auto' | 'manual' | string;
+  canvaInviteLink?: string;
+  customFileUrl?: string;
+  customFileName?: string;
+  downloadToken?: string;
+  paymentStatus?: 'pending' | 'verified' | 'rejected' | string;
+  accessGranted?: boolean;
+  deliveryStatus?: string;
+  accessUsed?: boolean;
+  accessGrantedAt?: string;
+  accessUsedAt?: string;
+  accessDeliveryMethod?: string;
 }
+
+export type DigitalProductDeliveryType = 'canva_auto' | 'file_download' | 'email_whatsapp' | 'auto' | 'manual' | string;
 
 export interface DigitalProduct {
   id: string;
@@ -651,7 +693,7 @@ export interface DigitalProduct {
   thumbnail: string;
   shortDescription: string;
   fullDescription?: string;
-  deliveryType: 'auto' | 'manual';
+  deliveryType: DigitalProductDeliveryType;
   fileFormat: string;
   fileSize: string;
   rating: number;
@@ -661,6 +703,8 @@ export interface DigitalProduct {
   downloadUrl: string;
   licenseKey?: string;
   demoUrl?: string;
+  canvaInviteLink?: string;
+  canvaRules?: string | string[];
   createdAt?: string;
 }
 

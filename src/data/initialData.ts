@@ -32,8 +32,17 @@ export const initialSiteSettings: SiteSettings = {
   instagramUrl: "https://instagram.com/ptenit",
   linkedinUrl: "https://linkedin.com/company/ptenit",
   bkashNumber: "01712345678",
+  bkashLogoUrl: "https://upload.wikimedia.org/wikipedia/commons/7/77/BKash_logo.png",
+  bkashAccountType: "Personal",
   nagadNumber: "01700000000",
+  nagadLogoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Nagad_Logo.png/800px-Nagad_Logo.png",
+  nagadAccountType: "Personal",
   rocketNumber: "01900000000",
+  rocketLogoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Rocket_mobile_banking_logo.svg/640px-Rocket_mobile_banking_logo.svg.png",
+  rocketAccountType: "Personal",
+  upayNumber: "01800000000",
+  upayLogoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Upay_logo.png/640px-Upay_logo.png",
+  upayAccountType: "Personal",
   bankName: "Dutch-Bangla Bank PLC",
   bankAccountName: "PTENIT IT SOLUTIONS",
   bankAccountNumber: "2181100098765",
@@ -521,6 +530,44 @@ export const initialUsers: User[] = [
     avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80",
     title: "Marketplace Business Buyer & Client",
     createdAt: "2026-01-22"
+  },
+  {
+    id: "teacher-applicant-1",
+    name: "প্রকৌশলী মাহমুদুল হাসান",
+    email: "mahmudul.mentor@ptenit.com",
+    mobile: "01788990011",
+    role: "instructor",
+    roles: ["instructor"],
+    isMentor: false,
+    mentorStatus: "pending",
+    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80",
+    title: "Senior Software Engineer & Python Instructor Applicant",
+    createdAt: "2026-03-01",
+    mentorApplication: {
+      expertise: ["Python & Django", "Machine Learning", "Full-Stack Web"],
+      experienceYears: "4+ বছর",
+      bio: "আমি বিগত ৪ বছর ধরে পাইথন ব্যাকএন্ড এবং রিয়েল-ওয়ার্ল্ড এন্টারপ্রাইজ প্রজেক্টে কর্মরত। পিটেন আইটি-তে প্রফেশনাল পাইথন কোর্স পরিচালনা করতে আগ্রহী।",
+      portfolioUrl: "https://github.com/mahmudul-python-pro",
+      proposedCourseTopic: "Python Django & FastAPI Full Stack Masterclass",
+      phone: "01788990011",
+      appliedAt: "১ মার্চ ২০২৬",
+      status: "pending"
+    }
+  },
+  {
+    id: "seller-only-1",
+    name: "নাজমুল করিম (ডিজিটাল ক্রিয়েটর ও সেলার)",
+    email: "nazmul.seller@ptenit.com",
+    mobile: "01855443322",
+    role: "specialist",
+    roles: ["specialist"],
+    isSeller: true,
+    sellerStatus: "approved",
+    isMentor: false,
+    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80",
+    title: "UI/UX & Graphics Specialist (Just Seller)",
+    bio: "ফ্রিল্যান্স গ্রাফিক ডিজাইনার এবং টপ ডিজিটাল অ্যাসেট ও টেমপ্লেট সেলার।",
+    createdAt: "2026-02-15"
   }
 ];
 
@@ -3051,7 +3098,7 @@ export const initialMarketplaceOrders: MarketplaceOrder[] = [
 export const initialDigitalProducts: DigitalProduct[] = [
   {
     id: "dp-canva-1",
-    title: "ক্যানভা প্রো ভিআইপি এক্সেস",
+    title: "Canva Pro Lifetime VIP এক্সেস ও ২০,০০০+ প্রিমিয়াম টেমপ্লেট বান্ডেল",
     category: "Canva Templates",
     price: 450,
     originalPrice: 1500,
@@ -3072,7 +3119,7 @@ export const initialDigitalProducts: DigitalProduct[] = [
   },
   {
     id: "dp-1",
-    title: "ই-কমার্স পোর্টাল সোর্স কোড",
+    title: "ফুল স্ট্যাক লারাভেল ও রিঅ্যাক্ট মাল্টি-ভেন্ডার ই-কমার্স সোর্স কোড",
     category: "Source Code Script",
     price: 3500,
     originalPrice: 7000,
@@ -3091,7 +3138,7 @@ export const initialDigitalProducts: DigitalProduct[] = [
   },
   {
     id: "dp-2",
-    title: "SaaS এআই চ্যাটবট ওয়েব অ্যাপ",
+    title: "SaaS এআই চ্যাটবট ও অ্যাসিস্ট্যান্ট ওয়েব অ্যাপ (Next.js & Gemini API)",
     category: "AI SaaS Script",
     price: 4900,
     originalPrice: 9500,
@@ -3110,7 +3157,7 @@ export const initialDigitalProducts: DigitalProduct[] = [
   },
   {
     id: "dp-3",
-    title: "ইআরপি ম্যানেজমেন্ট সফটওয়্যার",
+    title: "স্কুল, কলেজ ও হসপিটাল ইআরপি ম্যানেজমেন্ট সফটওয়্যার সোর্স কোড",
     category: "ERP Software",
     price: 7500,
     originalPrice: 15000,
@@ -3129,7 +3176,7 @@ export const initialDigitalProducts: DigitalProduct[] = [
   },
   {
     id: "dp-4",
-    title: "মার্কেটিং অটোমেশন টুল",
+    title: "ডিজিটাল মার্কেটিং বাল্ক এসএমএস ও ইমেইল অটোমেশন টুল (লাইফটাইম)",
     category: "Marketing Automation",
     price: 0,
     originalPrice: 4000,
@@ -3148,7 +3195,7 @@ export const initialDigitalProducts: DigitalProduct[] = [
   },
   {
     id: "dp-5",
-    title: "১০০+ UI/UX ডিজাইন বান্ডেল",
+    title: "১০০+ প্রিমিয়াম অ্যান্ড্রয়েড অ্যাপ ও ওয়েবসাইট UI/UX ডিজাইন বান্ডেল (Figma)",
     category: "UI/UX Assets",
     price: 0,
     originalPrice: 2500,

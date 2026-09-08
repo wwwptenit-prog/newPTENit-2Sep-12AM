@@ -211,12 +211,12 @@ interface DataContextType {
   sendCentralNotification: (notif: Omit<NotificationItem, 'id' | 'time' | 'read'>) => void;
   
   // Shared Audio Synthesizer for Distinct Alerts
-  playAppSound: (type?: 'notification' | 'message' | 'order' | 'success') => void;
+  playAppSound: (type?: 'notification' | 'message' | 'order' | 'success' | 'click') => void;
   isOfferSoundEnabled: boolean;
   toggleOfferSound: () => void;
 
   // Mentorship Application & Role Actions
-  applyForMentorship: (data: { expertise: string[]; experienceYears: string; bio: string; portfolioUrl?: string; proposedCourseTopic?: string; phone?: string }) => void;
+  applyForMentorship: (data: { name?: string; email?: string; expertise: string[]; experienceYears: string; bio: string; portfolioUrl?: string; proposedCourseTopic?: string; phone?: string }) => void;
   approveMentorApplication: (userId?: string) => void;
   rejectMentorApplication: (userId?: string, reason?: string) => void;
   
@@ -239,8 +239,10 @@ interface DataContextType {
   deleteTeacherPayout: (id: string) => void;
   deleteTeacherNotice: (id: string) => void;
 
-  // Students Management (Admin)
-  toggleUserBlock: (userId: string) => void;
+  // Students & Users Management (Admin)
+  toggleUserBlock: (userId: string, reason?: string) => void;
+  restrictUser: (userId: string, reason?: string) => void;
+  unrestrictUser: (userId: string) => void;
 }
 
 export const checkAndAutoCancelOverdueOrders = (orders: MarketplaceOrder[]): { updatedOrders: MarketplaceOrder[]; hasChanges: boolean } => {
@@ -366,7 +368,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Shared Global Web Audio API Synthesizer for Distinct Alerts & Chimes
-  const playAppSound = (type: 'notification' | 'message' | 'order' | 'success' = 'notification') => {
+  const playAppSound = (type: 'notification' | 'message' | 'order' | 'success' | 'click' = 'notification') => {
     try {
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtxClass) return;
@@ -434,6 +436,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             osc.stop(noteStart + 0.25);
           });
 
+        } else if (type === 'click') {
+          // Subtle crisp UI micro-tick (1200Hz sine decayed in 25ms)
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(1200, now);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.025);
         } else {
           // General smooth success ping
           const osc = ctx.createOscillator();
@@ -536,29 +550,47 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // PTENit IT Academy / Services User Account
   const [ptenitUser, setPtenitUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_ptenit_user`);
+    const isLoggedOut = localStorage.getItem(`${STORAGE_KEY}_logged_out`) === 'true';
+    if (isLoggedOut) return null;
+    const saved = localStorage.getItem(`${STORAGE_KEY}_current_user`) || localStorage.getItem(`${STORAGE_KEY}_ptenit_user`);
     if (saved) {
       try {
         return JSON.parse(saved);
       } catch {}
     }
-    return initialUsers.find(u => u.id === 'student-1') || initialUsers[2];
+    return null;
   });
 
-  // Marketplace Freelancing Platform User Account (Buyer or Seller)
+  // Marketplace Freelancing Platform User Account (Buyer or Seller) - Unified with ptenitUser
   const [marketplaceUser, setMarketplaceUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_marketplace_user`);
+    const isLoggedOut = localStorage.getItem(`${STORAGE_KEY}_logged_out`) === 'true';
+    if (isLoggedOut) return null;
+    const saved = localStorage.getItem(`${STORAGE_KEY}_current_user`) || localStorage.getItem(`${STORAGE_KEY}_marketplace_user`);
     if (saved) {
       try {
         return JSON.parse(saved);
       } catch {}
     }
-    return initialUsers.find(u => u.id === 'mkt-seller-1') || initialUsers[4];
+    return null;
   });
 
-  // Legacy/Default currentUser synced with PTENit user
-  const currentUser = ptenitUser;
-  const setCurrentUser = (u: User | null) => setPtenitUser(u);
+  // Unified currentUser across PTENit and Marketplace
+  const currentUser = ptenitUser || marketplaceUser;
+  const setCurrentUser = (u: User | null) => {
+    setPtenitUser(u);
+    setMarketplaceUser(u);
+    if (u) {
+      localStorage.removeItem(`${STORAGE_KEY}_logged_out`);
+      localStorage.setItem(`${STORAGE_KEY}_current_user`, JSON.stringify(u));
+      localStorage.setItem(`${STORAGE_KEY}_ptenit_user`, JSON.stringify(u));
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_user`, JSON.stringify(u));
+    } else {
+      localStorage.setItem(`${STORAGE_KEY}_logged_out`, 'true');
+      localStorage.removeItem(`${STORAGE_KEY}_current_user`);
+      localStorage.removeItem(`${STORAGE_KEY}_ptenit_user`);
+      localStorage.removeItem(`${STORAGE_KEY}_marketplace_user`);
+    }
+  };
 
   const [enrollments, setEnrollments] = useState<Enrollment[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_enrollments`);
@@ -1291,6 +1323,133 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user = users.find(u => u.role === 'admin') || initialUsers[0];
     }
 
+    // RBAC Staff Member Authentication
+    if (!user) {
+      let enterpriseStaff: any[] = [];
+      try {
+        const savedStaff = localStorage.getItem('ptenit_enterprise_staff_list');
+        if (savedStaff) enterpriseStaff = JSON.parse(savedStaff);
+      } catch (e) {
+        console.error(e);
+      }
+
+      // Hardcoded fallback staff if localStorage is empty
+      const defaultStaffFallbacks = [
+        {
+          id: 'staff-02',
+          name: 'ফারহানা ইয়াসমিন',
+          email: 'farhana.ops@ptenit.com',
+          phone: '01711223344',
+          designation: 'অপারেশনস ডিরেক্টর ও টিম কো-অর্ডিনেটর',
+          department: 'Operations',
+          status: 'active',
+          permissions: {
+            canManageUsers: true,
+            canApproveTeachers: true,
+            canVerifyPayments: false,
+            canManageCourses: true,
+            canModerateGigs: true,
+            canIssueRestrictions: true,
+            canAccessLedger: false,
+            canModifySettings: false,
+            canControlAI: true,
+          }
+        },
+        {
+          id: 'staff-03',
+          name: 'শফিকুল ইসলাম চৌধুরী',
+          email: 'shafiq.finance@ptenit.com',
+          phone: '01912334455',
+          designation: 'হেড অব একাউন্টস ও ফাইন্যান্স',
+          department: 'Finance',
+          status: 'active',
+          permissions: {
+            canManageUsers: false,
+            canApproveTeachers: false,
+            canVerifyPayments: true,
+            canManageCourses: false,
+            canModerateGigs: false,
+            canIssueRestrictions: false,
+            canAccessLedger: true,
+            canModifySettings: false,
+            canControlAI: false,
+          }
+        },
+        {
+          id: 'staff-04',
+          name: 'তানভীর হাসান',
+          email: 'tanvir.market@ptenit.com',
+          phone: '01688997766',
+          designation: 'মার্কেটপ্লেস লিড মডারেটর',
+          department: 'Marketplace',
+          status: 'active',
+          permissions: {
+            canManageUsers: true,
+            canApproveTeachers: false,
+            canVerifyPayments: false,
+            canManageCourses: false,
+            canModerateGigs: true,
+            canIssueRestrictions: true,
+            canAccessLedger: false,
+            canModifySettings: false,
+            canControlAI: true,
+          }
+        },
+        {
+          id: 'staff-05',
+          name: 'রাফিয়া সুলতানা',
+          email: 'rafia.academy@ptenit.com',
+          phone: '01555443322',
+          designation: 'একাডেমিক কোর্স কো-অর্ডিনেটর',
+          department: 'Academy',
+          status: 'active',
+          permissions: {
+            canManageUsers: false,
+            canApproveTeachers: true,
+            canVerifyPayments: false,
+            canManageCourses: true,
+            canModerateGigs: false,
+            canIssueRestrictions: false,
+            canAccessLedger: false,
+            canModifySettings: false,
+            canControlAI: false,
+          }
+        }
+      ];
+
+      const allStaffCandidates = [...enterpriseStaff, ...defaultStaffFallbacks];
+      const matchedStaff = allStaffCandidates.find(
+        s => (s.email && s.email.toLowerCase() === cleanInput) ||
+             (s.phone && s.phone === emailOrPhone) ||
+             (cleanInput.includes('farhana') && s.email.includes('farhana')) ||
+             (cleanInput.includes('shafiq') && s.email.includes('shafiq')) ||
+             (cleanInput.includes('tanvir') && s.email.includes('tanvir')) ||
+             (cleanInput.includes('rafia') && s.email.includes('rafia'))
+      );
+
+      if (matchedStaff) {
+        if (matchedStaff.status === 'inactive') {
+          alert(`দুঃখিত! স্টাফ সদস্য "${matchedStaff.name}"-এর অ্যাকাউন্ট বর্তমানে নিষ্ক্রিয় রয়েছে। অনুগ্রহ করে সুপার এডমিনের সাথে যোগাযোগ করুন।`);
+          return false;
+        }
+
+        user = {
+          id: matchedStaff.id || `staff-${Date.now()}`,
+          name: matchedStaff.name,
+          email: matchedStaff.email,
+          mobile: matchedStaff.phone || '01700000000',
+          role: 'admin',
+          activeRole: 'admin',
+          title: matchedStaff.designation,
+          institution: 'PTENit Technologies Ltd.',
+          createdAt: matchedStaff.joinedDate || '২০২৪-০১-০১',
+          staffPermissions: matchedStaff.permissions,
+          staffDepartment: matchedStaff.department,
+          staffMember: matchedStaff
+        };
+      }
+    }
+
     if (user) {
       if (user.blocked) {
         alert("আপনার একাউন্টটি সাময়িকভাবে স্থগিত করা হয়েছে। এডমিনের সাথে যোগাযোগ করুন।");
@@ -1325,73 +1484,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  // Marketplace Auth Functions
-  const loginMarketplace = (emailOrPhone: string, _pass: string): boolean => {
-    const cleanInput = emailOrPhone.trim().toLowerCase();
-    let user = users.find(
-      u => (u.email.toLowerCase() === cleanInput || u.mobile === emailOrPhone) && (u.id.startsWith('mkt-') || cleanInput.includes('seller') || cleanInput.includes('buyer'))
-    );
-
-    if (!user && (cleanInput.includes('seller') || cleanInput.includes('sohag') || cleanInput.includes('freelancer'))) {
-      user = users.find(u => u.id === 'mkt-seller-1') || initialUsers[4];
-    } else if (!user && (cleanInput.includes('buyer') || cleanInput.includes('tanjil') || cleanInput.includes('client'))) {
-      user = users.find(u => u.id === 'mkt-buyer-1') || initialUsers[5];
-    } else if (!user) {
-      user = users.find(u => u.email.toLowerCase() === cleanInput || u.mobile === emailOrPhone);
-    }
-
-    if (user) {
-      setMarketplaceUser(user);
-      return true;
-    }
-
-    const newMktUser: User = {
-      id: `mkt-usr-${Date.now()}`,
-      name: emailOrPhone.split('@')[0] || "Marketplace User",
-      email: emailOrPhone.includes('@') ? emailOrPhone : `${emailOrPhone}@marketplace.com`,
-      mobile: emailOrPhone,
-      role: 'customer',
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    setUsers(prev => [...prev, newMktUser]);
-    setMarketplaceUser(newMktUser);
-    return true;
+  // Marketplace Auth Functions - Fully unified with PTENit
+  const loginMarketplace = (emailOrPhone: string, pass: string): boolean => {
+    return login(emailOrPhone, pass);
   };
 
-  const signupMarketplace = (userData: Omit<User, 'id' | 'createdAt'>, _pass: string): boolean => {
-    const newMktUser: User = {
-      ...userData,
-      id: `mkt-usr-${Date.now()}`,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    setUsers(prev => [...prev, newMktUser]);
-    setMarketplaceUser(newMktUser);
-    return true;
-  };
-
-  const logoutMarketplace = () => {
-    setMarketplaceUser(null);
+  const signupMarketplace = (userData: Omit<User, 'id' | 'createdAt'>, pass: string): boolean => {
+    return signup(userData, pass);
   };
 
   const logout = () => {
-    setPtenitUser(null);
+    setCurrentUser(null);
+  };
+
+  const logoutMarketplace = () => {
+    setCurrentUser(null);
   };
 
   const demoLoginMarketplace = (role: 'customer' | 'instructor') => {
     if (role === 'instructor') {
       const seller = users.find(u => u.id === 'mkt-seller-1') || initialUsers.find(u => u.id === 'mkt-seller-1') || initialUsers[4];
-      setMarketplaceUser(seller);
+      setCurrentUser(seller);
     } else {
       const buyer = users.find(u => u.id === 'mkt-buyer-1') || initialUsers.find(u => u.id === 'mkt-buyer-1') || initialUsers[5];
-      setMarketplaceUser(buyer);
+      setCurrentUser(buyer);
     }
   };
 
-  const updateMarketplaceProfile = (data: Partial<User>) => {
-    if (!marketplaceUser) return;
-    const updated = { ...marketplaceUser, ...data };
-    setMarketplaceUser(updated);
+  const updateProfile = (data: Partial<User>) => {
+    const active = ptenitUser || marketplaceUser;
+    if (!active) return;
+    const updated = { ...active, ...data };
+    setCurrentUser(updated);
     setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+  };
+
+  const updateMarketplaceProfile = (data: Partial<User>) => {
+    updateProfile(data);
   };
 
   const demoLogin = (role: 'student' | 'instructor' | 'customer' | 'admin') => {
@@ -1400,21 +1529,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       target = initialUsers.find(u => u.role === role) || initialUsers[0];
     }
     setCurrentUser(target);
-    
-    // Synchronize marketplace user appropriately
-    if (role === 'instructor') {
-      const seller = users.find(u => u.id === 'mkt-seller-1') || initialUsers.find(u => u.id === 'mkt-seller-1') || initialUsers[4];
-      setMarketplaceUser(seller);
-    } else if (role === 'customer') {
-      const buyer = users.find(u => u.id === 'mkt-buyer-1') || initialUsers.find(u => u.id === 'mkt-buyer-1') || initialUsers[5];
-      setMarketplaceUser(buyer);
-    } else if (role === 'admin') {
-      const adminMkt = users.find(u => u.role === 'admin') || initialUsers[0];
-      setMarketplaceUser(adminMkt);
-    } else {
-      const studentBuyer = users.find(u => u.id === 'mkt-buyer-1') || initialUsers.find(u => u.id === 'mkt-buyer-1') || initialUsers[5];
-      setMarketplaceUser(studentBuyer);
-    }
   };
 
   const switchRole = (newRole: 'customer' | 'specialist' | 'instructor' | 'admin' | 'student') => {
@@ -1758,6 +1872,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const applyForMentorship = (data: {
+    name?: string;
+    email?: string;
     expertise: string[];
     experienceYears: string;
     bio: string;
@@ -1765,14 +1881,70 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     proposedCourseTopic?: string;
     phone?: string;
   }) => {
-    const targetUser = currentUser || marketplaceUser;
-    if (!targetUser) return;
+    let targetUser = currentUser || marketplaceUser;
+
+    // If no user is logged in, look up existing user or create a new applicant User
+    if (!targetUser) {
+      const applicantName = data.name?.trim() || 'নতুন ইনস্ট্রাক্টর আবেদনকারী';
+      const applicantEmail = data.email?.trim() || `teacher-${Date.now()}@ptenit.com`;
+      const applicantPhone = data.phone?.trim() || '01700000000';
+
+      const existingUser = users.find(u => 
+        (data.email && u.email.toLowerCase() === data.email.toLowerCase()) || 
+        (data.phone && u.mobile === data.phone)
+      );
+
+      if (existingUser) {
+        targetUser = existingUser;
+      } else {
+        const newApplicantUser: User = {
+          id: `teacher-applicant-${Date.now()}`,
+          name: applicantName,
+          email: applicantEmail,
+          mobile: applicantPhone,
+          role: 'instructor',
+          roles: ['instructor'],
+          createdAt: new Date().toISOString().split('T')[0],
+          isMentor: false,
+          mentorStatus: 'pending',
+          mentorApplication: {
+            expertise: data.expertise,
+            experienceYears: data.experienceYears,
+            bio: data.bio,
+            portfolioUrl: data.portfolioUrl,
+            proposedCourseTopic: data.proposedCourseTopic,
+            phone: applicantPhone,
+            appliedAt: new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }),
+            status: 'pending'
+          }
+        };
+
+        setUsers(prev => [newApplicantUser, ...prev]);
+        sendCentralNotification({
+          title: '📋 নতুন টিচার ও মেন্টরশিপ আবেদন জমা হয়েছে',
+          message: `${newApplicantUser.name} ইনস্ট্রাক্টর ও কোর্স পরিচালনার জন্য আবেদন করেছেন। এডমিন প্যানেল থেকে পর্যালোচনা করুন।`,
+          type: 'info',
+          category: 'mentor',
+          targetTab: 'admin',
+        });
+        playAppSound('notification');
+        return;
+      }
+    }
 
     const updatedUser: User = {
       ...targetUser,
+      name: data.name?.trim() || targetUser.name,
+      email: data.email?.trim() || targetUser.email,
+      mobile: data.phone?.trim() || targetUser.mobile,
       mentorStatus: 'pending',
       mentorApplication: {
-        ...data,
+        expertise: data.expertise,
+        experienceYears: data.experienceYears,
+        bio: data.bio,
+        portfolioUrl: data.portfolioUrl,
+        proposedCourseTopic: data.proposedCourseTopic,
+        phone: data.phone || targetUser.mobile,
         appliedAt: new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }),
         status: 'pending'
       }
@@ -1780,7 +1952,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (currentUser) setPtenitUser(updatedUser);
     if (marketplaceUser) setMarketplaceUser(updatedUser);
-    setUsers(prev => prev.map(u => u.id === targetUser.id ? updatedUser : u));
+    setUsers(prev => prev.map(u => u.id === targetUser!.id ? updatedUser : u));
 
     sendCentralNotification({
       title: '📋 মেন্টরশিপ আবেদন সফলভাবে জমা হয়েছে',
@@ -1794,6 +1966,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         note: `এক্সপার্টিজ: ${data.expertise.join(', ')} • অভিজ্ঞতা: ${data.experienceYears}`
       }
     });
+    playAppSound('notification');
   };
 
   const approveMentorApplication = (userId?: string) => {
@@ -2084,8 +2257,52 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sendChatMessage(windowId, `📹 সরাসরি গুগুল মিট (Google Meet) ভিডিও কনফারেন্স লিংক প্রস্তুত করা হয়েছে। ক্লিক করে যুক্ত হন!`, meetUrl);
   };
 
-  const toggleUserBlock = (userId: string) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, blocked: !u.blocked } : u));
+  const toggleUserBlock = (userId: string, reason?: string) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        const nextBlocked = !u.blocked;
+        return {
+          ...u,
+          blocked: nextBlocked,
+          isRestricted: nextBlocked,
+          restrictionReason: nextBlocked ? (reason || 'প্রশাসনিক পর্যালোচনা ও নীতিমালার কারণে অ্যাকাউন্ট সাময়িক স্থগিত / রেস্ট্রিক্ট করা হয়েছে।') : undefined,
+          restrictedAt: nextBlocked ? new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
+        };
+      }
+      return u;
+    }));
+  };
+
+  const restrictUser = (userId: string, reason?: string) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        return {
+          ...u,
+          blocked: true,
+          isRestricted: true,
+          restrictionReason: reason || 'প্রশাসনিক পর্যালোচনা ও নীতিমালার কারণে অ্যাকাউন্ট স্থগিত / রেস্ট্রিক্ট করা হয়েছে।',
+          restrictedAt: new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }),
+        };
+      }
+      return u;
+    }));
+    playAppSound('notification');
+  };
+
+  const unrestrictUser = (userId: string) => {
+    setUsers(prev => prev.map(u => {
+      if (u.id === userId) {
+        return {
+          ...u,
+          blocked: false,
+          isRestricted: false,
+          restrictionReason: undefined,
+          restrictedAt: undefined,
+        };
+      }
+      return u;
+    }));
+    playAppSound('success');
   };
 
   const addUser = (userData: Omit<User, 'id' | 'createdAt'>) => {
@@ -2142,14 +2359,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
       ...prev
     ]);
-  };
-
-  // Profile Update Function
-  const updateProfile = (data: Partial<User>) => {
-    if (!currentUser) return;
-    const updatedUser: User = { ...currentUser, ...data };
-    setCurrentUser(updatedUser);
-    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
 
   // Assignment Functions
@@ -2884,6 +3093,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sendChatMessage,
         createGoogleMeetCall,
         toggleUserBlock,
+        restrictUser,
+        unrestrictUser,
         playAppSound,
         isOfferSoundEnabled,
         toggleOfferSound

@@ -55,7 +55,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   setActiveTab,
   openAuthModal
 }) => {
-  const { currentUser, siteSettings, addMarketplaceOrder, updateService, t } = useData();
+  const { currentUser, siteSettings, addMarketplaceOrder, updateService, t, signup } = useData();
 
   // Active Tab: 'overview' | 'portfolio' | 'reviews' | 'seller' | 'faqs'
   const [activeTabState, setActiveTabState] = useState<'overview' | 'portfolio' | 'reviews' | 'seller' | 'faqs'>('overview');
@@ -104,7 +104,17 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
   const [customerName, setCustomerName] = useState(currentUser?.name || '');
   const [customerPhone, setCustomerPhone] = useState(currentUser?.mobile || '');
   const [customerEmail, setCustomerEmail] = useState(currentUser?.email || '');
+  const [customerPassword, setCustomerPassword] = useState('');
   const [projectRequirements, setProjectRequirements] = useState('');
+
+  // Auto-fill user fields when currentUser becomes available
+  useEffect(() => {
+    if (currentUser) {
+      setCustomerName(prev => prev || currentUser.name || '');
+      setCustomerPhone(prev => prev || currentUser.mobile || '');
+      setCustomerEmail(prev => prev || currentUser.email || '');
+    }
+  }, [currentUser]);
 
   // Payment Form State
   const [paymentMethod, setPaymentMethod] = useState<'bKash' | 'Nagad' | 'Rocket' | 'Bank'>('bKash');
@@ -233,6 +243,24 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
       return;
     }
 
+    // Enforce account creation on purchase if user is a guest ("লাস্ট টাইম সার্ভিস কিনার পর জোর করে সাইনআপ করিয়ে নিবে")
+    let activeBuyerId = currentUser?.id;
+    if (!activeBuyerId) {
+      activeBuyerId = `usr-${Date.now()}`;
+      const finalPass = customerPassword.trim() || '123456';
+      const newUserData = {
+        name: customerName.trim() || 'সম্মানিত বায়ার',
+        email: customerEmail.trim() || `${customerPhone.trim()}@ptenit.com`,
+        mobile: customerPhone.trim(),
+        role: 'customer' as const,
+        roles: ['customer' as const],
+        activeRole: 'customer' as const
+      };
+      if (signup) {
+        signup(newUserData, finalPass);
+      }
+    }
+
     const orderId = `SRV-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const newOrder: MarketplaceOrder = {
@@ -242,7 +270,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
       title: `${service.title} (${currentPackage.name})`,
       category: service.category,
       packageType: selectedTier,
-      buyerId: currentUser?.id || `guest-${Date.now()}`,
+      buyerId: activeBuyerId,
       buyerName: customerName.trim(),
       buyerEmail: customerEmail.trim(),
       buyerPhone: customerPhone.trim(),
@@ -493,10 +521,6 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (!currentUser && openAuthModal) {
-                  openAuthModal();
-                  return;
-                }
                 setOrderModalOpen(true);
                 if (!isOrderPlaced) {
                   setCheckoutStep(1);
@@ -550,39 +574,40 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         
         {/* Main Service Content Container (Matching DigitalProductDetailModal!) */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-xs">
 
           {/* 1. TOP BAR: ব্যাক বাটন | সেন্টারে: আগে কাজ শুরু / প্রিমিয়াম সার্ভিস | শেয়ার সোশ্যাল মিডিয়া */}
-          <div className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 shadow-xs">
-            {/* LEFT: BACK BUTTON (বেক বাটন - ChevronLeft, গাড় সবুজ কালার, কোনো বর্ডার ছাড়া) */}
+          <div className="relative bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 rounded-t-2xl sm:rounded-t-3xl">
+            {/* LEFT: BACK BUTTON (বেক বাটন - ChevronLeft, কালো কালার, কোনো বর্ডার ছাড়া) */}
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-emerald-50/80 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 shrink-0 border-0 outline-none"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 shrink-0 border-0 outline-none"
               title={t('ফিরে যান', 'Go Back')}
             >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5] text-emerald-800 dark:text-emerald-400" />
-              <span className="hidden xs:inline">{t('ফিরে যান', 'Go Back')}</span>
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5] text-slate-900 dark:text-white" />
+              <span className="hidden xs:inline text-slate-900 dark:text-white">{t('ফিরে যান', 'Go Back')}</span>
             </button>
 
-            {/* CENTER: সার্ভিস বা গিগ হলে আগে কাজ শুরু বা প্রিমিয়াম সার্ভিস শো করবে (বর্ডার ছাড়া গাড় সবুজ প্লেন টেক্সট) */}
+            {/* CENTER: সার্ভিস বা গিগ হলে আগে কাজ শুরু বা প্রিমিয়াম সার্ভিস শো করবে (কালো আইকন ও টেক্সট) */}
             <div className="flex items-center justify-center min-w-0">
               <SinglePromoBadgeView 
                 item={{ id: service.id, title: service.title, price: (service as any).price, offerBadge: (service as any).offerBadge }} 
                 itemType="service" 
+                textColor="text-slate-900 dark:text-white"
               />
             </div>
 
-            {/* RIGHT: শেয়ার সোশ্যাল মিডিয়া (Social Media Share - গাড় সবুজ, কোনো বর্ডার ছাড়া) */}
+            {/* RIGHT: শেয়ার সোশ্যাল মিডিয়া (Social Media Share - কালো আইকন ও টেক্সট) */}
             <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setIsShareMenuOpen(!isShareMenuOpen)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-emerald-50/80 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 border-0 outline-none"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 border-0 outline-none"
                 title="সোশ্যাল মিডিয়ায় শেয়ার করুন"
               >
-                <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-800 dark:text-emerald-400" />
-                <span className="hidden sm:inline">শেয়ার</span>
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-slate-900 dark:text-white" />
+                <span className="hidden sm:inline text-slate-900 dark:text-white">শেয়ার</span>
               </button>
 
               {/* Share Popover Dropdown */}
@@ -1149,10 +1174,6 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        if (!currentUser && openAuthModal) {
-                          openAuthModal();
-                          return;
-                        }
                         setOrderModalOpen(true);
                         setCheckoutStep(1);
                         setOrderError(null);
@@ -1360,6 +1381,25 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                       />
                     </div>
 
+                    {!currentUser && (
+                      <div>
+                        <label className="block text-xs font-bold mb-1 font-bengali text-slate-700 dark:text-slate-300">
+                          একাউন্ট পাসওয়ার্ড <span className="text-emerald-500 text-[11px] font-normal">(অর্ডার ট্র্যাকিং ও লগইনের জন্য)</span>
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="কমপক্ষে ৬ অক্ষরের একটি পাসওয়ার্ড দিন (ঐচ্ছিক)"
+                          value={customerPassword}
+                          onChange={e => setCustomerPassword(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:border-[#15803d] dark:focus:border-[#1DB954]"
+                        />
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-bengali flex items-center gap-1.5">
+                          <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                          <span>সার্ভিস ক্রয়ের সাথে সাথে আপনার এই প্রোফাইলটি স্বয়ংক্রিয়ভাবে পিটেন + বায়ার আইডি হিসেবে সাইনআপ হয়ে যাবে।</span>
+                        </p>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-xs font-bold mb-1 font-bengali text-slate-700 dark:text-slate-300">
                         প্রজেক্টের সংক্ষিপ্ত চাহিদা / স্পেশাল নোট (ঐচ্ছিক)
@@ -1487,6 +1527,10 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                   <p className="text-xs text-slate-600 dark:text-slate-400 max-w-sm mx-auto">
                     আপনার অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে। আমাদের টিম খুব দ্রুত প্রজেক্টের কাজ শুরু করবে।
                   </p>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold mt-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>পিটেন + বায়ার প্রোফাইল সক্রিয় হয়েছে ({customerName || 'নতুন বায়ার'})</span>
+                  </div>
                 </div>
 
                 {/* Order Summary Box */}

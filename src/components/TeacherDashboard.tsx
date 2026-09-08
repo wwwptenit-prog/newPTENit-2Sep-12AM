@@ -39,6 +39,7 @@ import {
   DollarSign,
   Bell,
   Wallet,
+  Receipt,
   Target,
   Globe,
   LogOut,
@@ -64,15 +65,22 @@ import {
   AlertCircle,
   RotateCcw,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Copy
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
-import { Assignment, AssignmentSubmission, Course, CustomerProject } from '../types';
+import { Assignment, AssignmentSubmission, Course, CustomerProject, LiveClassSession } from '../types';
+import {
+  getActiveLiveSessions,
+  getLiveSessionDynamicStatus,
+  formatBanglaLiveSchedule
+} from '../services/liveClassService';
 
 interface TeacherDashboardProps {
   onViewCourse?: (courseId: string) => void;
   setActiveTab?: (tab: string) => void;
-  initialTab?: 'courses' | 'submissions' | 'completed' | 'certificates' | 'assignments' | 'payments' | 'profile' | 'students';
+  initialTab?: 'courses' | 'submissions' | 'completed' | 'certificates' | 'assignments' | 'payments' | 'profile' | 'students' | 'live_classes';
+  initialStatusFilter?: 'all' | 'new' | 'review';
   openCreateAssignmentModal?: boolean;
   onCloseCreateAssignmentModal?: () => void;
   hideHeader?: boolean;
@@ -82,6 +90,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   onViewCourse,
   setActiveTab,
   initialTab,
+  initialStatusFilter,
   openCreateAssignmentModal,
   onCloseCreateAssignmentModal,
   hideHeader
@@ -90,6 +99,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     currentUser,
     users = [],
     courses = [],
+    liveSessions = [],
     customerProjects = [],
     enrollments = [],
     certificates = [],
@@ -104,6 +114,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     requestTeacherPayout,
     addAssignment,
     deleteAssignment,
+    addLiveSession,
+    updateLiveSession,
+    deleteLiveSession,
     gradeSubmission,
     updateSubmissionStatus,
     deleteSubmission,
@@ -121,7 +134,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     toggleDarkMode
   } = useData();
 
-  const [activeTab, setActiveTabState] = useState<'courses' | 'submissions' | 'completed' | 'certificates' | 'assignments' | 'payments' | 'profile' | 'students'>(() => {
+  const [activeTab, setActiveTabState] = useState<'courses' | 'submissions' | 'completed' | 'certificates' | 'assignments' | 'payments' | 'profile' | 'students' | 'live_classes'>(() => {
     if (initialTab === 'assignments') return 'submissions';
     if (initialTab === 'certificates') return 'completed';
     return initialTab || 'courses';
@@ -231,7 +244,15 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   // Search/Filter state for assignments
   const [searchQuery, setSearchQuery] = useState('');
-  const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<'all' | 'new' | 'review' | 'success'>('new');
+  const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<'all' | 'new' | 'review'>(
+    initialStatusFilter || 'review'
+  );
+
+  useEffect(() => {
+    if (initialStatusFilter) {
+      setAssignmentStatusFilter(initialStatusFilter);
+    }
+  }, [initialStatusFilter]);
   const [submissionCourseFilter, setSubmissionCourseFilter] = useState('all');
   const [isTargetModalOpen, setIsTargetModalOpen] = useState(false);
   const [targetConfigCourseId, setTargetConfigCourseId] = useState(courses[0]?.id || '');
@@ -282,6 +303,156 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [settingsPayoutMethod, setSettingsPayoutMethod] = useState('bkash');
   const [settingsPayoutNumber, setSettingsPayoutNumber] = useState(currentUser?.mobile || '01700000000');
   const [settingsPayoutSaved, setSettingsPayoutSaved] = useState(false);
+
+  // Smart & Automated Live Class Management State
+  const [liveModalOpen, setLiveModalOpen] = useState(false);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [modalCourseId, setModalCourseId] = useState<string>('');
+  const [modalModuleNo, setModalModuleNo] = useState<string>('১');
+  const [modalModuleTitle, setModalModuleTitle] = useState<string>('');
+  const [modalLessonNo, setModalLessonNo] = useState<string>('১');
+  const [modalLessonTitle, setModalLessonTitle] = useState<string>('');
+  const [modalClassSerialNo, setModalClassSerialNo] = useState<string>('১');
+  const [modalTopic, setModalTopic] = useState<string>('');
+  const [modalDate, setModalDate] = useState<string>('');
+  const [modalTime, setModalTime] = useState<string>('21:00');
+  const [modalDuration, setModalDuration] = useState<number>(90);
+  const [modalMeetingLink, setModalMeetingLink] = useState<string>('https://meet.google.com/ptenit-live-class');
+  const [modalSpecialNotes, setModalSpecialNotes] = useState<string>('');
+  const [liveSearchQuery, setLiveSearchQuery] = useState<string>('');
+  const [showPastSessions, setShowPastSessions] = useState<boolean>(false);
+  const [liveToastMsg, setLiveToastMsg] = useState<string>('');
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+
+  // Helper to format schedule into readable Bengali
+  const getFormattedSchedule = (dateStr: string, timeStr: string) => {
+    return formatBanglaLiveSchedule(dateStr, timeStr);
+  };
+
+  // Helper to auto-generate topic title
+  const generateLiveTopic = (modNo: string, lesNo: string, lesTitle: string) => {
+    const cleanMod = modNo ? `মডিউল ${modNo}` : '';
+    const cleanLes = lesNo ? `লেসন ${lesNo}` : '';
+    const prefix = [cleanMod, cleanLes].filter(Boolean).join(': ');
+    if (lesTitle && lesTitle.trim()) {
+      return prefix ? `${prefix} - ${lesTitle.trim()}` : lesTitle.trim();
+    }
+    return prefix ? `${prefix} - লাইভ প্র্যাকটিস ও ডিসকাশন ক্লাস` : 'লাইভ ক্লাস';
+  };
+
+  const openCreateLiveModal = (preselectedCourseId?: string) => {
+    const course = courses.find(c => c.id === preselectedCourseId) || courses[0];
+    setEditingSessionId(null);
+    setModalCourseId(course ? course.id : '');
+    setModalModuleNo('১');
+    setModalModuleTitle(course?.modules?.[0]?.title || 'মৌলিক পরিচিতি ও ফান্ডামেন্টালস');
+    setModalLessonNo('১');
+    setModalLessonTitle(course?.modules?.[0]?.lessons?.[0]?.title || 'প্রথম পরিচিতি ও প্র্যাকটিস');
+    setModalClassSerialNo('১');
+    setModalTopic(course ? `${course.title} - লাইভ প্র্যাকটিস ও প্রশ্নোত্তর সেশন` : 'লাইভ প্র্যাকটিস ক্লাস');
+    
+    const today = new Date().toISOString().split('T')[0];
+    setModalDate(today);
+    setModalTime('21:00');
+    setModalDuration(90);
+    setModalMeetingLink('https://meet.google.com/ptenit-live-class');
+    setModalSpecialNotes('সকলকে সময়মতো গুগল মিট রুমে জয়েন করার অনুরোধ করা হচ্ছে।');
+    setLiveModalOpen(true);
+  };
+
+  const openEditLiveModal = (session: LiveClassSession) => {
+    setEditingSessionId(session.id);
+    setModalCourseId(session.courseId);
+    setModalModuleNo(session.moduleNo || '১');
+    setModalModuleTitle(session.moduleTitle || '');
+    setModalLessonNo(session.lessonNo || '১');
+    setModalLessonTitle(session.lessonTitle || '');
+    setModalClassSerialNo(session.classSerialNo || '১');
+    setModalTopic(session.topic || '');
+    setModalDate(session.date || new Date().toISOString().split('T')[0]);
+    setModalTime(session.time || '21:00');
+    setModalDuration(session.durationMinutes || 90);
+    setModalMeetingLink(session.meetingLink || 'https://meet.google.com/ptenit-live-class');
+    setModalSpecialNotes(session.specialNotes || '');
+    setLiveModalOpen(true);
+  };
+
+  const handleSaveLiveSession = () => {
+    const course = courses.find(c => c.id === modalCourseId);
+    if (!modalCourseId || !course) {
+      alert('অনুগ্রহ করে একটি কোর্স নির্বাচন করুন।');
+      return;
+    }
+
+    if (!modalTopic.trim()) {
+      alert('অনুগ্রহ করে ক্লাসের টপিক লিখুন।');
+      return;
+    }
+
+    if (editingSessionId) {
+      updateLiveSession(editingSessionId, {
+        courseId: modalCourseId,
+        courseTitle: course.title,
+        courseThumbnail: course.thumbnail,
+        instructorName: course.instructor || currentUser?.name || 'PTENit Teacher',
+        moduleNo: modalModuleNo.trim(),
+        moduleTitle: modalModuleTitle.trim(),
+        lessonNo: modalLessonNo.trim(),
+        lessonTitle: modalLessonTitle.trim(),
+        classSerialNo: modalClassSerialNo.trim(),
+        topic: modalTopic.trim(),
+        date: modalDate.trim(),
+        time: modalTime.trim(),
+        durationMinutes: modalDuration || 90,
+        meetingLink: modalMeetingLink.trim(),
+        specialNotes: modalSpecialNotes.trim()
+      });
+      setLiveToastMsg(`✅ "${modalTopic}" শিডিউল সফলভাবে আপডেট করা হয়েছে!`);
+    } else {
+      addLiveSession({
+        courseId: modalCourseId,
+        courseTitle: course.title,
+        courseThumbnail: course.thumbnail,
+        instructorName: course.instructor || currentUser?.name || 'PTENit Teacher',
+        moduleNo: modalModuleNo.trim(),
+        moduleTitle: modalModuleTitle.trim(),
+        lessonNo: modalLessonNo.trim(),
+        lessonTitle: modalLessonTitle.trim(),
+        classSerialNo: modalClassSerialNo.trim(),
+        topic: modalTopic.trim(),
+        date: modalDate.trim(),
+        time: modalTime.trim(),
+        durationMinutes: modalDuration || 90,
+        meetingLink: modalMeetingLink.trim(),
+        specialNotes: modalSpecialNotes.trim()
+      });
+      setLiveToastMsg(`✅ নতুন লাইভ ক্লাস "${modalTopic}" সফলভাবে তৈরি হয়েছে!`);
+    }
+
+    // Sync to course object for backward compatibility
+    updateCourse(modalCourseId, {
+      liveClassLink: modalMeetingLink.trim(),
+      liveClassDate: modalDate.trim(),
+      liveClassTime: modalTime.trim(),
+      liveClassModuleNo: modalModuleNo.trim(),
+      liveClassModuleTitle: modalModuleTitle.trim(),
+      liveClassLessonNo: modalLessonNo.trim(),
+      liveClassLessonTitle: modalLessonTitle.trim(),
+      liveClassSerialNo: modalClassSerialNo.trim(),
+      liveClassTopic: modalTopic.trim()
+    });
+
+    setLiveModalOpen(false);
+    setTimeout(() => setLiveToastMsg(''), 3500);
+  };
+
+  const handleDeleteLiveSession = (session: LiveClassSession) => {
+    if (window.confirm(`আপনি কি নিশ্চিত "${session.topic}" লাইভ ক্লাসটি ডিলিট করতে চান?`)) {
+      deleteLiveSession(session.id);
+      setLiveToastMsg(`🗑️ "${session.topic}" ক্লাসটি মুছে ফেলা হয়েছে।`);
+      setTimeout(() => setLiveToastMsg(''), 3500);
+    }
+  };
 
   const [chatInputText, setChatInputText] = useState('');
   const [chatImageInput, setChatImageInput] = useState('');
@@ -656,7 +827,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     e.preventDefault();
     if (!againModalSub) return;
     const asgn = assignments.find(a => a.id === againModalSub.assignmentId);
-    const feedbackMsg = `⚠️ [${againLessonNo} পুনরায় সম্পন্ন করুন]: ${againReason || 'কাজটি সঠিকভাবে সম্পন্ন হয়নি। অনুগ্রহ করে লেসনটি পুনরায় প্র্যাকটিস করে জমা দিন।'}`;
+    const lessonInfo = getAssignmentLessonInfo(asgn);
+    const currentLessonName = lessonInfo.lessonNo || asgn?.lessonNo || 'এই লেসন';
+    const feedbackMsg = `⚠️ [${currentLessonName} পুনরায় সম্পন্ন করুন]: ${againReason || 'কাজটি সঠিকভাবে সম্পন্ন হয়নি। অনুগ্রহ করে লেসনটি পুনরায় প্র্যাকটিস করে জমা দিন।'}`;
     
     updateSubmission(againModalSub.id, {
       status: 'returned',
@@ -666,8 +839,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
     if (sendCentralNotification) {
       sendCentralNotification({
-        title: `🔄 ${againLessonNo} পুনরায় জমা দেওয়ার নির্দেশ`,
-        message: `${againModalSub.studentName}, আপনার "${asgn?.courseTitle || 'কোর্স'}" এর ${againLessonNo} কাজটি সন্তোষজনক না হওয়ায় পুনরায় সম্পন্ন করতে বলা হয়েছে। কারণ: "${againReason || 'সংশোধন করে জমা দিন'}"`,
+        title: `🔄 ${currentLessonName} পুনরায় জমা দেওয়ার নির্দেশ`,
+        message: `${againModalSub.studentName}, আপনার "${asgn?.courseTitle || 'কোর্স'}" এর ${currentLessonName} কাজটি সন্তোষজনক না হওয়ায় পুনরায় সম্পন্ন করতে বলা হয়েছে। কারণ: "${againReason || 'সংশোধন করে জমা দিন'}"`,
         type: 'warning',
         category: 'mentor'
       });
@@ -869,16 +1042,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     };
   };
 
-  const teacherCourses = courses.filter(c =>
-    c.offerStatus === 'accepted' ||
-    (!c.offerStatus && (currentUser?.name?.includes("তানভীর") || c.instructor?.includes("তানভীর") || c.instructor === currentUser?.name))
-  );
+  const teacherCourses = courses.length > 0 ? courses : [];
 
   // Workflow Categorization:
-  // 1. নতুন (New): status === 'submitted'
-  // 2. রিভিউ (Review): under_review or graded but has remaining course tasks
-  // 3. সাকসেস (Success): graded and all course tasks are completed
-  const pendingSubmissions = submissions.filter(s => s.status === 'submitted');
+  // 1. নতুন (New): status === 'submitted' or status === 'new'
+  // 2. রিভিউ (Review): under_review or review or returned
+  const pendingSubmissions = submissions.filter(s => s.status === 'submitted' || s.status === 'new');
   const reviewSubmissions = submissions.filter(s => 
     s.status === 'under_review' || 
     s.status === 'review' || 
@@ -896,7 +1065,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-100/90 dark:bg-slate-950 py-4 sm:py-8 transition-colors font-bengali">
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Teacher Profile Header Banner & Menubar (Hidden when hideHeader is true) */}
         {!hideHeader && (
@@ -1664,43 +1833,93 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         </div>
 
         {/* Full Dashboard Menubar with Header & Extensible Navigation Items */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md mb-6 sm:mb-8 overflow-hidden">
-          <div className="px-4 py-2.5 bg-slate-100/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-md mb-6 sm:mb-8 overflow-hidden">
+          <div className="px-4 sm:px-5 py-3 bg-slate-100/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs sm:text-sm font-black text-slate-800 dark:text-slate-200">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-              <span className="uppercase tracking-wider text-[11px] text-slate-500 dark:text-slate-400">ইনস্ট্রাক্টর ড্যাশবোর্ড মেনুবার (Instructor Menubar):</span>
+              <span className="uppercase tracking-wider text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-black">ইনস্ট্রাক্টর ড্যাশবোর্ড মেনুবার (Instructor Menubar)</span>
             </div>
-            <span className="text-[10px] text-teal-600 dark:text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-full border border-teal-500/20 font-mono">
-              + মডিউল ও কোর্স ফ্রেমওয়ার্ক
-            </span>
           </div>
 
-          <div className="p-1.5 sm:p-2 flex items-center gap-1 sm:gap-1.5 overflow-x-auto scrollbar-none">
+          <div className="p-2 sm:p-3 flex items-center gap-2 sm:gap-2.5 overflow-x-auto scrollbar-none">
             {[
-              { id: 'courses', shortLabel: 'কোর্স', label: 'আমার পরিচালিত কোর্স', icon: BookOpen },
-              { id: 'submissions', shortLabel: 'জমা কাজ', label: 'শিক্ষার্থীদের জমা কাজ', icon: FileCheck, badge: pendingSubmissions.length, isPulsing: pendingSubmissions.length > 0 },
-              { id: 'completed', shortLabel: 'সফল', label: 'সফল ও মূল্যায়িত কাজ', icon: CheckCircle2, badge: totalGraded.length },
-              { id: 'students', shortLabel: 'প্রশিক্ষনার্থী', label: 'শিক্ষার্থীবৃন্দ', icon: Users, badge: enrollments.length },
-              { id: 'payments', shortLabel: 'পেমেন্ট', label: 'পেমেন্ট ও ক্যাশআউট', icon: CreditCard },
+              { 
+                id: 'courses', 
+                label: `কোর্স (${teacherCourses.length}টি)`, 
+                icon: BookOpen, 
+                onClick: () => setActiveTabState('courses'),
+                isActive: activeTab === 'courses',
+                badge: null,
+                colorClass: 'bg-teal-600 border-teal-500'
+              },
+              { 
+                id: 'submissions_new', 
+                label: `নতুন (${pendingSubmissions.length})`, 
+                icon: AlertCircle, 
+                onClick: () => {
+                  setActiveTabState('submissions');
+                  setAssignmentStatusFilter('new');
+                },
+                isActive: (activeTab === 'submissions' || activeTab === 'assignments') && assignmentStatusFilter === 'new',
+                badge: pendingSubmissions.length > 0 ? pendingSubmissions.length : null,
+                colorClass: 'bg-purple-600 border-purple-500'
+              },
+              { 
+                id: 'submissions_review', 
+                label: `রিভিউ (${reviewSubmissions.length})`, 
+                icon: Clock, 
+                onClick: () => {
+                  setActiveTabState('submissions');
+                  setAssignmentStatusFilter('review');
+                },
+                isActive: (activeTab === 'submissions' || activeTab === 'assignments') && assignmentStatusFilter === 'review',
+                badge: reviewSubmissions.length > 0 ? reviewSubmissions.length : null,
+                colorClass: 'bg-amber-600 border-amber-500'
+              },
+              { 
+                id: 'live_classes', 
+                label: 'লাইভ ক্লাস', 
+                icon: Video, 
+                onClick: () => setActiveTabState('live_classes'),
+                isActive: activeTab === 'live_classes',
+                badge: courses.filter(c => c.liveClassStatus === 'live_now').length > 0 ? 'LIVE' : null,
+                colorClass: 'bg-rose-600 border-rose-500'
+              },
+              { 
+                id: 'students', 
+                label: `শিক্ষার্থীবৃন্দ (${enrollments.length})`, 
+                icon: Users, 
+                onClick: () => setActiveTabState('students'),
+                isActive: activeTab === 'students',
+                badge: null,
+                colorClass: 'bg-teal-600 border-teal-500'
+              },
+              { 
+                id: 'payments', 
+                label: 'পেমেন্ট ও ক্যাশআউট', 
+                icon: CreditCard, 
+                onClick: () => setActiveTabState('payments'),
+                isActive: activeTab === 'payments',
+                badge: null,
+                colorClass: 'bg-teal-600 border-teal-500'
+              },
             ].map(tab => {
               const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
+              const isActive = tab.isActive;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTabState(tab.id as any)}
-                  className={`py-1.5 sm:py-2.5 px-2.5 sm:px-4 font-black text-[11px] sm:text-xs md:text-sm flex items-center gap-1 sm:gap-2 rounded-lg sm:rounded-xl transition-all shrink-0 cursor-pointer border ${
+                  onClick={tab.onClick}
+                  className={`py-2 sm:py-2.5 px-3.5 sm:px-4 font-black text-xs sm:text-sm md:text-base flex items-center gap-2 rounded-xl sm:rounded-2xl transition-all shrink-0 cursor-pointer border ${
                     isActive
-                      ? 'bg-teal-600 text-white shadow-xs border-teal-500 font-black'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border-transparent'
+                      ? `${tab.colorClass} text-white shadow-md font-black ring-2 ring-white/20`
+                      : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-800'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                  <span className="sm:hidden whitespace-nowrap">{tab.shortLabel}</span>
-                  <span className="hidden sm:inline whitespace-nowrap">{tab.label}</span>
-                  {!!tab.badge && tab.badge > 0 && (
-                    <span className={`px-1.5 py-0.2 sm:px-2 sm:py-0.5 text-[9px] sm:text-[10px] font-black rounded-full ${
-                      isActive ? 'bg-white text-teal-900' : 'bg-rose-600 text-white animate-pulse'
+                  <Icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                  <span className="whitespace-nowrap">{tab.label}</span>
+                  {!!tab.badge && (
+                    <span className={`px-2 py-0.5 text-xs font-black rounded-full ${
+                      isActive ? 'bg-white text-slate-900' : 'bg-rose-600 text-white animate-pulse'
                     }`}>
                       {tab.badge}
                     </span>
@@ -1713,21 +1932,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           </>
         )}
 
-                {/* TAB 0: আমার পরিচালিত কোর্স (COURSES TAB) */}
+        {/* TAB 0: কোর্স তালিকা (COURSES TAB) */}
         {activeTab === 'courses' && (
           <div className="space-y-6 font-bengali animate-fadeIn">
-            {/* Header: Simplified as requested */}
-            <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between gap-3">
-              <h2 className="text-base sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-[#1DB954] shrink-0" />
-                <span>আমার পরিচালিত কোর্স</span>
-              </h2>
-
-              <span className="text-xs font-bold px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full border border-emerald-500/20">
-                মোট {teacherCourses.length}টি সক্রিয় কোর্স
-              </span>
-            </div>
-
             {/* Courses Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
               {teacherCourses.map(course => {
@@ -1760,81 +1967,78 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
 
                       <div className="absolute top-3 left-3 right-3 flex justify-between items-start">
-                        <span className="px-3 py-1 bg-emerald-500 text-white font-black text-[11px] rounded-full shadow-md">
+                        <span className="px-3.5 py-1 bg-emerald-500 text-white font-black text-xs sm:text-sm rounded-full shadow-md">
                           {course.category}
                         </span>
-                        <span className="px-2.5 py-1 bg-slate-900/90 backdrop-blur-md text-amber-300 font-bold text-[11px] rounded-full border border-amber-500/30 flex items-center gap-1">
-                          <Star className="w-3 h-3 text-amber-400 fill-amber-400" /> 4.9
+                        <span className="px-3 py-1 bg-slate-900/90 backdrop-blur-md text-amber-300 font-bold text-xs sm:text-sm rounded-full border border-amber-500/30 flex items-center gap-1.5">
+                          <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" /> 4.9
                         </span>
                       </div>
 
                       <div className="absolute bottom-3 left-3 right-3 text-white">
-                        <span className="text-[10px] text-teal-300 font-bold uppercase tracking-wider block mb-0.5">সক্রিয় রানিং কোর্স</span>
-                        <h3 className="font-extrabold text-sm sm:text-base leading-snug line-clamp-1">{course.title}</h3>
+                        <span className="text-xs text-teal-300 font-bold uppercase tracking-wider block mb-1">সক্রিয় রানিং কোর্স</span>
+                        <h3 className="font-black text-base sm:text-lg leading-snug line-clamp-1">{course.title}</h3>
                       </div>
                     </div>
 
                     {/* Progress & Target Section */}
                     <div className="p-4 sm:p-5 space-y-4 flex-1">
                       {/* Upload Target Tracker Box */}
-                      <div className="bg-gradient-to-br from-amber-500/10 via-teal-500/5 to-indigo-500/10 border border-amber-500/30 dark:border-amber-500/20 rounded-2xl p-3 sm:p-3.5 space-y-2.5">
+                      <div className="bg-gradient-to-br from-amber-500/10 via-teal-500/5 to-indigo-500/10 border border-amber-500/30 dark:border-amber-500/20 rounded-2xl p-3.5 sm:p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-black text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-                            <Target className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="text-xs sm:text-sm font-black text-amber-700 dark:text-amber-300 flex items-center gap-2">
+                            <Target className="w-4 h-4 text-amber-500" />
                             <span>কোর্স আপলোড টার্গেট</span>
-                          </span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-full border border-amber-500/30">
-                            ⏳ প্রোগ্রেস রানিং
                           </span>
                         </div>
 
                         {/* Module Progress */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] font-bold">
-                            <span className="text-slate-600 dark:text-slate-300">মডিউল টার্গেট: {currentModules} / {targetModules} টি</span>
-                            <span className="text-teal-600 dark:text-teal-400 font-mono">{modulePercentage}%</span>
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs sm:text-sm font-bold">
+                            <span className="text-slate-700 dark:text-slate-200">মডিউল টার্গেট: {currentModules} / {targetModules} টি</span>
+                            <span className="text-teal-600 dark:text-teal-400 font-mono font-black">{modulePercentage}%</span>
                           </div>
-                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div className="h-2.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div className="h-full bg-teal-500 rounded-full transition-all duration-500" style={{ width: `${modulePercentage}%` }} />
                           </div>
                         </div>
 
                         {/* Lessons / Videos Progress */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] font-bold">
-                            <span className="text-slate-600 dark:text-slate-300">লেসন/ভিডিও টার্গেট: {currentLessons} / {targetLessons} টি</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-mono">{lessonPercentage}%</span>
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs sm:text-sm font-bold">
+                            <span className="text-slate-700 dark:text-slate-200">লেসন/ভিডিও টার্গেট: {currentLessons} / {targetLessons} টি</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-mono font-black">{lessonPercentage}%</span>
                           </div>
-                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div className="h-2.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div className="h-full bg-emerald-500 rounded-full transition-all duration-500" style={{ width: `${lessonPercentage}%` }} />
                           </div>
                         </div>
 
                         {/* Assignment Progress */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] font-bold">
-                            <span className="text-slate-600 dark:text-slate-300">অ্যাসাইনমেন্ট টার্গেট: {currentAssignments} / {targetAssignments} টি</span>
-                            <span className="text-indigo-600 dark:text-indigo-400 font-mono">{asgnPercentage}%</span>
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-xs sm:text-sm font-bold">
+                            <span className="text-slate-700 dark:text-slate-200">অ্যাসাইনমেন্ট টার্গেট: {currentAssignments} / {targetAssignments} টি</span>
+                            <span className="text-indigo-600 dark:text-indigo-400 font-mono font-black">{asgnPercentage}%</span>
                           </div>
-                          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div className="h-2.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                             <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${asgnPercentage}%` }} />
                           </div>
                         </div>
                       </div>
 
                       {/* Stats Overview */}
-                      <div className="grid grid-cols-3 gap-2 text-center text-xs pt-1 border-t border-slate-100 dark:border-slate-800">
-                        <div className="p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
-                          <span className="text-[10px] text-slate-400 block">মোট টাস্ক</span>
-                          <span className="font-black text-slate-900 dark:text-white">{courseAsgns.length} টি</span>
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs sm:text-sm pt-1 border-t border-slate-100 dark:border-slate-800">
+                        <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+                          <span className="text-xs text-slate-500 dark:text-slate-400 block mb-0.5 font-semibold">মোট টাস্ক</span>
+                          <span className="font-black text-sm sm:text-base text-slate-900 dark:text-white">{courseAsgns.length} টি</span>
                         </div>
-                        <div className="p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
-                          <span className="text-[10px] text-slate-400 block">জমা পড়া</span>
-                          <span className="font-black text-teal-500">{courseSubs.length} টি</span>
+                        <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+                          <span className="text-xs text-slate-500 dark:text-slate-400 block mb-0.5 font-semibold">জমা পড়া</span>
+                          <span className="font-black text-sm sm:text-base text-teal-500">{courseSubs.length} টি</span>
                         </div>
-                        <div className="p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
-                          <span className="text-[10px] text-slate-400 block">মূল্যায়ন বাকি</span>
-                          <span className="font-black text-rose-500">{pendingCount} টি</span>
+                        <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
+                          <span className="text-xs text-slate-500 dark:text-slate-400 block mb-0.5 font-semibold">মূল্যায়ন বাকি</span>
+                          <span className="font-black text-sm sm:text-base text-rose-500">{pendingCount} টি</span>
                         </div>
                       </div>
                     </div>
@@ -1852,9 +2056,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                             setLessonModuleId('new');
                           }
                         }}
-                        className="py-2.5 sm:py-3 px-3 bg-gradient-to-r from-[#1DB954] to-emerald-600 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.99] text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+                        className="py-3 px-3.5 bg-gradient-to-r from-[#1DB954] to-emerald-600 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.99] text-white font-black text-xs sm:text-sm md:text-base rounded-xl shadow-md transition cursor-pointer flex items-center justify-center gap-2"
                       >
-                        <Video className="w-4 h-4 text-white shrink-0" />
+                        <Video className="w-4 h-4 sm:w-5 sm:h-5 text-white shrink-0" />
                         <span className="truncate">মডিউল আপলোড</span>
                       </button>
 
@@ -1864,9 +2068,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                           setSelectedPreviewCourse(course);
                           if (onViewCourse) onViewCourse(course.id);
                         }}
-                        className="py-2.5 sm:py-3 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-[0.99] text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer flex items-center justify-center gap-1.5"
+                        className="py-3 px-3.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 active:scale-[0.99] text-slate-700 dark:text-slate-200 font-black text-xs sm:text-sm md:text-base rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer flex items-center justify-center gap-2"
                       >
-                        <Eye className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                        <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-slate-500 dark:text-slate-400 shrink-0" />
                         <span className="truncate">প্রিভিউ দেখুন →</span>
                       </button>
                     </div>
@@ -1881,82 +2085,61 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         {/* TAB: জমা কাজ (SUBMISSIONS / ASSIGNMENTS) */}
         {(activeTab === 'submissions' || activeTab === 'assignments') && (
           <div className="space-y-4 font-bengali animate-fadeIn">
-            {/* 3 FILTER BUTTONS & COUNTERS: [ ❗ নতুন (0) ] [ 🕒 রিভিউ (0) ] [ ✅ সাকসেস (6) ] */}
-            <div className="flex items-center justify-center p-1 bg-slate-100 dark:bg-slate-800/90 rounded-full border border-slate-200/90 dark:border-slate-700/80 shadow-xs max-w-md mx-auto w-full">
-              <div className="grid grid-cols-3 gap-1 w-full">
-                {/* 1. নতুন */}
-                <button
-                  type="button"
-                  onClick={() => setAssignmentStatusFilter('new')}
-                  className={`py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-full text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
-                    assignmentStatusFilter === 'new'
-                      ? 'bg-purple-600 text-white shadow-sm font-black'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <AlertCircle className={`w-3.5 h-3.5 shrink-0 ${
-                    assignmentStatusFilter === 'new' ? 'text-white' : 'text-purple-500'
-                  }`} />
-                  <span className="truncate">নতুন</span>
-                  <span className={`font-black text-xs ${
-                    assignmentStatusFilter === 'new' ? 'text-white' : 'text-purple-600 dark:text-purple-400'
-                  }`}>
-                    {pendingSubmissions.length}
-                  </span>
-                </button>
+            {/* 2 FILTER BUTTONS & COUNTERS: [ ❗ নতুন (0) ] [ 🕒 রিভিউ (7) ] (Hidden when embedded in Live Hub with hideHeader) */}
+            {!hideHeader && (
+              <div className="flex items-center justify-center p-1 bg-slate-100 dark:bg-slate-800/90 rounded-full border border-slate-200/90 dark:border-slate-700/80 shadow-xs max-w-xs mx-auto w-full">
+                <div className="grid grid-cols-2 gap-1 w-full">
+                  {/* 1. নতুন */}
+                  <button
+                    type="button"
+                    onClick={() => setAssignmentStatusFilter('new')}
+                    className={`py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-full text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
+                      assignmentStatusFilter === 'new'
+                        ? 'bg-purple-600 text-white shadow-sm font-black'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <AlertCircle className={`w-3.5 h-3.5 shrink-0 ${
+                      assignmentStatusFilter === 'new' ? 'text-white' : 'text-purple-500'
+                    }`} />
+                    <span className="truncate">নতুন</span>
+                    <span className={`font-black text-xs ${
+                      assignmentStatusFilter === 'new' ? 'text-white' : 'text-purple-600 dark:text-purple-400'
+                    }`}>
+                      {pendingSubmissions.length}
+                    </span>
+                  </button>
 
-                {/* 2. রিভিউ */}
-                <button
-                  type="button"
-                  onClick={() => setAssignmentStatusFilter('review')}
-                  className={`py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-full text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
-                    assignmentStatusFilter === 'review'
-                      ? 'bg-amber-500 text-white shadow-sm font-black'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <Clock className={`w-3.5 h-3.5 shrink-0 ${
-                    assignmentStatusFilter === 'review' ? 'text-white' : 'text-amber-500'
-                  }`} />
-                  <span className="truncate">রিভিউ</span>
-                  <span className={`font-black text-xs ${
-                    assignmentStatusFilter === 'review' ? 'text-white' : 'text-amber-600 dark:text-amber-400'
-                  }`}>
-                    {reviewSubmissions.length}
-                  </span>
-                </button>
-
-                {/* 3. সাকসেস */}
-                <button
-                  type="button"
-                  onClick={() => setAssignmentStatusFilter('success')}
-                  className={`py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-full text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
-                    assignmentStatusFilter === 'success'
-                      ? 'bg-[#1DB954] text-white shadow-sm font-black'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <CheckCircle className={`w-3.5 h-3.5 shrink-0 ${
-                    assignmentStatusFilter === 'success' ? 'text-white' : 'text-[#1DB954]'
-                  }`} />
-                  <span className="truncate">সাকসেস</span>
-                  <span className={`font-black text-xs ${
-                    assignmentStatusFilter === 'success' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'
-                  }`}>
-                    {totalGraded.length}
-                  </span>
-                </button>
+                  {/* 2. রিভিউ */}
+                  <button
+                    type="button"
+                    onClick={() => setAssignmentStatusFilter('review')}
+                    className={`py-1.5 sm:py-2 px-2.5 sm:px-4 rounded-full text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer min-w-0 ${
+                      assignmentStatusFilter === 'review'
+                        ? 'bg-amber-500 text-white shadow-sm font-black'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Clock className={`w-3.5 h-3.5 shrink-0 ${
+                      assignmentStatusFilter === 'review' ? 'text-white' : 'text-amber-500'
+                    }`} />
+                    <span className="truncate">রিভিউ</span>
+                    <span className={`font-black text-xs ${
+                      assignmentStatusFilter === 'review' ? 'text-white' : 'text-amber-600 dark:text-amber-400'
+                    }`}>
+                      {reviewSubmissions.length}
+                    </span>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* DYNAMIC FILTERED SUBMISSIONS LIST */}
             {(() => {
               const currentList = (
                 assignmentStatusFilter === 'new'
                   ? pendingSubmissions
-                  : assignmentStatusFilter === 'review'
-                  ? reviewSubmissions
-                  : totalGraded
+                  : reviewSubmissions
               ).filter(sub =>
                 !searchQuery.trim() ||
                 sub.studentName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1966,6 +2149,33 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
               return (
                 <div className="space-y-3 font-bengali">
+                  {/* BULK DELETE ACTION FOR REVIEW TAB */}
+                  {assignmentStatusFilter === 'review' && currentList.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 rounded-2xl p-3 sm:px-4">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                          মোট <strong className="text-amber-700 dark:text-amber-400">{currentList.length}টি</strong> রিভিউ কাজ রয়েছে
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`আপনি কি নিশ্চিত যে এই তালিকার সবগুলা (${currentList.length}টি) রিভিউ কাজ একসাথে মুছে ফেলতে চান? এতে আপনার তালিকা সম্পূর্ণ ক্লিয়ার হবে।`)) {
+                            currentList.forEach(s => deleteSubmission(s.id));
+                            setLiveToastMsg('সবগুলো রিভিউ কাজ সফলভাবে মুছে ফেলা হয়েছে।');
+                            setTimeout(() => setLiveToastMsg(''), 3000);
+                          }
+                        }}
+                        className="py-1.5 px-3.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-black text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs shrink-0"
+                        title="সবগুলো রিভিউ কাজ একসাথে তালিকা থেকে মুছুন"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>সবগুলা একসাথে ডিলেট</span>
+                      </button>
+                    </div>
+                  )}
+
                   {currentList.length === 0 ? (
                     <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 text-center border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
                       <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 mx-auto flex items-center justify-center text-slate-400">
@@ -1974,11 +2184,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       <h4 className="font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                         {assignmentStatusFilter === 'new' && 'বর্তমানে কোনো নতুন অপেক্ষমাণ জমা নেই'}
                         {assignmentStatusFilter === 'review' && 'বর্তমানে পর্যালোচনায় কোনো কাজ নেই'}
-                        {assignmentStatusFilter === 'success' && 'বর্তমানে মূল্যায়িত কোনো কাজ নেই'}
                       </h4>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5 sm:gap-3">
                       {currentList.map(sub => {
                         const asgn = assignments.find(a => a.id === sub.assignmentId);
                         const lessonInfo = getAssignmentLessonInfo(asgn);
@@ -1987,120 +2196,106 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         const progress = getStudentCourseProgress(sub.studentId, sub.studentEmail, sub.assignmentId);
                         const links = getSubmissionLinks(sub);
 
-                        let leftAccentBorder = "border-l-[5px] border-l-purple-500";
+                        let leftAccentBorder = "border-l-4 border-l-purple-500";
                         let badgeClasses = "bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800";
                         let statusLabel = "নতুন জমা";
                         let StatusIcon = AlertCircle;
 
                         if (sub.status === 'returned' || sub.feedback?.includes('পুনরায়')) {
-                          leftAccentBorder = "border-l-[5px] border-l-amber-500";
+                          leftAccentBorder = "border-l-4 border-l-amber-500";
                           badgeClasses = "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
                           statusLabel = "এগেইন আবশ্যক";
                           StatusIcon = RotateCcw;
                         } else if (isGraded && progress.isAllCompleted) {
-                          leftAccentBorder = "border-l-[5px] border-l-[#1DB954]";
+                          leftAccentBorder = "border-l-4 border-l-[#1DB954]";
                           badgeClasses = "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-[#1DB954] border-emerald-200 dark:border-emerald-800";
-                          statusLabel = `সফল (${sub.points || 50} মার্কস)`;
+                          statusLabel = `সফল (${sub.points || 50})`;
                           StatusIcon = CheckCircle2;
                         } else if (isUnderReview || (isGraded && !progress.isAllCompleted)) {
-                          leftAccentBorder = "border-l-[5px] border-l-amber-500";
+                          leftAccentBorder = "border-l-4 border-l-amber-500";
                           badgeClasses = "bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
-                          statusLabel = isGraded ? `রিভিউধীন (${progress.remainingTasks}টি বাকি)` : "রিভিউধীন";
+                          statusLabel = isGraded ? `রিভিউ (${progress.remainingTasks} বাকি)` : "রিভিউধীন";
                           StatusIcon = Clock;
                         }
 
                         return (
                           <div
                             key={sub.id}
-                            className={`relative overflow-hidden bg-gradient-to-b from-white via-slate-50/60 to-slate-50/20 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:shadow-md transition-all p-3.5 sm:p-4 text-slate-800 dark:text-slate-100 flex flex-col justify-between gap-3 ${leftAccentBorder}`}
+                            className={`relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all p-3.5 sm:p-4 text-slate-800 dark:text-slate-100 flex flex-col justify-between gap-3 ${leftAccentBorder}`}
                           >
                             {/* Row 1: Student Profile, ID & Status Badge */}
                             <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
-                              <div className="flex items-center gap-2 min-w-0">
+                              <div className="flex items-center gap-2.5 min-w-0">
                                 <div className="relative shrink-0">
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 text-white font-black text-xs flex items-center justify-center ring-2 ring-teal-500 shadow-xs">
+                                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-teal-500 to-emerald-400 text-white font-black text-sm flex items-center justify-center ring-2 ring-teal-500/30 shadow-2xs">
                                     {sub.studentName?.charAt(0) || 'S'}
                                   </div>
-                                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
+                                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-white dark:border-slate-900" />
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-xs sm:text-[13px] font-black text-slate-900 dark:text-white truncate">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
                                       {sub.studentName}
                                     </span>
-                                    <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-[#1DB954] shrink-0" />
+                                    <BadgeCheck className="w-4 h-4 text-emerald-600 dark:text-[#1DB954] shrink-0" />
                                   </div>
-                                  <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-bold block leading-none truncate">
+                                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium block truncate">
                                     {sub.studentEmail || 'শিক্ষার্থী'} • {sub.submittedAt || 'আজ'}
                                   </span>
                                 </div>
                               </div>
 
                               <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[9px] sm:text-[10px] font-bold rounded-md border border-slate-200 dark:border-slate-700">
-                                  #{sub.id.slice(-5).toUpperCase()}
-                                </span>
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black border flex items-center gap-1 shadow-2xs ${badgeClasses}`}>
-                                  <StatusIcon className="w-3 h-3 shrink-0" />
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-black border flex items-center gap-1 shadow-2xs ${badgeClasses}`}>
+                                  <StatusIcon className="w-3.5 h-3.5 shrink-0" />
                                   <span>{statusLabel}</span>
                                 </span>
                               </div>
                             </div>
 
-                            {/* Row 2: Prominent Lesson Number & Assigned Task Details */}
-                            <div className="p-3 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 space-y-2">
+                            {/* Row 2: Lesson Number & Assigned Task Details */}
+                            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-2">
                               <div className="flex items-center justify-between gap-2 flex-wrap">
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="px-2.5 py-0.5 rounded-lg bg-indigo-600 dark:bg-indigo-500 text-white text-[10px] sm:text-[11px] font-black flex items-center gap-1 shadow-2xs">
+                                  <span className="px-2 py-0.5 rounded-lg bg-indigo-600 dark:bg-indigo-500 text-white text-xs font-black flex items-center gap-1 shadow-2xs">
                                     <BookOpen className="w-3 h-3 shrink-0" />
                                     <span>{lessonInfo.lessonNo}</span>
                                   </span>
-                                  <span className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-md text-[10px] sm:text-[11px] font-bold truncate max-w-[180px]">
-                                    {asgn?.courseTitle || 'কোর্স প্রজেক্ট'}
+                                  <span className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-lg text-xs font-bold truncate max-w-[160px]">
+                                    {asgn?.courseTitle || 'কোর্স'}
                                   </span>
                                 </div>
-                                <span className="px-2 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-md text-[10px] sm:text-[11px] font-black flex items-center gap-1 shrink-0">
+                                <span className="px-2 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-lg text-xs font-black flex items-center gap-1 shrink-0">
                                   <Award className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
                                   <span>{asgn?.totalPoints || 50} মার্কস</span>
                                 </span>
                               </div>
 
-                              {/* Task Title & What was assigned */}
-                              <div className="space-y-1 pt-0.5">
-                                <div className="text-xs font-black text-slate-900 dark:text-white leading-snug">
-                                  {asgn?.title || lessonInfo.taskTitle}
-                                </div>
-                                <div className="p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-[11px] leading-relaxed">
-                                  <span className="font-black text-indigo-700 dark:text-indigo-300 block text-[10px] mb-0.5">
-                                    📋 যে কাজটি করতে দেওয়া হয়েছে (টাস্ক বিবরণী):
-                                  </span>
-                                  <p className="text-slate-700 dark:text-slate-300 font-medium">
-                                    {asgn?.description || lessonInfo.taskDesc}
-                                  </p>
-                                </div>
+                              {/* Task Title & Description */}
+                              <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight">
+                                {asgn?.title || lessonInfo.taskTitle}
                               </div>
+                              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed bg-white/80 dark:bg-slate-900/80 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                                <span className="font-black text-indigo-600 dark:text-indigo-400">টাস্ক: </span>
+                                {asgn?.description || lessonInfo.taskDesc}
+                              </p>
                             </div>
 
-                            {/* Row 2.5: Task Completion Progress Tracker (কতটা টাস্ক থেকে কতটা করছে) */}
-                            <div className="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-1.5">
-                              <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold">
-                                <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                            {/* Row 2.5: Task Completion Progress */}
+                            <div className="px-3 py-2 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/50 space-y-1.5">
+                              <div className="flex items-center justify-between text-xs font-bold">
+                                <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                                   <Layers className="w-3.5 h-3.5 text-teal-500 shrink-0" />
-                                  <span>টাস্ক অগ্রগতি:</span>
-                                  <span className="font-mono font-black text-slate-900 dark:text-white">
-                                    {progress.completedTasks}/{progress.totalTasks} সম্পন্ন
-                                  </span>
-                                  <span className="text-teal-600 dark:text-teal-400">({progress.progressPercent}%)</span>
+                                  <span>অগ্রগতি: {progress.completedTasks}/{progress.totalTasks}</span>
+                                  <span className="text-teal-600 dark:text-teal-400 font-black">({progress.progressPercent}%)</span>
                                 </span>
-                                <span className={`text-[9px] sm:text-[10px] font-black ${
-                                  progress.isAllCompleted
-                                    ? 'text-[#1DB954]'
-                                    : 'text-amber-600 dark:text-amber-400'
+                                <span className={`text-xs font-black ${
+                                  progress.isAllCompleted ? 'text-[#1DB954]' : 'text-amber-600 dark:text-amber-400'
                                 }`}>
-                                  {progress.isAllCompleted ? '🎉 সব টাস্ক সম্পন্ন (সফল)' : `⏳ আরও ${progress.remainingTasks}টি টাস্ক বাকি`}
+                                  {progress.isAllCompleted ? '🎉 সম্পন্ন' : `⏳ ${progress.remainingTasks}টি বাকি`}
                                 </span>
                               </div>
-                              <div className="w-full bg-slate-200 dark:bg-slate-700/80 rounded-full h-1.5 overflow-hidden">
+                              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                                 <div
                                   className={`h-full rounded-full transition-all duration-500 ${
                                     progress.isAllCompleted
@@ -2112,191 +2307,159 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                               </div>
                             </div>
 
-                            {/* Row 3: Compact 2-Column Evaluation Box with Subtle Dashed Border (Like Buyer Order Style) */}
-                            <div className="grid grid-cols-2 gap-2 p-2 sm:p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700">
+                            {/* Row 3: Evaluation Score Box */}
+                            <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700">
                               <div className="flex items-center gap-2">
-                                <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 shadow-2xs ${
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
                                   isGraded ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600' : 'bg-purple-50 dark:bg-purple-950/40 text-purple-600'
                                 }`}>
                                   <Award className="w-4 h-4" />
                                 </div>
-                                <div>
-                                  <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold block leading-none">
-                                    {isGraded ? 'অর্জিত স্কোর' : 'মোট নম্বর'}
+                                <div className="min-w-0">
+                                  <span className="text-xs text-slate-500 dark:text-slate-400 font-bold block leading-none">
+                                    {isGraded ? 'স্কোর' : 'মোট নম্বর'}
                                   </span>
-                                  <span className="text-xs sm:text-sm font-black font-mono text-slate-800 dark:text-slate-200 leading-tight">
-                                    {isGraded ? `${sub.points || 50} / ${asgn?.totalPoints || 50}` : `${asgn?.totalPoints || 50} পয়েন্ট`}
+                                  <span className="text-xs sm:text-sm font-black font-mono text-slate-900 dark:text-white leading-tight truncate block mt-0.5">
+                                    {isGraded ? `${sub.points || 50}/${asgn?.totalPoints || 50}` : `${asgn?.totalPoints || 50} পয়েন্ট`}
                                   </span>
                                 </div>
                               </div>
-                              <div className="border-l border-dashed border-slate-300 dark:border-slate-700 pl-2.5 flex items-center justify-between">
-                                <div>
-                                  <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold block leading-none">ফলাফল</span>
-                                  <span className={`text-xs sm:text-sm font-black leading-tight ${
+                              <div className="border-l border-dashed border-slate-300 dark:border-slate-700 pl-2 flex items-center justify-between">
+                                <div className="min-w-0">
+                                  <span className="text-xs text-slate-500 dark:text-slate-400 font-bold block leading-none">ফলাফল</span>
+                                  <span className={`text-xs sm:text-sm font-black leading-tight truncate block mt-0.5 ${
                                     isGraded && progress.isAllCompleted
                                       ? 'text-emerald-700 dark:text-[#1DB954]'
                                       : isUnderReview || (isGraded && !progress.isAllCompleted)
                                       ? 'text-amber-500'
                                       : 'text-purple-600 dark:text-purple-400'
                                   }`}>
-                                    {isGraded && progress.isAllCompleted
-                                      ? 'সফল ও উত্তীর্ণ'
-                                      : isUnderReview || (isGraded && !progress.isAllCompleted)
-                                      ? 'রিভিউধীন (টাস্ক বাকি)'
-                                      : 'নতুন জমা'}
+                                    {isGraded && progress.isAllCompleted ? 'উত্তীর্ণ' : isUnderReview || isGraded ? 'রিভিউ' : 'নতুন'}
                                   </span>
                                 </div>
-                                <span className={`hidden sm:inline-block px-1.5 py-0.5 text-[8px] font-black rounded ${
-                                  isGraded && progress.isAllCompleted
-                                    ? 'bg-emerald-600 text-white'
-                                    : isUnderReview || (isGraded && !progress.isAllCompleted)
-                                    ? 'bg-amber-500 text-white'
-                                    : 'bg-purple-600 text-white'
-                                }`}>
-                                  {isGraded && progress.isAllCompleted ? 'সাকসেস' : isUnderReview || isGraded ? 'রিভিউ' : 'নতুন'}
-                                </span>
                               </div>
                             </div>
 
-                            {/* Row 3.5: Student Solution / Note */}
+                            {/* Row 3.5: Student Solution / Note (if any) */}
                             {sub.submissionText && (
-                              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2 text-[11px] text-slate-700 dark:text-slate-300">
+                              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
                                 <MessageSquare className="w-3.5 h-3.5 text-teal-500 shrink-0 mt-0.5" />
-                                <div className="min-w-0 flex-1">
-                                  <span className="font-bold text-slate-800 dark:text-slate-200 block text-[10px] mb-0.5 text-teal-600 dark:text-teal-400">
-                                    📤 শিক্ষার্থীর জমা দেওয়া উত্তর / সমাধান:
-                                  </span>
-                                  <p className="italic line-clamp-3 leading-snug">"{sub.submissionText}"</p>
-                                </div>
+                                <p className="italic line-clamp-2 leading-relaxed">"{sub.submissionText}"</p>
                               </div>
                             )}
                             
-                            {/* If again requested (status is returned / redo / has lesson notice) */}
+                            {/* If again requested or graded feedback */}
                             {(sub.status === 'returned' || sub.feedback?.includes('পুনরায়')) ? (
-                              <div className="p-2.5 rounded-xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 flex items-start gap-2 text-xs">
+                              <div className="p-2.5 rounded-xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 flex items-start gap-2 text-xs sm:text-sm">
                                 <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                                 <div className="min-w-0 flex-1">
-                                  <span className="font-black text-amber-700 dark:text-amber-300 block">
-                                    যে লেসনটি হয়নি (এগেইন নির্দেশিত):
+                                  <span className="font-bold text-amber-700 dark:text-amber-300 block text-xs">
+                                    এগেইন নির্দেশিত:
                                   </span>
-                                  <p className="text-[11px] text-amber-800 dark:text-amber-200 mt-0.5 leading-snug font-medium">
+                                  <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-200 leading-normal">
                                     {sub.feedback}
                                   </p>
                                 </div>
                               </div>
                             ) : isGraded && sub.feedback ? (
-                              <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-500/20 flex items-start gap-1.5 text-[11px] text-emerald-800 dark:text-emerald-300">
+                              <div className="p-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-500/20 flex items-start gap-1.5 text-xs sm:text-sm text-emerald-800 dark:text-emerald-300">
                                 <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                                <p className="italic line-clamp-2 leading-tight font-medium">মন্তব্য: "{sub.feedback}"</p>
+                                <p className="italic line-clamp-1 leading-normal font-medium">মন্তব্য: "{sub.feedback}"</p>
                               </div>
                             ) : null}
 
-                            {/* Row 4: Attached File & Live / External Links */}
-                            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                              {(sub.fileName || (sub.fileUrl && !links.some(l => l.url === sub.fileUrl))) && (
-                                <a
-                                  href={sub.fileUrl || '#'}
-                                  download={sub.fileName || 'submission_file'}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition flex items-center gap-1 truncate max-w-[150px] border border-slate-200 dark:border-slate-700"
-                                  title={sub.fileName || 'ফাইল ডাউনলোড'}
-                                >
-                                  <Paperclip className="w-3 h-3 text-teal-500 shrink-0" />
-                                  <span className="truncate">{sub.fileName || 'ফাইল'}</span>
-                                  <Download className="w-2.5 h-2.5 ml-0.5 shrink-0 text-slate-400" />
-                                </a>
-                              )}
+                            {/* Row 4: Attached Files/Links */}
+                            {(sub.fileName || links.length > 0) && (
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                {(sub.fileName || (sub.fileUrl && !links.some(l => l.url === sub.fileUrl))) && (
+                                  <a
+                                    href={sub.fileUrl || '#'}
+                                    download={sub.fileName || 'submission_file'}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 truncate max-w-[160px] border border-slate-200 dark:border-slate-700"
+                                    title={sub.fileName || 'ফাইল ডাউনলোড'}
+                                  >
+                                    <Paperclip className="w-3 h-3 text-teal-500 shrink-0" />
+                                    <span className="truncate">{sub.fileName || 'ফাইল'}</span>
+                                    <Download className="w-3 h-3 ml-0.5 shrink-0 text-slate-400" />
+                                  </a>
+                                )}
 
-                              {links.map((link, idx) => (
-                                <a
-                                  key={idx}
-                                  href={link.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="px-2.5 py-1 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800 rounded-lg text-[10px] font-bold transition flex items-center gap-1 truncate max-w-[170px]"
-                                  title={link.url}
-                                >
-                                  <Globe className="w-3 h-3 text-teal-600 dark:text-teal-400 shrink-0" />
-                                  <span className="truncate">{link.title}</span>
-                                  <ExternalLink className="w-2.5 h-2.5 shrink-0 ml-0.5 text-teal-500" />
-                                </a>
-                              ))}
-                            </div>
+                                {links.map((link, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={link.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-2.5 py-1 bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800 rounded-lg text-xs font-bold transition flex items-center gap-1.5 truncate max-w-[160px]"
+                                    title={link.url}
+                                  >
+                                    <Globe className="w-3 h-3 text-teal-600 dark:text-teal-400 shrink-0" />
+                                    <span className="truncate">{link.title}</span>
+                                    <ExternalLink className="w-3 h-3 shrink-0 ml-0.5 text-teal-500" />
+                                  </a>
+                                ))}
+                              </div>
+                            )}
 
-                            {/* Row 5: Action Buttons (Edit, Again & Delete - Clean Single Icons) */}
-                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
-                              <span className="text-[10px] text-slate-400 font-medium truncate">
+                            {/* Row 5: Action Buttons */}
+                            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+                              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">
                                 জমা: {sub.submittedAt || 'আজ'}
                               </span>
 
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {/* 1. Edit / Evaluate Button */}
+                              {assignmentStatusFilter === 'review' ? (
+                                /* রিভিউ ট্যাবে শুধুমাত্র নিজস্ব ডিলিট বাটন (মূল্যায়ন/এগেইন ছাড়া) */
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setSelectedSubmission(sub);
-                                    setGradePoints(sub.points || asgn?.totalPoints || 50);
-                                    setGradeFeedback(sub.feedback || (assignmentStatusFilter === 'new' ? 'কাজ খুব ভালো হয়েছে! নিয়মিত প্র্যাকটিস অব্যাহত রাখুন।' : 'পর্যালোচনা সম্পন্ন হয়েছে।'));
-                                    setGradeLinkUrl(sub.linkUrl || (links.length > 0 ? links[0].url : ''));
+                                    deleteSubmission(sub.id);
+                                    setLiveToastMsg('রিভিউ কাজটি মুছে ফেলা হয়েছে।');
+                                    setTimeout(() => setLiveToastMsg(''), 3000);
                                   }}
-                                  className={`px-2.5 sm:px-3 py-1.5 font-bold text-[11px] rounded-lg sm:rounded-xl border transition cursor-pointer flex items-center gap-1.5 active:scale-95 ${
-                                    assignmentStatusFilter === 'new'
-                                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 text-white border-transparent shadow-xs font-black'
-                                      : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                                  }`}
-                                  title="মূল্যায়ন ও এডিট করুন"
+                                  className="px-3.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-black text-xs sm:text-sm rounded-xl border border-rose-500/30 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                                  title="এই কাজটি তালিকা থেকে মুছুন"
                                 >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                  <span>{assignmentStatusFilter === 'new' ? 'মূল্যায়ন ও এডিট' : 'এডিট'}</span>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>ডিলেট</span>
                                 </button>
-
-                                {/* 2. Again / Redo Button */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setAgainModalSub(sub);
-                                    const defaultLesson = asgn?.lessonNo || asgn?.title?.match(/লেসন\s*\d+|Lesson\s*\d+/i)?.[0] || 'লেসন নং ১';
-                                    setAgainLessonNo(defaultLesson);
-                                    setAgainReason('');
-                                  }}
-                                  className="px-2.5 sm:px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-[11px] rounded-lg sm:rounded-xl border border-amber-500/30 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
-                                  title="যে লেসনটি হয়নি সেটি আবার করার জন্য এগেইন পাঠান"
-                                >
-                                  <RotateCcw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                                  <span>এগেইন</span>
-                                </button>
-
-                                {/* 3. Delete Button */}
-                                {deleteConfirmSubId === sub.id ? (
-                                  <div className="flex items-center gap-1 animate-fadeIn">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteSubmission(sub.id)}
-                                      className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] rounded-lg transition cursor-pointer"
-                                    >
-                                      হ্যাঁ, মুছুন
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setDeleteConfirmSubId(null)}
-                                      className="px-2 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] rounded-lg font-bold"
-                                    >
-                                      বাতিল
-                                    </button>
-                                  </div>
-                                ) : (
+                              ) : (
+                                /* নতুন ট্যাবে মূল্যায়ন ও এগেইন বাটন */
+                                <div className="flex items-center gap-2 shrink-0">
+                                  {/* 1. Evaluate / Edit Button */}
                                   <button
                                     type="button"
-                                    onClick={() => setDeleteConfirmSubId(sub.id)}
-                                    className="p-1.5 sm:px-2.5 sm:py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-[11px] rounded-lg sm:rounded-xl border border-rose-500/30 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
-                                    title="সাবমিশনটি ডিলিট করুন"
+                                    onClick={() => {
+                                      setSelectedSubmission(sub);
+                                      setGradePoints(sub.points || asgn?.totalPoints || 50);
+                                      setGradeFeedback(sub.feedback || 'কাজ খুব ভালো হয়েছে! নিয়মিত প্র্যাকটিস অব্যাহত রাখুন।');
+                                      setGradeLinkUrl(sub.linkUrl || (links.length > 0 ? links[0].url : ''));
+                                    }}
+                                    className="px-3.5 py-1.5 font-black text-xs sm:text-sm rounded-xl border transition cursor-pointer flex items-center gap-1.5 active:scale-95 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 text-white border-transparent shadow-xs"
+                                    title="মূল্যায়ন করুন"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                                    <span className="hidden sm:inline">ডিলিট</span>
+                                    <Pencil className="w-3.5 h-3.5" />
+                                    <span>মূল্যায়ন</span>
                                   </button>
-                                )}
-                              </div>
+
+                                  {/* 2. Again / Redo Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAgainModalSub(sub);
+                                      const defaultLesson = asgn?.lessonNo || asgn?.title?.match(/লেসন\s*\d+|Lesson\s*\d+/i)?.[0] || 'লেসন নং ১';
+                                      setAgainLessonNo(defaultLesson);
+                                      setAgainReason('');
+                                    }}
+                                    className="px-3.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-black text-xs sm:text-sm rounded-xl border border-amber-500/30 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                                    title="যে লেসনটি হয়নি সেটি আবার করার জন্য এগেইন পাঠান"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                    <span>এগেইন</span>
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -2306,6 +2469,589 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 </div>
               );
             })()}
+          </div>
+        )}
+
+        {/* TAB: লাইভ ক্লাস ও লিংক সেটআপ (LIVE CLASSES TAB - AUTOMATED & CLEAN) */}
+        {activeTab === 'live_classes' && (
+          <div className="space-y-5 font-bengali animate-fadeIn">
+            {/* Live Toast Alert */}
+            {liveToastMsg && (
+              <div className="bg-emerald-500/10 border-2 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-md animate-bounce">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                  <span className="font-bold text-xs sm:text-sm">{liveToastMsg}</span>
+                </div>
+                <button
+                  onClick={() => setLiveToastMsg('')}
+                  className="text-emerald-600 dark:text-emerald-400 text-xs font-black cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Simple Clean Header with Create Live Class Button */}
+            <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+              <div className="space-y-0.5">
+                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Video className="w-5 h-5 text-rose-500 shrink-0" />
+                  <span>লাইভ ক্লাস</span>
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  শিডিউল অনুযায়ী অটো লাইভ ও স্বয়ংক্রিয় রিমুভ
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Quick Search */}
+                <div className="relative w-full sm:w-56">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={liveSearchQuery}
+                    onChange={e => setLiveSearchQuery(e.target.value)}
+                    placeholder="খুঁজুন..."
+                    className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Primary Action: Create Live Class */}
+                <button
+                  type="button"
+                  onClick={() => openCreateLiveModal()}
+                  className="px-4 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black rounded-xl shadow-md hover:shadow-lg transition cursor-pointer flex items-center justify-center gap-2 active:scale-95 whitespace-nowrap"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>নতুন লাইভ ক্লাস</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Active Live Classes List (Auto-Scheduled & Auto-Removing Expired) */}
+            {(() => {
+              const activeSessions = getActiveLiveSessions(liveSessions);
+              const filteredSessions = activeSessions.filter(s =>
+                s.topic.toLowerCase().includes(liveSearchQuery.toLowerCase()) ||
+                s.courseTitle.toLowerCase().includes(liveSearchQuery.toLowerCase()) ||
+                (s.moduleTitle && s.moduleTitle.toLowerCase().includes(liveSearchQuery.toLowerCase()))
+              );
+
+              if (filteredSessions.length === 0) {
+                return (
+                  <div className="bg-white dark:bg-slate-900 p-10 rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+                      <Video className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">
+                        কোনো লাইভ ক্লাস নেই
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                        শিক্ষার্থীদের জন্য নতুন লাইভ ক্লাস শিডিউল করুন।
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openCreateLiveModal()}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-md transition cursor-pointer active:scale-95"
+                    >
+                      <Plus className="w-4 h-4 stroke-[3]" />
+                      <span>নতুন লাইভ ক্লাস তৈরি করুন</span>
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredSessions.map(session => {
+                    const dynamicStatus = getLiveSessionDynamicStatus(session);
+                    const isLive = dynamicStatus === 'live_now';
+                    const link = session.meetingLink || 'https://meet.google.com/ptenit-live-class';
+                    const scheduleDisplay = formatBanglaLiveSchedule(session.date, session.time);
+                    const course = courses.find(c => c.id === session.courseId);
+
+                    return (
+                      <div
+                        key={session.id}
+                        className={`bg-white dark:bg-slate-900 rounded-3xl border transition-all p-4 sm:p-5 flex flex-col justify-between gap-4 shadow-sm hover:shadow-md ${
+                          isLive
+                            ? 'border-rose-500 dark:border-rose-500 ring-2 ring-rose-500/20 shadow-rose-500/10'
+                            : 'border-slate-200 dark:border-slate-800'
+                        }`}
+                      >
+                        {/* Session Info & Badges */}
+                        <div className="space-y-3">
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={session.courseThumbnail || course?.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80'}
+                              alt={session.courseTitle}
+                              className="w-14 h-14 rounded-2xl object-cover border border-slate-200 dark:border-slate-700 shrink-0 shadow-xs"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-1 mb-1">
+                                <span className="text-xs font-black uppercase px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 truncate max-w-[130px]">
+                                  {course?.category || 'কোর্স'}
+                                </span>
+                                <span className={`text-xs font-black px-3 py-1 rounded-full flex items-center gap-1.5 shrink-0 ${
+                                  isLive
+                                    ? 'bg-rose-500 text-white animate-pulse shadow-sm'
+                                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                }`}>
+                                  <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-white' : 'bg-emerald-500'}`} />
+                                  {isLive ? 'লাইভ চলছে' : 'শিডিউলড'}
+                                </span>
+                              </div>
+                              <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white line-clamp-1">
+                                {session.courseTitle}
+                              </h3>
+                            </div>
+                          </div>
+
+                          {/* Module, Lesson & Serial Pills */}
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 font-black text-xs">
+                              <Layers className="w-3.5 h-3.5" />
+                              <span>মডিউল {session.moduleNo}</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-black text-xs">
+                              <BookOpen className="w-3.5 h-3.5" />
+                              <span>লেসন {session.lessonNo}</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 font-black text-xs">
+                              <span>ক্লাস নং {session.classSerialNo}</span>
+                            </span>
+                          </div>
+
+                          {/* Live Class Topic Box */}
+                          <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 space-y-2.5">
+                            <div>
+                              <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                                ক্লাসের টপিক / বিষয়বস্তু
+                              </span>
+                              <p className="text-xs sm:text-sm font-black text-slate-900 dark:text-slate-100 line-clamp-2 mt-1">
+                                {session.topic}
+                              </p>
+                            </div>
+
+                            {/* Schedule Date, Time & Duration */}
+                            <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-xs sm:text-sm font-bold">
+                              <div className="flex items-center gap-2 text-teal-700 dark:text-teal-400 truncate">
+                                <Calendar className="w-4 h-4 shrink-0" />
+                                <span className="truncate">{scheduleDisplay}</span>
+                              </div>
+                              <span className="text-xs text-slate-600 dark:text-slate-300 font-black shrink-0 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                                {session.durationMinutes || 90} মিনিট
+                              </span>
+                            </div>
+
+                            {/* Link Row */}
+                            <div className="flex items-center justify-between gap-2 bg-white dark:bg-slate-900 p-2 px-3 rounded-xl text-xs font-mono text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
+                              <span className="truncate flex-1 text-teal-600 dark:text-teal-400 font-bold text-xs">
+                                {link}
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(link);
+                                    setCopiedLink(session.id);
+                                    setTimeout(() => setCopiedLink(null), 2000);
+                                  }}
+                                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-600 dark:text-slate-400 cursor-pointer transition"
+                                  title="মিটিং লিংক কপি করুন"
+                                >
+                                  {copiedLink === session.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                                <a
+                                  href={link}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-teal-600 dark:text-teal-400 cursor-pointer transition"
+                                  title="রুম টেস্ট / সরাসরি ওপেন"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <a
+                            href={link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`flex-1 py-2.5 px-3 text-white font-black text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
+                              isLive
+                                ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/30'
+                                : 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700'
+                            }`}
+                          >
+                            <Video className="w-3.5 h-3.5" />
+                            <span>{isLive ? 'গুগল মিটে জয়েন করুন' : 'মিট রুম খুলুন'}</span>
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={() => openEditLiveModal(session)}
+                            className="p-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                            title="শিডিউল ও টপিক এডিট করুন"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLiveSession(session)}
+                            className="p-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl border border-rose-500/20 transition cursor-pointer"
+                            title="মুছে ফেলুন"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* UNIFIED AUTOMATED LIVE CLASS CREATION & EDIT MODAL */}
+            {liveModalOpen && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 font-bengali animate-fadeIn overflow-y-auto">
+                <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl p-5 sm:p-6 space-y-4 my-8">
+                  {/* Modal Header */}
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0 border border-rose-500/20">
+                        <Video className="w-4.5 h-4.5" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
+                          {editingSessionId ? 'লাইভ ক্লাস শিডিউল এডিট করুন' : 'নতুন লাইভ ক্লাস তৈরি করুন'}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-bold">
+                          তারিখ ও সময় অনুযায়ী স্ট্যাটাস স্বয়ংক্রিয়ভাবে পরিচালিত হবে
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLiveModalOpen(false)}
+                      className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center cursor-pointer transition"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Form Body */}
+                  <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                    {/* SECTION 1: Course Selection */}
+                    <div>
+                      <label className="block text-xs font-black text-slate-900 dark:text-white mb-1.5">
+                        ১. কোর্স নির্বাচন করুন:
+                      </label>
+                      <select
+                        value={modalCourseId}
+                        onChange={e => {
+                          const cId = e.target.value;
+                          setModalCourseId(cId);
+                          const selCourse = courses.find(c => c.id === cId);
+                          if (selCourse) {
+                            setModalModuleTitle(selCourse.modules?.[0]?.title || 'মৌলিক পরিচিতি');
+                            setModalLessonTitle(selCourse.modules?.[0]?.lessons?.[0]?.title || 'প্রথম পরিচিতি');
+                            setModalTopic(generateLiveTopic(modalModuleNo, modalLessonNo, selCourse.modules?.[0]?.lessons?.[0]?.title || selCourse.title));
+                          }
+                        }}
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                      >
+                        {courses.map(course => (
+                          <option key={course.id} value={course.id}>
+                            {course.title} ({course.category})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* SECTION 2: Module, Lesson & Serial */}
+                    {(() => {
+                      const selCourse = courses.find(c => c.id === modalCourseId);
+                      return (
+                        <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <Layers className="w-3.5 h-3.5 text-purple-600" />
+                              <span>২. মডিউল, লেসন ও সিরিয়াল নির্বাচন</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400">
+                              ক্লাস ক্রম
+                            </span>
+                          </div>
+
+                          {/* Quick Syllabus dropdown if course has modules */}
+                          {selCourse?.modules && selCourse.modules.length > 0 && (
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                                কোর্সের সিলেবাস থেকে দ্রুত সেট করুন:
+                              </label>
+                              <select
+                                onChange={e => {
+                                  const modIndex = Number(e.target.value);
+                                  const selectedMod = selCourse.modules?.[modIndex];
+                                  if (selectedMod) {
+                                    const mNo = (modIndex + 1).toString();
+                                    setModalModuleNo(mNo);
+                                    setModalModuleTitle(selectedMod.title);
+                                    const firstLesson = selectedMod.lessons?.[0];
+                                    const lNo = firstLesson ? '১' : '১';
+                                    setModalLessonNo(lNo);
+                                    setModalLessonTitle(firstLesson ? firstLesson.title : '');
+                                    setModalClassSerialNo((modIndex + 1).toString());
+                                    setModalTopic(generateLiveTopic(mNo, lNo, firstLesson ? firstLesson.title : selectedMod.title));
+                                  }
+                                }}
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              >
+                                <option value="">-- সিলেবাস থেকে নির্বাচন করুন --</option>
+                                {selCourse.modules.map((m, idx) => (
+                                  <option key={m.id || idx} value={idx}>
+                                    মডিউল {idx + 1}: {m.title} ({m.lessons?.length || 0}টি লেসন)
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* 3 Grid Inputs: Module No, Lesson No, Class Serial No */}
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-black text-purple-700 dark:text-purple-300 mb-1">
+                                মডিউল নং:
+                              </label>
+                              <input
+                                type="text"
+                                value={modalModuleNo}
+                                onChange={e => {
+                                  setModalModuleNo(e.target.value);
+                                  setModalTopic(generateLiveTopic(e.target.value, modalLessonNo, modalLessonTitle));
+                                }}
+                                placeholder="যেমন: ১ বা ০২"
+                                className="w-full bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 rounded-xl px-2.5 py-1.5 text-xs font-black text-purple-900 dark:text-purple-100 text-center focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-black text-indigo-700 dark:text-indigo-300 mb-1">
+                                লেসন নং:
+                              </label>
+                              <input
+                                type="text"
+                                value={modalLessonNo}
+                                onChange={e => {
+                                  setModalLessonNo(e.target.value);
+                                  setModalTopic(generateLiveTopic(modalModuleNo, e.target.value, modalLessonTitle));
+                                }}
+                                placeholder="যেমন: ১ বা ০৩"
+                                className="w-full bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-800 rounded-xl px-2.5 py-1.5 text-xs font-black text-indigo-900 dark:text-indigo-100 text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-black text-amber-700 dark:text-amber-300 mb-1">
+                                ক্লাস সিরিয়াল নং:
+                              </label>
+                              <input
+                                type="text"
+                                value={modalClassSerialNo}
+                                onChange={e => setModalClassSerialNo(e.target.value)}
+                                placeholder="যেমন: ১ বা ০৫"
+                                className="w-full bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 rounded-xl px-2.5 py-1.5 text-xs font-black text-amber-900 dark:text-amber-100 text-center focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* SECTION 3: Live Topic */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                          ৩. লাইভ ক্লাসের টাইটেল/টপিক:
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const selCourse = courses.find(c => c.id === modalCourseId);
+                            const auto = generateLiveTopic(modalModuleNo, modalLessonNo, modalLessonTitle || selCourse?.title || '');
+                            setModalTopic(auto);
+                          }}
+                          className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline cursor-pointer flex items-center gap-1"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>অটো-টাইটেল</span>
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={modalTopic}
+                        onChange={e => setModalTopic(e.target.value)}
+                        placeholder="যেমন: মডিউল ০১: লেসন ০৩ - ফটোশপ সিলেকশন টুলস প্র্যাকটিস"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* SECTION 4: Date, Time & Duration Schedule */}
+                    <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-teal-600" />
+                          <span>৪. তারিখ, সময় ও স্থায়িত্বকাল</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-teal-700 dark:text-teal-400">
+                          সময়সূচি
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                            তারিখ (Date):
+                          </label>
+                          <input
+                            type="date"
+                            value={modalDate}
+                            onChange={e => setModalDate(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                            সময় (Time):
+                          </label>
+                          <input
+                            type="time"
+                            value={modalTime}
+                            onChange={e => setModalTime(e.target.value)}
+                            className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Duration Presets */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                          ক্লাস স্থায়িত্বকাল (Duration):
+                        </label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {[
+                            { label: '৬০ মিনিট (১ ঘণ্টা)', val: 60 },
+                            { label: '৯০ মিনিট (দেড় ঘণ্টা)', val: 90 },
+                            { label: '১২০ মিনিট (২ ঘণ্টা)', val: 120 }
+                          ].map(dur => (
+                            <button
+                              key={dur.val}
+                              type="button"
+                              onClick={() => setModalDuration(dur.val)}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                                modalDuration === dur.val
+                                  ? 'bg-teal-600 text-white border-teal-600 shadow-2xs'
+                                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              {dur.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Formatted Preview */}
+                      <div className="p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center gap-2 text-xs font-bold text-teal-800 dark:text-teal-300">
+                        <Clock className="w-4 h-4 shrink-0" />
+                        <span>শিডিউল প্রিভিউ: <strong className="font-black">{formatBanglaLiveSchedule(modalDate, modalTime)} ({modalDuration} মিনিট)</strong></span>
+                      </div>
+                    </div>
+
+                    {/* SECTION 5: Meeting Link */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                          ৫. লাইভ মিটিং লিংক:
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setModalMeetingLink('https://meet.google.com/ptenit-live-class')}
+                            className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/10 hover:text-rose-500 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                          >
+                            Google Meet
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setModalMeetingLink('https://zoom.us/j/ptenit-live-room')}
+                            className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/10 hover:text-rose-500 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                          >
+                            Zoom
+                          </button>
+                        </div>
+                      </div>
+                      <input
+                        type="url"
+                        value={modalMeetingLink}
+                        onChange={e => setModalMeetingLink(e.target.value)}
+                        placeholder="https://meet.google.com/xxx-xxxx-xxx"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* SECTION 6: Instructions / Notes */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        ৬. শিক্ষার্থীদের জন্য নির্দেশনা (ঐচ্ছিক):
+                      </label>
+                      <input
+                        type="text"
+                        value={modalSpecialNotes}
+                        onChange={e => setModalSpecialNotes(e.target.value)}
+                        placeholder="যেমন: ক্লাসে মাইক্রোফোন মিউট রাখবেন এবং প্রশ্ন থাকলে হ্যান্ডরেইজ করবেন।"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Automatic Status Explanation Notice */}
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-start gap-2.5 text-xs text-blue-800 dark:text-blue-300">
+                      <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-500" />
+                      <div>
+                        <span className="font-bold">স্বয়ংক্রিয় শিডিউল সিস্টেম:</span> নির্ধারিত সময় এলে সিস্টেমে অটোমেটিক <strong>"লাইভ চলছে"</strong> স্ট্যাটাস সক্রিয় হবে এবং ক্লাস সমাপ্তির পর তালিকা থেকে নিজে নিজেই হাইড হয়ে যাবে।
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Modal Action Buttons */}
+                  <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setLiveModalOpen(false)}
+                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition cursor-pointer"
+                    >
+                      বাতিল
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveLiveSession}
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{editingSessionId ? 'আপডেট সেভ করুন' : 'শিডিউল প্রকাশ করুন'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2384,131 +3130,115 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   <p className="text-xs text-slate-400">এখনো কোনো কাজ মূল্যায়িত হয়নি। 'জমা কাজ' ট্যাব থেকে কাজ চেক করে মূল্যায়ন সম্পন্ন করুন।</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5 sm:gap-3">
                   {totalGraded.map(sub => {
                     const asgn = assignments.find(a => a.id === sub.assignmentId);
                     const lessonInfo = getAssignmentLessonInfo(asgn);
+                    const links = getSubmissionLinks(sub);
                     return (
                       <div
                         key={sub.id}
-                        className="relative overflow-hidden bg-gradient-to-b from-white via-slate-50/60 to-slate-50/20 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 border-l-[5px] border-l-[#1DB954] shadow-xs hover:shadow-md transition-all p-3.5 sm:p-4 text-slate-800 dark:text-slate-100 flex flex-col justify-between gap-3"
+                        className="relative overflow-hidden bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 border-l-4 border-l-[#1DB954] shadow-2xs hover:shadow-xs transition-all p-2.5 sm:p-3 text-slate-800 dark:text-slate-100 flex flex-col justify-between gap-2"
                       >
                         {/* Row 1: Student Profile, ID & Status Badge */}
-                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800/80">
-                          <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-100 dark:border-slate-800/80">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             <div className="relative shrink-0">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-black text-xs flex items-center justify-center ring-2 ring-emerald-500 shadow-xs">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-black text-[11px] flex items-center justify-center ring-1.5 ring-emerald-500 shadow-2xs">
                                 {sub.studentName?.charAt(0) || 'S'}
                               </div>
-                              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900" />
+                              <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full border border-white dark:border-slate-900" />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1">
-                                <span className="text-xs sm:text-[13px] font-black text-slate-900 dark:text-white truncate">
+                                <span className="text-xs font-black text-slate-900 dark:text-white truncate">
                                   {sub.studentName}
                                 </span>
-                                <BadgeCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-[#1DB954] shrink-0" />
+                                <BadgeCheck className="w-3 h-3 text-emerald-600 dark:text-[#1DB954] shrink-0" />
                               </div>
-                              <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-bold block leading-none truncate">
+                              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-medium block leading-none truncate">
                                 {sub.studentEmail || 'শিক্ষার্থী'} • {sub.submittedAt || 'আজ'}
                               </span>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[9px] sm:text-[10px] font-bold rounded-md border border-slate-200 dark:border-slate-700">
-                              #{sub.id.slice(-5).toUpperCase()}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-[#1DB954] flex items-center gap-1 shadow-2xs">
-                              <CheckCircle2 className="w-3 h-3 shrink-0" />
-                              <span>সফল ও মূল্যায়িত</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-[#1DB954] flex items-center gap-0.5 shadow-2xs">
+                              <CheckCircle2 className="w-2.5 h-2.5 shrink-0" />
+                              <span>সফল ({sub.points || 50})</span>
                             </span>
                           </div>
                         </div>
 
-                        {/* Row 2: Prominent Lesson Number & Assigned Task Details */}
-                        <div className="p-3 rounded-2xl bg-slate-100/90 dark:bg-slate-800/80 border border-slate-200/90 dark:border-slate-700/80 space-y-2">
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="px-2.5 py-0.5 rounded-lg bg-emerald-600 text-white text-[10px] sm:text-[11px] font-black flex items-center gap-1 shadow-2xs">
-                                <BookOpen className="w-3 h-3 shrink-0" />
+                        {/* Row 2: Lesson Number & Assigned Task Details (Compact) */}
+                        <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-1">
+                          <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="px-1.5 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-black flex items-center gap-0.5 shadow-2xs">
+                                <BookOpen className="w-2.5 h-2.5 shrink-0" />
                                 <span>{lessonInfo.lessonNo}</span>
                               </span>
-                              <span className="px-2 py-0.5 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-md text-[10px] sm:text-[11px] font-bold truncate max-w-[180px]">
-                                {asgn?.courseTitle || 'কোর্স প্রজেক্ট'}
+                              <span className="px-1.5 py-0.5 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded text-[9px] font-bold truncate max-w-[130px]">
+                                {asgn?.courseTitle || 'কোর্স'}
                               </span>
                             </div>
-                            <span className="px-2 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-md text-[10px] sm:text-[11px] font-black flex items-center gap-1 shrink-0">
-                              <Award className="w-3 h-3 text-purple-600 dark:text-purple-400 shrink-0" />
+                            <span className="px-1.5 py-0.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded text-[9px] font-black flex items-center gap-0.5 shrink-0">
+                              <Award className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400 shrink-0" />
                               <span>{asgn?.totalPoints || 50} মার্কস</span>
                             </span>
                           </div>
 
-                          {/* Task Title & What was assigned */}
-                          <div className="space-y-1 pt-0.5">
-                            <div className="text-xs font-black text-slate-900 dark:text-white leading-snug">
-                              {asgn?.title || lessonInfo.taskTitle}
-                            </div>
-                            <div className="p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-[11px] leading-relaxed">
-                              <span className="font-black text-emerald-700 dark:text-emerald-400 block text-[10px] mb-0.5">
-                                📋 যে কাজটি করতে দেওয়া হয়েছে (টাস্ক বিবরণী):
-                              </span>
-                              <p className="text-slate-700 dark:text-slate-300 font-medium">
-                                {asgn?.description || lessonInfo.taskDesc}
-                              </p>
-                            </div>
+                          {/* Task Title & Description */}
+                          <div className="text-[11px] font-bold text-slate-900 dark:text-white leading-tight truncate">
+                            {asgn?.title || lessonInfo.taskTitle}
                           </div>
+                          <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-snug line-clamp-2 bg-white/80 dark:bg-slate-900/80 p-1.5 rounded-md border border-slate-100 dark:border-slate-800">
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">টাস্ক: </span>
+                            {asgn?.description || lessonInfo.taskDesc}
+                          </p>
                         </div>
 
                         {/* Row 3: Evaluation Stats Box */}
-                        <div className="grid grid-cols-2 gap-2 p-2 sm:p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs">
-                              <Award className="w-4 h-4" />
+                        <div className="grid grid-cols-2 gap-1.5 p-1.5 rounded-lg bg-slate-50/90 dark:bg-slate-800/60 border border-dashed border-slate-300 dark:border-slate-700">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-6 h-6 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs">
+                              <Award className="w-3.5 h-3.5" />
                             </div>
-                            <div>
-                              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold block leading-none">অর্জিত স্কোর</span>
-                              <span className="text-xs sm:text-sm font-black font-mono text-emerald-600 dark:text-[#1DB954] leading-tight">
+                            <div className="min-w-0">
+                              <span className="text-[8px] text-slate-500 dark:text-slate-400 font-bold block leading-none">অর্জিত স্কোর</span>
+                              <span className="text-[11px] font-black font-mono text-emerald-600 dark:text-[#1DB954] leading-tight block truncate">
                                 {sub.points || 50} / {asgn?.totalPoints || 50}
                               </span>
                             </div>
                           </div>
-                          <div className="border-l border-dashed border-slate-300 dark:border-slate-700 pl-2.5 flex items-center justify-between">
-                            <div>
-                              <span className="text-[9px] text-slate-500 dark:text-slate-400 font-bold block leading-none">গ্রেডিং অবস্থা</span>
-                              <span className="text-xs sm:text-sm font-black text-emerald-600 dark:text-[#1DB954] leading-tight">
+                          <div className="border-l border-dashed border-slate-300 dark:border-slate-700 pl-1.5 flex items-center justify-between">
+                            <div className="min-w-0">
+                              <span className="text-[8px] text-slate-500 dark:text-slate-400 font-bold block leading-none">ফলাফল</span>
+                              <span className="text-[10px] font-black text-emerald-600 dark:text-[#1DB954] leading-tight block truncate">
                                 পাস ({Math.round(((sub.points || 50) / (asgn?.totalPoints || 50)) * 100)}%)
                               </span>
                             </div>
-                            <span className="hidden sm:inline-block px-1.5 py-0.5 text-[8px] font-black rounded bg-emerald-600 text-white">
-                              উত্তীর্ণ
-                            </span>
                           </div>
                         </div>
 
                         {/* Row 3.5: Student Solution and Mentor Feedback */}
                         {sub.submissionText && (
-                          <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-2 text-[11px] text-slate-700 dark:text-slate-300">
-                            <MessageSquare className="w-3.5 h-3.5 text-teal-500 shrink-0 mt-0.5" />
-                            <div className="min-w-0 flex-1">
-                              <span className="font-bold text-slate-800 dark:text-slate-200 block text-[10px] mb-0.5 text-teal-600 dark:text-teal-400">
-                                📤 শিক্ষার্থীর সমাধান / লিখিত নোট:
-                              </span>
-                              <p className="italic line-clamp-2 leading-snug">"{sub.submissionText}"</p>
-                            </div>
+                          <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 flex items-start gap-1.5 text-[10px] text-slate-700 dark:text-slate-300">
+                            <MessageSquare className="w-3 h-3 text-teal-500 shrink-0 mt-0.5" />
+                            <p className="italic line-clamp-2 leading-snug">"{sub.submissionText}"</p>
                           </div>
                         )}
 
                         {sub.feedback && (
-                          <div className="p-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-500/20 flex items-start gap-1.5 text-[11px] text-emerald-800 dark:text-emerald-300">
-                            <Sparkles className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                            <p className="italic line-clamp-2 leading-tight font-medium">মন্তব্য: "{sub.feedback}"</p>
+                          <div className="p-1.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-500/20 flex items-start gap-1 text-[10px] text-emerald-800 dark:text-emerald-300">
+                            <Sparkles className="w-3 h-3 text-emerald-500 shrink-0 mt-0.5" />
+                            <p className="italic line-clamp-1 leading-tight font-medium">মন্তব্য: "{sub.feedback}"</p>
                           </div>
                         )}
 
-                        {/* Row 4: Footer with Actions (Edit, Again & Delete - Clean Single Icons) */}
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
-                          <span className="text-[10px] text-slate-400 font-medium truncate">
+                        {/* Row 4: Footer with 2 Action Buttons (এডিট & এগেইন, No Delete Button) */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-1.5">
+                          <span className="text-[9px] text-slate-400 font-medium truncate">
                             জমা: {sub.submittedAt || 'আজ'}
                           </span>
 
@@ -2522,10 +3252,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                 setGradeFeedback(sub.feedback || 'খুব ভালো কাজ!');
                                 setGradeLinkUrl(sub.linkUrl || '');
                               }}
-                              className="px-2.5 sm:px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[11px] rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                              className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[10px] sm:text-[11px] rounded-lg border border-slate-200 dark:border-slate-700 transition cursor-pointer flex items-center gap-1 active:scale-95"
                               title="মূল্যায়ন এডিট করুন"
                             >
-                              <Pencil className="w-3.5 h-3.5" />
+                              <Pencil className="w-3 h-3" />
                               <span>এডিট</span>
                             </button>
 
@@ -2538,42 +3268,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                                 setAgainLessonNo(defaultLesson);
                                 setAgainReason('');
                               }}
-                              className="px-2.5 sm:px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-[11px] rounded-lg sm:rounded-xl border border-amber-500/30 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                              className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-[10px] sm:text-[11px] rounded-lg border border-amber-500/30 transition cursor-pointer flex items-center gap-1 active:scale-95"
                               title="যে লেসনটি হয়নি সেটি আবার করার জন্য এগেইন পাঠান"
                             >
-                              <RotateCcw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                              <RotateCcw className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                               <span>এগেইন</span>
                             </button>
-
-                            {/* Delete Button */}
-                            {deleteConfirmSubId === sub.id ? (
-                              <div className="flex items-center gap-1 animate-fadeIn">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteSubmission(sub.id)}
-                                  className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] rounded-lg transition cursor-pointer"
-                                >
-                                  হ্যাঁ, মুছুন
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleteConfirmSubId(null)}
-                                  className="px-2 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] rounded-lg font-bold"
-                                >
-                                  বাতিল
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setDeleteConfirmSubId(sub.id)}
-                                className="p-1.5 sm:px-2.5 sm:py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-[11px] rounded-lg sm:rounded-xl border border-rose-500/30 transition cursor-pointer flex items-center gap-1.5 active:scale-95"
-                                title="সাবমিশনটি ডিলিট করুন"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                                <span className="hidden sm:inline">ডিলিট</span>
-                              </button>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -2727,6 +3427,255 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: TEACHER PAYMENTS & CASHOUT HUB */}
+        {activeTab === 'payments' && (
+          <div className="space-y-6 animate-fadeIn font-bengali">
+            {/* STAT CARDS */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
+                    <DollarSign className="w-4 h-4 text-[#1DB954] shrink-0" /> মোট কোর্স আয়
+                  </span>
+                  <span className="text-[10px] text-teal-500 bg-teal-500/10 px-2 py-0.5 rounded-full font-black">আর্নড</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                  ৳{(courses.reduce((acc, c) => acc + ((c.price || 3500) * (c.studentsCount || 12)), 0) || 420000).toLocaleString('bn-BD')}
+                </div>
+                <div className="text-[11px] text-slate-400 font-bold truncate">কোর্স বিক্রয় ও স্টুডেন্ট এনরোলমেন্ট</div>
+              </div>
+
+              <div className="p-4 bg-emerald-500/10 dark:bg-emerald-950/30 border-2 border-[#1DB954] rounded-2xl space-y-1 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-emerald-800 dark:text-[#1DB954] flex items-center gap-1.5 truncate">
+                    <Wallet className="w-4 h-4 text-[#1DB954] shrink-0" /> ক্যাশআউট ব্যালেন্স
+                  </span>
+                  <span className="text-[10px] text-[#1DB954] bg-[#1DB954]/20 px-2 py-0.5 rounded-full font-black">রেডি</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-[#1DB954] tracking-tight">
+                  ৳{(345000).toLocaleString('bn-BD')}
+                </div>
+                <div className="text-[11px] text-emerald-700 dark:text-emerald-400 font-bold truncate">উইথড্র করার জন্য প্রস্তুত</div>
+              </div>
+
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
+                    <CheckCircle className="w-4 h-4 text-blue-400 shrink-0" /> মোট উত্তোলিত
+                  </span>
+                  <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full font-black">পেইড</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                  ৳{(75000).toLocaleString('bn-BD')}
+                </div>
+                <div className="text-[11px] text-slate-400 font-bold truncate">সফল ক্যাশআউট সম্পন্ন</div>
+              </div>
+
+              <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
+                    <Clock className="w-4 h-4 text-amber-400 shrink-0" /> পেন্ডিং উইথড্র
+                  </span>
+                  <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full font-black">প্রসেসিং</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                  ৳{(0).toLocaleString('bn-BD')}
+                </div>
+                <div className="text-[11px] text-slate-400 font-bold truncate">অপেক্ষমান আবেদন</div>
+              </div>
+            </div>
+
+            {/* CASHOUT FORM & HISTORY */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* CASHOUT FORM */}
+              <div className="lg:col-span-5 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-5">
+                <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-[#1DB954]" /> নতুন ক্যাশআউট আবেদন
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    বিকাশ, নগদ বা ব্যাংক একাউন্টে তাৎক্ষণিক আয় উত্তোলন করুন
+                  </p>
+                </div>
+
+                {withdrawSuccessMsg && (
+                  <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/40 text-[#1DB954] text-xs font-bold rounded-xl flex items-center gap-2 animate-fadeIn">
+                    <CheckCircle className="w-4 h-4 shrink-0 fill-[#1DB954] text-slate-950" />
+                    <span>{withdrawSuccessMsg}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleWithdrawSubmit} className="space-y-4 text-xs font-bold">
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 mb-1.5">
+                      পেমেন্ট মেথড নির্বাচন করুন *
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'bkash', label: 'বিকাশ (bKash)', color: 'border-pink-500/50 hover:bg-pink-500/10 text-pink-500' },
+                        { id: 'nagad', label: 'নগদ (Nagad)', color: 'border-orange-500/50 hover:bg-orange-500/10 text-orange-500' },
+                        { id: 'bank', label: 'ব্যাংক (Bank)', color: 'border-blue-500/50 hover:bg-blue-500/10 text-blue-400' },
+                      ].map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setWithdrawMethod(m.id as any)}
+                          className={`p-2.5 rounded-xl border text-center font-black transition cursor-pointer ${
+                            withdrawMethod === m.id
+                              ? 'bg-[#1DB954] text-white border-[#1DB954] shadow-sm'
+                              : `bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 ${m.color}`
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-700 dark:text-slate-300 mb-1.5">
+                      {withdrawMethod === 'bank' ? 'ব্যাংক একাউন্ট নম্বর ও শাখা *' : 'মোবাইল একাউন্ট নম্বর *'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={withdrawAccount}
+                      onChange={e => setWithdrawAccount(e.target.value)}
+                      placeholder={withdrawMethod === 'bank' ? 'যেমন: DBBL 205.120.xxxxx (ধানমন্ডি ব্রাঞ্চ)' : 'যেমন: 017xxxxxxxx'}
+                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono focus:outline-none focus:border-[#1DB954]"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-slate-700 dark:text-slate-300">
+                        উত্তোলনের পরিমাণ (টাকা) *
+                      </label>
+                      <span className="text-[11px] text-slate-400">সর্বনিম্ন ৳৫০০</span>
+                    </div>
+                    <input
+                      type="number"
+                      required
+                      min={500}
+                      max={345000}
+                      value={withdrawAmount}
+                      onChange={e => setWithdrawAmount(e.target.value)}
+                      placeholder="যেমন: 5000"
+                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white font-mono text-base font-black focus:outline-none focus:border-[#1DB954]"
+                    />
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {[1000, 2500, 5000, 10000, 25000, 50000].map(amt => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setWithdrawAmount(amt.toString())}
+                          className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-[#1DB954] hover:text-white text-slate-600 dark:text-slate-300 text-[11px] rounded-lg transition font-mono cursor-pointer"
+                        >
+                          ৳{amt.toLocaleString('bn-BD')}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setWithdrawAmount('345000')}
+                        className="px-2.5 py-1 bg-emerald-500/20 hover:bg-[#1DB954] text-[#1DB954] hover:text-white text-[11px] font-black rounded-lg transition font-mono cursor-pointer"
+                      >
+                        সব টাকা (Max)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      className="w-full py-3 px-4 bg-gradient-to-r from-[#1DB954] to-emerald-600 hover:from-[#18a649] hover:to-emerald-700 text-white font-black text-sm rounded-xl transition flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-98"
+                    >
+                      <Send className="w-4 h-4 fill-white" />
+                      <span>ক্যাশআউট রিকোয়েস্ট পাঠান</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* PAYOUT HISTORY TABLE */}
+              <div className="lg:col-span-7 bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Receipt className="w-5 h-5 text-teal-500" /> ক্যাশআউট হিস্টোরি ও ট্রানজ্যাকশন
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      পূর্ববর্তী উইথড্রয়াল রেকর্ড ও অনুমোদনের অবস্থা
+                    </p>
+                  </div>
+                  <span className="text-xs font-black px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg">
+                    মোট {payoutsList.length}টি
+                  </span>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="block sm:hidden space-y-2.5">
+                  {payoutsList.map(item => (
+                    <div
+                      key={`mob-t-${item.id}`}
+                      className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[11px] font-bold text-slate-500 bg-slate-200/70 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                          {item.id}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-black bg-emerald-500/10 text-[#1DB954] border border-emerald-500/30">
+                          <CheckCircle className="w-3 h-3 fill-[#1DB954] text-slate-950" />
+                          {item.status === 'Approved' ? 'অনুমোদিত' : 'প্রক্রিয়াধীন'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-slate-700 dark:text-slate-200 font-bold">
+                          <span>{item.method}</span>
+                          <span className="block text-[11px] text-slate-400 font-normal">{item.date}</span>
+                        </div>
+                        <span className="text-base font-black text-[#1DB954] font-mono">
+                          ৳{item.amount.toLocaleString('bn-BD')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-left text-xs font-bold">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400">
+                        <th className="py-2.5 px-3">আইডি</th>
+                        <th className="py-2.5 px-3">তারিখ</th>
+                        <th className="py-2.5 px-3">পরিমাণ</th>
+                        <th className="py-2.5 px-3">মেথড ও নম্বর</th>
+                        <th className="py-2.5 px-3 text-right">স্ট্যাটাস</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
+                      {payoutsList.map(item => (
+                        <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition">
+                          <td className="py-3 px-3 font-mono text-slate-500">{item.id}</td>
+                          <td className="py-3 px-3 text-slate-500">{item.date}</td>
+                          <td className="py-3 px-3 text-[#1DB954] font-black font-mono">৳{item.amount.toLocaleString('bn-BD')}</td>
+                          <td className="py-3 px-3 font-mono">{item.method}</td>
+                          <td className="py-3 px-3 text-right">
+                            <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-black bg-emerald-500/10 text-[#1DB954] border border-emerald-500/30">
+                              <CheckCircle className="w-3 h-3 fill-[#1DB954] text-slate-950" />
+                              {item.status === 'Approved' ? 'অনুমোদিত' : 'প্রক্রিয়াধীন'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -3796,7 +4745,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         className="py-2.5 sm:py-3 px-4 sm:px-5 bg-[#1DB954] hover:bg-emerald-600 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
                       >
                         <CheckCircle className="w-4 h-4" />
-                        <span>মূল্যায়ন সংরক্ষণ করুন</span>
+                        <span>মূল্যায়ন সংরক্ষণ</span>
                       </button>
                     </div>
                   </div>
@@ -3806,29 +4755,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           );
         })()}
 
-        {/* AGAIN / REDO LESSON MODAL (যে লেসনটি হয়নি সেটি আবার করার জন্য) */}
+        {/* AGAIN / REDO LESSON MODAL (স্বয়ংক্রিয়ভাবে বর্তমান লেসনে এগেইন পাঠানো) */}
         {againModalSub && (() => {
           const asgn = assignments.find(a => a.id === againModalSub.assignmentId);
           const lessonInfo = getAssignmentLessonInfo(asgn);
-          const targetCourse = courses.find(c => c.id === asgn?.courseId);
-          
-          // Generate list of lessons for quick selection
-          const courseLessons = targetCourse?.modules?.flatMap(m => m.lessons) || [];
-          const lessonOptions = courseLessons.length > 0 
-            ? courseLessons.map((l, i) => `লেসন নং ${i + 1}: ${l.title}`)
-            : ['লেসন নং ১', 'লেসন নং ২', 'লেসন নং ৩', 'লেসন নং ৪', 'লেসন নং ৫', 'লেসন নং ৬'];
 
           return (
             <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto font-bengali">
-              <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 sm:p-8 rounded-3xl max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5 my-auto">
-                <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-5 sm:p-7 rounded-3xl max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4 my-auto">
+                <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
-                      <RotateCcw className="w-5 h-5" />
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
+                      <RotateCcw className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                        লেসন পুনরায় করার জন্য 'এগেইন' পাঠান
+                      <h3 className="text-base font-black text-slate-900 dark:text-white">
+                        এগেইন পাঠান
                       </h3>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         শিক্ষার্থী: <span className="font-bold text-slate-800 dark:text-slate-200">{againModalSub.studentName}</span>
@@ -3837,51 +4779,36 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   </div>
                   <button
                     onClick={() => setAgainModalSub(null)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl bg-slate-100 dark:bg-slate-800 transition-colors cursor-pointer"
+                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg bg-slate-100 dark:bg-slate-800 transition-colors cursor-pointer"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <form onSubmit={handleSendAgainRequest} className="space-y-4">
+                <form onSubmit={handleSendAgainRequest} className="space-y-3.5">
                   {/* Target Course & Assignment Banner */}
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/70 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs space-y-1.5">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/70 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-1.5">
                     <div className="flex items-center justify-between gap-1 text-slate-500 dark:text-slate-400 font-bold">
-                      <span>কোর্স ও বর্তমান টাস্ক:</span>
+                      <span className="flex items-center gap-1">
+                        <BookOpen className="w-3.5 h-3.5 text-amber-500" />
+                        <span>চলতি লেসন ও টাস্ক:</span>
+                      </span>
                       <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black">
                         {lessonInfo.lessonNo}
                       </span>
                     </div>
-                    <div className="font-black text-slate-900 dark:text-white">{asgn?.courseTitle || 'কোর্স'}</div>
+                    <div className="font-black text-slate-900 dark:text-white text-xs sm:text-sm">{asgn?.courseTitle || 'কোর্স'}</div>
                     <div className="text-teal-600 dark:text-teal-400 font-semibold">{asgn?.title || lessonInfo.taskTitle}</div>
-                    <div className="text-[11px] text-slate-600 dark:text-slate-300 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <div className="text-[11px] text-slate-600 dark:text-slate-300 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                       <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">টাস্ক নির্দেশনা:</span>
                       {asgn?.description || lessonInfo.taskDesc}
                     </div>
                   </div>
 
-                  {/* Lesson Number Selection */}
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                      <BookOpen className="w-4 h-4 text-amber-500" />
-                      <span>কোন লেসন নং হয়নি / পুনরায় করতে হবে? *</span>
-                    </label>
-                    <select
-                      value={againLessonNo}
-                      onChange={e => setAgainLessonNo(e.target.value)}
-                      className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs font-bold focus:outline-none focus:border-amber-500 cursor-pointer"
-                    >
-                      {lessonOptions.map((opt, idx) => (
-                        <option key={idx} value={opt}>{opt}</option>
-                      ))}
-                      <option value="সম্পূর্ণ অ্যাসাইনমেন্ট">সম্পূর্ণ অ্যাসাইনমেন্ট</option>
-                    </select>
-                  </div>
-
                   {/* Quick Preset Reasons */}
                   <div>
-                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                      কুইক রিজন / কারণ সিলেক্ট করুন:
+                    <label className="block text-[11px] font-black text-slate-700 dark:text-slate-300 mb-1">
+                      কুইক কারণ সিলেক্ট করুন:
                     </label>
                     <div className="flex flex-wrap gap-1.5">
                       {[
@@ -3894,7 +4821,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                           key={rIdx}
                           type="button"
                           onClick={() => setAgainReason(reasonText)}
-                          className="px-2.5 py-1 text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/10 hover:text-amber-600 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium transition cursor-pointer"
+                          className="px-2 py-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 hover:bg-amber-500/10 hover:text-amber-600 rounded-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium transition cursor-pointer"
                         >
                           + {reasonText}
                         </button>
@@ -3904,16 +4831,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
                   {/* Reason / Custom Notes */}
                   <div>
-                    <label className="block text-xs font-black text-slate-700 dark:text-slate-300 mb-1.5">
-                      শিক্ষার্থীর জন্য সংশোধনের বিস্তারিত নোট / মন্তব্য *
+                    <label className="block text-[11px] font-black text-slate-700 dark:text-slate-300 mb-1">
+                      সংশোধনের বিবরণ / মন্তব্য *
                     </label>
                     <textarea
                       rows={3}
                       required
                       value={againReason}
                       onChange={e => setAgainReason(e.target.value)}
-                      placeholder="শিক্ষার্থী কোন বিষয়টি সঠিকভাবে সম্পন্ন করেনি এবং কীভাবে আবার করতে হবে তা লিখুন..."
-                      className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:outline-none focus:border-amber-500"
+                      placeholder="শিক্ষার্থী কোন বিষয়টি সংশোধন করে আবার জমা দেবে লিখুন..."
+                      className="w-full p-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs focus:outline-none focus:border-amber-500"
                     />
                   </div>
 
@@ -3922,16 +4849,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     <button
                       type="button"
                       onClick={() => setAgainModalSub(null)}
-                      className="py-2.5 px-4 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-xs rounded-xl transition cursor-pointer"
+                      className="py-2 px-3.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white font-bold text-xs rounded-xl transition cursor-pointer"
                     >
                       বাতিল
                     </button>
                     <button
                       type="submit"
-                      className="py-2.5 px-5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center gap-1.5 active:scale-95"
+                      className="py-2 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black text-xs rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 active:scale-95"
                     >
-                      <RotateCcw className="w-4 h-4" />
-                      <span>এগেইন পাঠান (পুনরায় করার নির্দেশ)</span>
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>এগেইন পাঠান</span>
                     </button>
                   </div>
                 </form>
@@ -4565,10 +5492,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         onChange={e => setSettingsPayoutMethod(e.target.value)}
                         className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:border-[#1DB954]"
                       >
-                        <option value="bkash">বিকাশ (bKash Personal)</option>
-                        <option value="nagad">নগদ (Nagad Personal)</option>
-                        <option value="rocket">রকেট (Rocket Personal)</option>
-                        <option value="bank">ব্যাংক একাউন্ট (Bank Wire)</option>
+                        <option value="bkash">{t('বিকাশ পার্সোনাল', 'bKash Personal')}</option>
+                        <option value="nagad">{t('নগদ পার্সোনাল', 'Nagad Personal')}</option>
+                        <option value="rocket">{t('রকেট পার্সোনাল', 'Rocket Personal')}</option>
+                        <option value="bank">{t('ব্যাংক একাউন্ট', 'Bank Wire')}</option>
                       </select>
                     </div>
 
@@ -4803,9 +5730,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     onChange={(e) => setEditPayoutMethod(e.target.value as any)}
                     className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-[#1DB954]"
                   >
-                    <option value="bkash">bKash (বিকাশ পার্সোনাল)</option>
-                    <option value="nagad">Nagad (নগদ পার্সোনাল)</option>
-                    <option value="bank">Bank Transfer (ব্যাংক একাউন্ট)</option>
+                    <option value="bkash">{t('বিকাশ পার্সোনাল', 'bKash Personal')}</option>
+                    <option value="nagad">{t('নগদ পার্সোনাল', 'Nagad Personal')}</option>
+                    <option value="bank">{t('ব্যাংক একাউন্ট', 'Bank Transfer')}</option>
                   </select>
                 </div>
 

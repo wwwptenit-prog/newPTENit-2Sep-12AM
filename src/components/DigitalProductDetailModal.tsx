@@ -336,39 +336,40 @@ export const DigitalProductDetailModal: React.FC<DigitalProductDetailModalProps>
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         
         {/* Main Product Content Container (Matching CourseDetailModal!) */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-xs">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-xs">
 
           {/* 1. TOP BAR: ব্যাক বাটন | সেন্টারে: প্রিমিয়াম সার্ভিস / সম্পূর্ণ ফ্রি | শেয়ার সোশ্যাল মিডিয়া */}
-          <div className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 shadow-xs">
-            {/* LEFT: BACK BUTTON (বেক বাটন - ChevronLeft, গাড় সবুজ কালার, কোনো বর্ডার ছাড়া) */}
+          <div className="relative bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 rounded-t-2xl sm:rounded-t-3xl">
+            {/* LEFT: BACK BUTTON (বেক বাটন - ChevronLeft, কালো কালার, কোনো বর্ডার ছাড়া) */}
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-emerald-50/80 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 shrink-0 border-0 outline-none"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 shrink-0 border-0 outline-none"
               title={t('ফিরে যান', 'Go Back')}
             >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5] text-emerald-800 dark:text-emerald-400" />
-              <span className="hidden xs:inline">{t('ফিরে যান', 'Go Back')}</span>
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5] text-slate-900 dark:text-white" />
+              <span className="hidden xs:inline text-slate-900 dark:text-white">{t('ফিরে যান', 'Go Back')}</span>
             </button>
 
-            {/* CENTER: ডিজিটাল প্রোডাক্টে প্রাইজ থাকলে প্রিমিয়াম সার্ভিস, সম্পূর্ণ ফ্রি থাকলে সম্পূর্ণ ফ্রি (বর্ডার ছাড়া গাড় সবুজ প্লেন টেক্সট) */}
+            {/* CENTER: ডিজিটাল প্রোডাক্টে প্রাইজ থাকলে প্রিমিয়াম সার্ভিস, সম্পূর্ণ ফ্রি থাকলে সম্পূর্ণ ফ্রি (কালো আইকন ও টেক্সট) */}
             <div className="flex items-center justify-center min-w-0">
               <SinglePromoBadgeView 
                 item={{ id: product.id, title: product.title, price: product.price, offerBadge: (product as any).offerBadge }} 
                 itemType="digital_product" 
+                textColor="text-slate-900 dark:text-white"
               />
             </div>
 
-            {/* RIGHT: শেয়ার সোশ্যাল মিডিয়া (Social Media Share - গাড় সবুজ, কোনো বর্ডার ছাড়া) */}
+            {/* RIGHT: শেয়ার সোশ্যাল মিডিয়া (Social Media Share - কালো আইকন ও টেক্সট) */}
             <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setIsShareMenuOpen(!isShareMenuOpen)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-emerald-50/80 dark:hover:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400 text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 border-0 outline-none"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 border-0 outline-none"
                 title="সোশ্যাল মিডিয়ায় শেয়ার করুন"
               >
-                <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-800 dark:text-emerald-400" />
-                <span className="hidden sm:inline">শেয়ার</span>
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-slate-900 dark:text-white" />
+                <span className="hidden sm:inline text-slate-900 dark:text-white">শেয়ার</span>
               </button>
 
               {/* Share Popover Dropdown */}

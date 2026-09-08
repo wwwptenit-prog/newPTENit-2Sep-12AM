@@ -98,43 +98,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   }, [initialSubTab]);
 
   const [copiedStudentLiveLink, setCopiedStudentLiveLink] = useState<string | null>(null);
-  const [studentToast, setStudentToast] = useState<string | null>(null);
-
-  const showStudentToast = (msg: string) => {
-    setStudentToast(msg);
-    setTimeout(() => setStudentToast(null), 3500);
-  };
-
-  const safeStudentCopy = (text: string) => {
-    try {
-      if (navigator?.clipboard?.writeText) {
-        navigator.clipboard.writeText(text).catch(() => {
-          fallbackStudentCopy(text);
-        });
-      } else {
-        fallbackStudentCopy(text);
-      }
-    } catch {
-      fallbackStudentCopy(text);
-    }
-  };
-
-  const fallbackStudentCopy = (text: string) => {
-    try {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-    } catch (e) {
-      console.warn('Fallback copy error:', e);
-    }
-  };
 
   const [notifOpen, setNotifOpen] = useState(false);
 
@@ -811,7 +774,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-md mb-6 sm:mb-8 overflow-hidden">
             <div className="px-4 py-2.5 bg-slate-100/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
               <div className="flex items-center gap-2">
-                <span className="uppercase tracking-wider text-[11px] text-slate-500 dark:text-slate-400">ড্যাশবোর্ড মেনুবার (Student Menubar)</span>
+                <span className="uppercase tracking-wider text-[11px] text-slate-500 dark:text-slate-400">{t('ড্যাশবোর্ড মেনুবার', 'Student Menubar')}</span>
               </div>
             </div>
 
@@ -999,16 +962,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                                 <span className="px-2 py-0.5 bg-[#1DB954]/15 text-[#1DB954] text-[10px] font-bold rounded-lg border border-[#1DB954]/30">
                                   {course.category}
                                 </span>
-                                {enr.status === 'pending' ? (
-                                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-[10px] font-bold rounded-lg border border-amber-500/30 flex items-center gap-1 animate-pulse">
-                                    <Clock className="w-3 h-3" /> পেমেন্ট যাচাই অপেক্ষমান (Pending)
-                                  </span>
-                                ) : enr.status === 'completed' ? (
+                                {enr.status === 'completed' ? (
                                   <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-500/30 flex items-center gap-1">
                                     <CheckCircle className="w-3 h-3" /> কোর্স সম্পন্ন
                                   </span>
                                 ) : (
-                                  <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-500 text-[10px] font-bold rounded-lg border border-emerald-500/30 flex items-center gap-1">
+                                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-[10px] font-bold rounded-lg border border-amber-500/30 flex items-center gap-1">
                                     <Clock className="w-3 h-3" /> লাইভ ব্যাচ চলমান
                                   </span>
                                 )}
@@ -1052,25 +1011,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
                           {/* Main Action Buttons */}
                           <div className="flex items-center gap-2">
-                            {enr.status === 'pending' ? (
-                              <button
-                                type="button"
-                                onClick={() => showStudentToast('পেমেন্ট যাচাই চলছে। TrxID অনুমোদন পেলেই ক্লাস আনলক হবে (৫-১৫ মিনিট)।')}
-                                className="flex-1 py-2.5 px-3 bg-amber-600 hover:bg-amber-500 text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                              >
-                                <Clock className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                                <span>যাচাই অপেক্ষমান (Pending)</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => onStartLearning(course.id)}
-                                className="flex-1 py-2.5 px-3 bg-[#1DB954] hover:bg-emerald-600 text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                              >
-                                <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
-                                <span>ক্লাসে যান</span>
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => onStartLearning(course.id)}
+                              className="flex-1 py-2.5 px-3 bg-[#1DB954] hover:bg-emerald-600 text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                            >
+                              <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+                              <span>ক্লাসে যান</span>
+                            </button>
                             <button
                               type="button"
                               onClick={() => setActiveCurriculumModal(course)}
@@ -1302,12 +1250,12 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                             {isLiveNow ? (
                               <span className="px-3 py-1 bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/40 text-xs font-black rounded-full flex items-center gap-1.5 animate-pulse shadow-sm">
                                 <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping" />
-                                🔴 সরাসরি লাইভ চলছে (LIVE NOW)
+                                {t('🔴 সরাসরি লাইভ চলছে', '🔴 LIVE NOW')}
                               </span>
                             ) : (
                               <span className="px-3 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-xs font-extrabold rounded-full flex items-center gap-1.5">
                                 <Calendar className="w-3.5 h-3.5" />
-                                🗓️ নির্ধারিত শিডিউল (SCHEDULED)
+                                {t('🗓️ নির্ধারিত শিডিউল', '🗓️ SCHEDULED')}
                               </span>
                             )}
 
@@ -1409,8 +1357,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                             <Video className="w-4 h-4" />
                             <span>
                               {isLiveNow
-                                ? '🔴 সরাসরি লাইভ ক্লাসে জয়েন করুন (Google Meet)'
-                                : '🗓️ গুগল মিট রুম চেক করুন'}
+                                ? t('🔴 সরাসরি লাইভ ক্লাসে জয়েন করুন', '🔴 Join Live Class Now')
+                                : t('🗓️ গুগল মিট রুম চেক করুন', '🗓️ Check Google Meet Room')}
                             </span>
                             <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
                           </a>
@@ -1794,7 +1742,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    পূর্ণ নাম (Full Name) *
+                    {t('পূর্ণ নাম *', 'Full Name *')}
                   </label>
                   <input
                     type="text"
@@ -1807,7 +1755,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    শিক্ষা প্রতিষ্ঠান / স্কুল / কলেজ / বিশ্ববিদ্যালয়
+                    {t('শিক্ষা প্রতিষ্ঠান / স্কুল / কলেজ / বিশ্ববিদ্যালয়', 'Educational Institution / School / College / University')}
                   </label>
                   <input
                     type="text"
@@ -1822,7 +1770,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    মোবাইল নম্বর (Phone Number)
+                    {t('মোবাইল নম্বর', 'Phone Number')}
                   </label>
                   <input
                     type="text"
@@ -1834,7 +1782,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    ইমেইল ঠিকানা (Email Address)
+                    {t('ইমেইল ঠিকানা', 'Email Address')}
                   </label>
                   <input
                     type="email"
@@ -1847,7 +1795,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  সংক্ষিপ্ত বায়ো ও আইটি ক্যারিয়ার লক্ষ্য (Bio & Goals)
+                  {t('সংক্ষিপ্ত বায়ো ও আইটি ক্যারিয়ার লক্ষ্য', 'Short Bio & IT Career Goals')}
                 </label>
                 <textarea
                   rows={3}
@@ -1970,8 +1918,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   </div>
                   <a
                     href="#download"
-                    onClick={(e) => { e.preventDefault(); showStudentToast('লেকচার নোটস PDF ডাউনলোড শুরু হয়েছে!'); }}
-                    className="px-3 py-1.5 bg-[#1DB954] hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-1 shrink-0 cursor-pointer active:scale-95"
+                    onClick={(e) => { e.preventDefault(); alert('লেকচার নোটস PDF ডাউনলোড শুরু হয়েছে!'); }}
+                    className="px-3 py-1.5 bg-[#1DB954] hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-1 shrink-0"
                   >
                     <Download className="w-3.5 h-3.5" /> ডাউনলোড
                   </a>
@@ -1987,8 +1935,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   </div>
                   <a
                     href="#download"
-                    onClick={(e) => { e.preventDefault(); showStudentToast('সোর্স কোড ZIP ফাইল ডাউনলোড শুরু হয়েছে!'); }}
-                    className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl flex items-center gap-1 shrink-0 cursor-pointer active:scale-95"
+                    onClick={(e) => { e.preventDefault(); alert('সোর্স কোড ZIP ফাইল ডাউনলোড শুরু হয়েছে!'); }}
+                    className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl flex items-center gap-1 shrink-0"
                   >
                     <Download className="w-3.5 h-3.5" /> ডাউনলোড
                   </a>
@@ -2060,12 +2008,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   </div>
                   <div className="flex gap-2">
                     <button
-                      type="button"
                       onClick={() => {
-                        safeStudentCopy('https://meet.google.com/ptenit-live-class');
-                        showStudentToast('লাইভ ক্লাস লিংক কপি করা হয়েছে!');
+                        navigator.clipboard.writeText('https://meet.google.com/ptenit-live-class');
+                        alert('লাইভ ক্লাস লিংক কপি করা হয়েছে!');
                       }}
-                      className="w-1/2 py-2.5 bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-bold rounded-xl transition cursor-pointer text-xs"
+                      className="w-1/2 py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition cursor-pointer text-xs"
                     >
                       লিংক কপি করুন
                     </button>
@@ -2160,14 +2107,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Instant Non-blocking Notification Toast */}
-        {studentToast && (
-          <div className="fixed bottom-6 right-6 z-50 animate-bounce bg-slate-900 text-white border border-slate-700 shadow-2xl px-4 py-3 rounded-2xl flex items-center gap-3 text-xs font-bengali">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#1DB954] shrink-0" />
-            <span className="font-semibold">{studentToast}</span>
           </div>
         )}
 

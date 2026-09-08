@@ -147,33 +147,34 @@ export const getSingleBadgeInfo = (
 
 /**
  * Top-bar Badge Component
- * "টববারে সব গাড় সবুজ কালার হবে টেক্স ও আইকন বাটন, বডার হবে না"
- * Clean, plain deep green text with matching deep green icon - NO BORDER!
+ * টববার ফিক্সট সহ কালার গাড় সবুজ এবং আইকন টেক্স সহ সাদা কালার
  */
 export const SinglePromoBadgeView: React.FC<{
   item?: BadgeItemInput;
   itemType?: BadgeCategoryType | string;
   className?: string;
-}> = ({ item, itemType = 'gig', className = '' }) => {
+  textColor?: string;
+}> = ({ item, itemType = 'gig', className = '', textColor = 'text-slate-900 dark:text-slate-100' }) => {
   const badgeInfo = getSingleBadgeInfo(item, itemType);
+  const colorClass = textColor || 'text-slate-900 dark:text-slate-100';
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold font-bengali whitespace-nowrap text-emerald-800 dark:text-emerald-400 border-0 outline-none ${className}`}
+      className={`inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold font-bengali whitespace-nowrap border-0 outline-none ${colorClass} ${className}`}
     >
       {badgeInfo.type === 'pro_service' && (
-        <Zap className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-current text-emerald-800 dark:text-emerald-400 shrink-0" />
+        <Zap className={`w-4 h-4 sm:w-4.5 sm:h-4.5 fill-current ${colorClass} shrink-0`} />
       )}
       {(badgeInfo.type === 'free_offer' || badgeInfo.type === 'completely_free') && (
-        <Gift className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-emerald-800 dark:text-emerald-400 shrink-0" />
+        <Gift className={`w-4 h-4 sm:w-4.5 sm:h-4.5 ${colorClass} shrink-0`} />
       )}
       {badgeInfo.type === 'work_first' && (
-        <CheckCircle2 className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-emerald-800 dark:text-emerald-400 shrink-0" />
+        <CheckCircle2 className={`w-4 h-4 sm:w-4.5 sm:h-4.5 ${colorClass} shrink-0`} />
       )}
       {badgeInfo.type === 'premium_service' && (
-        <Crown className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-emerald-800 dark:text-emerald-400 shrink-0" />
+        <Crown className={`w-4 h-4 sm:w-4.5 sm:h-4.5 ${colorClass} shrink-0`} />
       )}
-      <span className="text-emerald-800 dark:text-emerald-400">{badgeInfo.label}</span>
+      <span className={colorClass}>{badgeInfo.label}</span>
     </div>
   );
 };
