@@ -64,7 +64,7 @@ export const AdminCommandPalette: React.FC<AdminCommandPaletteProps> = ({
   const navCommands = useMemo(() => [
     { id: 'dashboard', title: 'ড্যাশবোর্ড ওভারভিউ', subtitle: 'সার্বিক আয় ও স্ট্যাটস', icon: LayoutDashboard, category: 'নেভিগেশন' },
     { id: 'users_teacher_seller', title: 'ইউজার ডিরেক্টরি ও কমপ্লেইন হাব', subtitle: 'টিচার, সেলার, শিক্ষার্থী ও বায়ার', icon: Users, category: 'নেভিগেশন' },
-    { id: 'ai_core', title: 'AI মার্কেটপ্লেস কোর ও ফ্রড ডিটেক্টর', subtitle: 'অটোনোমাস এআই সেন্টিনেল ও ডিসপিউট আরবিট্রেশন', icon: Bot, category: 'নেভিগেশন' },
+    { id: 'ai_core', title: 'ফাইন্যান্সিয়াল ও বিলিং কোর (সকল পেমেন্ট ও হিসাব)', subtitle: 'ইনভয়েস, বিল ভাউচার, উত্তোলন অনুরোধ ও ক্যাশ লেজার', icon: CreditCard, category: 'নেভিগেশন' },
     { id: 'sub_admins', title: 'সাব-এডমিন রোল ও পারমিশন (RBAC)', subtitle: 'পদবীভিত্তিক অ্যাক্সেস ও দায়িত্ব বণ্টন', icon: ShieldCheck, category: 'নেভিগেশন' },
     { id: 'billing_verify', title: 'পেমেন্ট ও বিল ভেরিফিকেশন', subtitle: 'বিকাশ/নগদ TrxID অডিট ও অনুমোদন', icon: CreditCard, category: 'নেভিগেশন' },
     { id: 'gigs_manage', title: 'মার্কেটপ্লেস গিগ ম্যানেজমেন্ট', subtitle: 'গিগ অডিট, অনুমোদন ও প্রাইজ রেট', icon: ShoppingBag, category: 'নেভিগেশন' },
@@ -140,10 +140,10 @@ export const AdminCommandPalette: React.FC<AdminCommandPaletteProps> = ({
         <div className="p-3 overflow-y-auto space-y-4 max-h-[60vh]">
           
           {/* Quick Execution Actions (If no query or relevant query) */}
-          {(!query || query.toLowerCase().includes('ai') || query.toLowerCase().includes('স্ক্যান')) && (
+          {(!query || query.toLowerCase().includes('fin') || query.toLowerCase().includes('পেমেন্ট') || query.toLowerCase().includes('বিল')) && (
             <div className="space-y-1.5">
-              <p className="text-[11px] font-bold text-amber-400 uppercase tracking-wider px-2">
-                ⚡ কুইক এআই অ্যাকশন
+              <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider px-2">
+                💳 কুইক ফাইন্যান্সিয়াল অ্যাকশন
               </p>
               <div
                 onClick={() => {
@@ -151,18 +151,18 @@ export const AdminCommandPalette: React.FC<AdminCommandPaletteProps> = ({
                   onClose();
                   playAppSound('click');
                 }}
-                className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 flex items-center justify-between cursor-pointer transition text-xs"
+                className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-between cursor-pointer transition text-xs"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold">
-                    <Bot className="w-4 h-4" />
+                  <div className="p-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold">
+                    <CreditCard className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="font-bold text-white block">এআই কোর ফ্রড ও ডিসপিউট অডিট রান করুন</span>
-                    <span className="text-[11px] text-amber-300/80 font-normal">রিয়েল-টাইম ডাটাবেজ ভেক্টর স্ক্যানিং</span>
+                    <span className="font-bold text-white block">ফাইন্যান্সিয়াল কোর ও পেমেন্ট অডিট হাব খুলুন</span>
+                    <span className="text-[11px] text-emerald-300/80 font-normal">বিকাশ, নগদ, ব্যাংক ও ইনভয়েস লেজার হিসাব</span>
                   </div>
                 </div>
-                <ArrowRight className="w-4 h-4 text-amber-400" />
+                <ArrowRight className="w-4 h-4 text-emerald-400" />
               </div>
             </div>
           )}

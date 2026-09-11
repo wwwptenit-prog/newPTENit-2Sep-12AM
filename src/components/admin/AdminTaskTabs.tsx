@@ -39,7 +39,7 @@ interface AdminTaskTabsProps {
 export const AVAILABLE_TASKS: { id: string; label: string; desc: string; category: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'dashboard', label: 'ড্যাশবোর্ড ওভারভিউ', desc: 'সার্বিক প্ল্যাটফর্ম রেভিনিউ, অ্যানালিটিক্স ও মেট্রিক্স', category: 'কোর', icon: LayoutDashboard },
   { id: 'users_teacher_seller', label: 'ইউজার ডিরেক্টরি ও কমপ্লেইন', desc: 'টিচার, সেলার, শিক্ষার্থী, বায়ার মনিটরিং ও রেস্ট্রিক্ট', category: 'ইউজার', icon: Users },
-  { id: 'ai_core', label: 'AI মার্কেটপ্লেস কোর', desc: 'ফ্রড ডিটেকশন, এআই ডিসপিউট আরবিট্রেশন ও কোয়ালিটি স্ক্যানার', category: 'এআই', icon: Bot },
+  { id: 'ai_core', label: 'ফাইন্যান্সিয়াল ও বিলিং কোর', desc: 'সকল পেমেন্ট সংক্রান্ত কাজ, বিল ভাউচার, পেআউট অনুরোধ ও অডিট হিসাব', category: 'ফাইন্যান্স', icon: CreditCard },
   { id: 'sub_admins', label: 'সাব-এডমিন রোল ও এক্সেস (RBAC)', desc: 'পদবীভিত্তিক ডিপার্টমেন্ট ম্যানেজার ও পারমিশন কন্ট্রোল', category: 'টিম', icon: ShieldCheck },
   { id: 'billing_verify', label: 'বিল জমা ও পেমেন্ট ভেরিফাই', desc: 'বিকাশ, নগদ, রকেট ও ব্যাংক পেমেন্ট অনুমোদন', category: 'পেমেন্ট', icon: CreditCard },
   { id: 'gigs_manage', label: 'মার্কেটপ্লেস গিগ ম্যানেজমেন্ট', desc: 'সার্ভিস গিগ অডিট, অনুমোদন ও প্রাইজ কন্ট্রোল', category: 'মার্কেটপ্লেস', icon: ShoppingBag },
@@ -65,7 +65,7 @@ export const AdminTaskTabs: React.FC<AdminTaskTabsProps> = ({
   const getTabIcon = (id: string) => {
     if (id === 'dashboard') return LayoutDashboard;
     if (id.startsWith('users')) return Users;
-    if (id === 'ai_core') return Bot;
+    if (id === 'ai_core') return CreditCard;
     if (id === 'sub_admins') return ShieldCheck;
     if (id === 'billing_verify') return CreditCard;
     if (id === 'gigs_manage' || id === 'marketplace') return ShoppingBag;
