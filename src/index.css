@@ -87,65 +87,66 @@
 
 /* PTENit Official Brand Identity: Clean Bangladeshi Red & Green (লাল-সবুজ) */
 :root {
-  --pten-green: #16A34A;           /* Clean Vibrant Green */
-  --pten-green-hover: #15803D;     /* Rich Green Hover */
-  --pten-green-active: #166534;    /* Deep Clean Green */
-  --pten-green-light: #22C55E;     /* Bright Green Accent */
-  --pten-green-tint: #F0FDF4;      /* Soft Green Tint */
-  --pten-green-border: #BBF7D0;
+  --pten-green: #006A4E;           /* Clean Official Green */
+  --pten-green-hover: #047857;     /* Rich Green Hover */
+  --pten-green-active: #065F46;    /* Deep Clean Green */
+  --pten-green-light: #10B981;     /* Bright Green Accent */
+  --pten-green-tint: #ECFDF5;      /* Soft Green Tint */
+  --pten-green-border: #A7F3D0;
 
-  --pten-red: #DC2626;             /* Clean Solid Red */
-  --pten-red-hover: #B91C1C;       /* Deep Ruby Red */
-  --pten-red-glow: rgba(220, 38, 38, 0.4);
+  --pten-red: #E11D48;             /* Clean Solid Red/Rose */
+  --pten-red-hover: #BE123C;       /* Deep Ruby Red */
+  --pten-red-glow: rgba(225, 29, 72, 0.4);
 
   /* Unified Theme Variables */
-  --brand-primary: #16A34A;
-  --brand-accent: #DC2626;
-  --fb-blue: #16A34A;
-  --fb-blue-hover: #15803D;
-  --fb-blue-active: #166534;
-  --gemini-blue: #16A34A;
-  --gemini-rich: #15803D;
-  --gemini-indigo: #16A34A;
-  --gemini-purple: #DC2626;
-  --gemini-sparkle: #16A34A;
-  --gemini-text: #16A34A;
+  --brand-primary: #006A4E;
+  --brand-primary-hover: #047857;
+  --brand-accent: #E11D48;
+  --fb-blue: #006A4E;
+  --fb-blue-hover: #047857;
+  --fb-blue-active: #065F46;
+  --gemini-blue: #006A4E;
+  --gemini-rich: #047857;
+  --gemini-indigo: #006A4E;
+  --gemini-purple: #E11D48;
+  --gemini-sparkle: #006A4E;
+  --gemini-text: #006A4E;
 }
 
 .bg-ptenit-green,
 .bg-gemini-blue,
 .bg-fb-blue {
-  background-color: #16A34A !important;
+  background-color: #006A4E !important;
 }
 
 .bg-ptenit-green-rich,
 .bg-gemini-gradient,
 .bg-fb-gradient {
-  background: #16A34A !important;
+  background: #006A4E !important;
 }
 
 .text-ptenit-green,
 .text-gemini-blue,
 .text-fb-blue {
-  color: #16A34A !important;
+  color: #006A4E !important;
 }
 
 .border-ptenit-green,
 .border-gemini-blue,
 .border-fb-blue {
-  border-color: #16A34A !important;
+  border-color: #006A4E !important;
 }
 
 .bg-ptenit-red {
-  background-color: #DC2626 !important;
+  background-color: #E11D48 !important;
 }
 
 .text-ptenit-red {
-  color: #DC2626 !important;
+  color: #E11D48 !important;
 }
 
 .border-ptenit-red {
-  border-color: #DC2626 !important;
+  border-color: #E11D48 !important;
 }
 
 .bg-ptenit-dark {
@@ -282,75 +283,205 @@
   color: #0F172A !important;
 }
 
-/* Premium Card (Clean White) */
+/* Professional Card */
 .premium-card {
   background: #FFFFFF !important;
   border: 1px solid #E2E8F0 !important;
-  border-radius: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
   color: #0F172A !important;
   overflow: hidden;
 }
 
-/* Glass/Premium Inner Elements */
-.premium-card .glass {
-  background: rgba(255,255,255,.045);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,.07);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-}
-
-/* Colorful Accent */
+/* Professional Accent Badges */
 .premium-card .green {
-  background: linear-gradient(135deg, #00e887, #00bfa5);
+  background: #006A4E;
+  color: #ffffff;
 }
 
 .premium-card .blue {
-  background: linear-gradient(135deg, #00d9ff, #4f7cff);
+  background: #2563EB;
+  color: #ffffff;
 }
 
 .premium-card .purple {
-  background: linear-gradient(135deg, #9b5cff, #e94cff);
+  background: #7C3AED;
+  color: #ffffff;
 }
 
 .premium-card .gold {
-  background: linear-gradient(135deg, #00e887, #ffd43b);
+  background: #D97706;
+  color: #ffffff;
 }
 
 /* Pills */
 .premium-card .pill {
-  border: 0 !important;
-  background: rgba(255,255,255,.07);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+  border: 1px solid #E2E8F0 !important;
+  background: #F8FAFC;
+  color: #334155;
 }
 
 /* Main Balance Highlight */
 .premium-card .balance {
-  background:
-    radial-gradient(circle at 0% 50%, rgba(0,232,135,.20), transparent 35%),
-    linear-gradient(120deg, rgba(0,232,135,.10), rgba(79,124,255,.10), rgba(155,92,255,.12));
-  border: 1px solid rgba(0,232,135,.28);
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
 }
 
-/* Primary Action */
+/* Primary Action - Clean Solid */
 .premium-card .primary-action {
-  background: linear-gradient(100deg, #00e887, #00d9ff, #ffd43b);
-  color: #031711 !important;
+  background: #006A4E !important;
+  color: #FFFFFF !important;
   border: 0 !important;
-  box-shadow: 0 8px 25px rgba(0,232,135,.22);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.premium-card .primary-action:hover {
+  background: #047857 !important;
 }
 
 /* Progress */
 .premium-card .progress {
-  background: linear-gradient(
-    90deg,
-    #00e887,
-    #00d9ff,
-    #4f7cff,
-    #9b5cff
-  );
-  box-shadow: 0 0 14px rgba(0,217,255,.35);
+  background: #006A4E;
+}
+
+/* Standard Purpose-Driven Button System */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  min-height: 40px;
+  border-radius: 0.625rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  background-color: #006A4E;
+  color: #FFFFFF;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.btn-primary:hover {
+  background-color: #047857;
+}
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  min-height: 40px;
+  border-radius: 0.625rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  background-color: #FFFFFF;
+  color: #006A4E;
+  border: 1px solid #006A4E;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+}
+.btn-secondary:hover {
+  background-color: #F0FDF4;
+}
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.btn-success {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  min-height: 40px;
+  border-radius: 0.625rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  background-color: #16A34A;
+  color: #FFFFFF;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.btn-success:hover {
+  background-color: #15803D;
+}
+.btn-success:active {
+  transform: scale(0.98);
+}
+
+.btn-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  min-height: 40px;
+  border-radius: 0.625rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  background-color: #D97706;
+  color: #FFFFFF;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.btn-warning:hover {
+  background-color: #B45309;
+}
+.btn-warning:active {
+  transform: scale(0.98);
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  min-height: 40px;
+  border-radius: 0.625rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  background-color: #E11D48;
+  color: #FFFFFF;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.btn-danger:hover {
+  background-color: #BE123C;
+}
+.btn-danger:active {
+  transform: scale(0.98);
+}
+
+.btn-neutral {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  min-height: 40px;
+  border-radius: 0.625rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  background-color: #F1F5F9;
+  color: #334155;
+  border: 1px solid #E2E8F0;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+}
+.btn-neutral:hover {
+  background-color: #E2E8F0;
+  color: #0F172A;
+}
+.btn-neutral:active {
+  transform: scale(0.98);
 }
 
 

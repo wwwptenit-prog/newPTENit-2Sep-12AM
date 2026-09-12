@@ -113,15 +113,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-50 w-full transition-all duration-300">
       {/* Top Slim Header Bar - Hidden on mobile/phone screens */}
-      <div className="hidden md:block bg-slate-50 text-slate-700 text-[11px] sm:text-xs py-1 sm:py-1.5 px-3 sm:px-4 border-b border-slate-200">
+      <div className="hidden md:block bg-[#006A4E] text-emerald-100 text-[11px] sm:text-xs py-1 sm:py-1.5 px-3 sm:px-4 border-b border-[#00543D]">
         <div className="max-w-[1920px] mx-auto px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 flex justify-between items-center gap-2">
-          <div className="flex items-center gap-2 sm:gap-4 text-slate-600 font-medium text-[11px] sm:text-xs">
+          <div className="flex items-center gap-2 sm:gap-4 text-emerald-100 font-medium text-[11px] sm:text-xs">
             <span className="flex items-center gap-1">
-              <PhoneCall className="w-3.5 h-3.5 text-[#16A34A]" />
+              <PhoneCall className="w-3.5 h-3.5 text-emerald-200" />
               <span>{siteSettings.phone}</span>
             </span>
-            <span className="hidden md:inline-block text-slate-300">|</span>
-            <span className="hidden md:inline-block">
+            <span className="hidden md:inline-block text-emerald-300/60">|</span>
+            <span className="hidden md:inline-block text-emerald-200">
               {siteSettings.email}
             </span>
           </div>
@@ -130,26 +130,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => {
                 setActiveTab('verify');
               }}
-              className="hover:text-[#16A34A] text-slate-600 transition-colors text-[11px] sm:text-xs underline cursor-pointer shrink-0 font-bengali"
+              className="text-emerald-100 hover:text-white transition-colors text-[11px] sm:text-xs underline cursor-pointer shrink-0 font-bengali"
             >
               {t('সার্টিফিকেট ভেরিফাই', 'Verify Certificate')}
             </button>
-            <span className="text-slate-300">|</span>
+            <span className="text-emerald-300/60">|</span>
             {/* Single Official Language Switcher Button */}
             <button
               onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}
-              className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 transition-all text-xs font-bold cursor-pointer shrink-0"
+              className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#00543D] border border-emerald-400/40 text-white hover:bg-[#00412F] transition-all text-xs font-bold cursor-pointer shrink-0"
               title={lang === 'bn' ? 'English - এ পরিবর্তিত করুন' : 'Switch to Bangla'}
             >
-              <Globe className="w-3.5 h-3.5 text-[#16A34A]" />
+              <Globe className="w-3.5 h-3.5 text-emerald-200" />
               <span>{lang === 'bn' ? 'English' : 'বাংলা'}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main Navigation - Clean White */}
-      <nav className="bg-white border-b border-slate-200 text-slate-800 shadow-xs relative">
+      {/* Main Navigation - Signature #006A4E Brand Green Menubar */}
+      <nav className="bg-[#006A4E] border-b border-[#00543D] text-white shadow-md relative">
         <div className="max-w-[1920px] mx-auto px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
           <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-3">
             
@@ -163,18 +163,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <img
                     src={siteSettings.logoUrl}
                     alt={siteSettings?.siteName || "PTENit Logo"}
-                    className="h-7 sm:h-9 md:h-10 w-auto max-w-[110px] xs:max-w-[130px] md:max-w-[160px] object-contain rounded-lg"
+                    className="h-7 sm:h-9 md:h-10 w-auto max-w-[110px] xs:max-w-[130px] md:max-w-[160px] object-contain rounded-lg brightness-0 invert"
                   />
                 ) : (
                   <>
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#16A34A] flex items-center justify-center font-bold text-base sm:text-lg text-white shadow-xs transform group-hover:scale-105 transition-transform shrink-0 relative">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white flex items-center justify-center font-black text-base sm:text-lg text-[#006A4E] shadow-sm transform group-hover:scale-105 transition-transform shrink-0 relative">
                       P
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#DC2626] border-2 border-white"></span>
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#E11D48] border-2 border-[#006A4E]"></span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="font-heading text-base sm:text-xl font-black tracking-wider text-slate-900 flex items-center gap-0.5 leading-tight">
-                        PTEN<span className="text-[#16A34A]">it</span>
-                        <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#DC2626] ml-1 inline-block" />
+                      <span className="font-heading text-base sm:text-xl font-black tracking-wider text-white flex items-center gap-0.5 leading-tight">
+                        PTEN<span className="text-emerald-200">it</span>
+                        <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#E11D48] ml-1 inline-block" />
                       </span>
                     </div>
                   </>
@@ -191,16 +191,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onClick={() => setActiveTab(item.id)}
                     className={`px-3 py-2 rounded-lg text-sm lg:text-[14px] xl:text-[15px] font-bold transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === item.id
-                      ? 'bg-[#16A34A] text-white shadow-xs font-bold'
+                      ? 'bg-white text-[#006A4E] shadow-sm font-black'
                       : item.highlight
-                      ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-bold'
-                      : 'text-slate-700 hover:text-[#16A34A] hover:bg-slate-100'
+                      ? 'bg-[#E11D48] text-white hover:bg-rose-700 font-bold shadow-xs'
+                      : 'text-emerald-50 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   <span>{item.label}</span>
                   {item.highlight && (
                     <span className="relative flex h-2 w-2">
-                      <span className="inline-flex rounded-full h-2 w-2 bg-[#DC2626]"></span>
+                      <span className="inline-flex rounded-full h-2 w-2 bg-amber-300"></span>
                     </span>
                   )}
                 </button>
@@ -225,7 +225,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }
                   }}
                   placeholder={t("কোর্স বা সার্ভিস নাম লিখে খুঁজুন...", "Search courses or services...")}
-                  className="w-full bg-white border-2 border-[#16A34A] rounded-xl pl-9 sm:pl-10 pr-9 py-2 text-sm sm:text-base text-slate-900 placeholder-slate-400 focus:outline-none shadow-sm font-bengali ring-2 ring-[#16A34A]/10"
+                  className="w-full bg-white border-2 border-emerald-400 rounded-xl pl-9 sm:pl-10 pr-9 py-2 text-sm sm:text-base text-slate-900 placeholder-slate-400 focus:outline-none shadow-xl font-bengali"
                 />
                 <button
                   onClick={() => {
@@ -241,9 +241,9 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <button
                 onClick={() => setInlineSearchOpen(true)}
-                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-500 hover:text-slate-800 transition-all text-xs cursor-pointer w-full max-w-[180px] lg:max-w-[220px] font-bengali"
+                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-[#00543D] border border-emerald-600/50 hover:border-emerald-400 text-emerald-100 hover:text-white transition-all text-xs cursor-pointer w-full max-w-[180px] lg:max-w-[220px] font-bengali"
               >
-                <Search className="w-3.5 h-3.5 text-slate-400" />
+                <Search className="w-3.5 h-3.5 text-emerald-300" />
                 <span className="truncate">{t('সার্চ করুন...', 'Search here...')}</span>
               </button>
             )}
@@ -343,13 +343,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }
                 }}
                 placeholder={t("সার্চ করুন...", "Search...")}
-                className="w-full text-center pl-7 pr-7 py-1.5 bg-slate-50 border border-slate-200 text-slate-900 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#16A34A] focus:border-[#16A34A] font-bengali placeholder:text-center focus:placeholder:text-left focus:text-left"
+                className="w-full text-center pl-7 pr-7 py-1.5 bg-[#00543D] border border-emerald-500/50 text-white rounded-lg text-xs placeholder-emerald-200/80 focus:outline-none focus:ring-2 focus:ring-white focus:bg-white focus:text-slate-900 focus:placeholder-slate-400 font-bengali placeholder:text-center focus:placeholder:text-left focus:text-left transition-all"
               />
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-emerald-300 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-emerald-200 hover:text-white p-0.5"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -377,7 +377,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           <img src={c.thumbnail} alt={c.title} className="w-8 h-8 rounded-md object-cover shrink-0" />
                           <div className="flex-1 min-w-0 font-bengali">
                             <p className="font-semibold text-xs text-slate-900 truncate">{c.title}</p>
-                            <p className="text-[10px] text-[#16A34A] font-bold">
+                            <p className="text-[10px] text-[#006A4E] font-bold">
                               {c.isFree ? t('ফ্রি', 'Free') : `৳${c.discountPrice || c.price}`}
                             </p>
                           </div>
@@ -422,7 +422,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       setActiveTab('marketplace');
                       setSearchQuery('');
                     }}
-                    className="w-full py-1.5 px-2.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition font-bengali cursor-pointer shadow-xs"
+                    className="w-full py-1.5 px-2.5 rounded-lg bg-[#006A4E] hover:bg-[#047857] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition font-bengali cursor-pointer shadow-xs"
                   >
                     <Search className="w-3.5 h-3.5" />
                     <span>সকল ফলাফল দেখুন</span>
@@ -437,21 +437,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Direct Link to Marketplace & Buyer Mode */}
             <button
               onClick={() => setActiveTab('marketplace')}
-              className="px-3 py-2 rounded-lg text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition cursor-pointer flex items-center gap-1.5"
+              className="px-3 py-2 rounded-lg text-xs font-bold text-white bg-[#00543D] hover:bg-[#00412F] border border-emerald-500/40 transition cursor-pointer flex items-center gap-1.5 shadow-xs"
               title="মার্কেটপ্লেস ও বায়ার মোড"
             >
-              <ShoppingBag className="w-3.5 h-3.5 text-[#16A34A]" />
+              <ShoppingBag className="w-3.5 h-3.5 text-emerald-300" />
               <span>মার্কেটপ্লেস</span>
             </button>
 
             {/* PRIMARY CTA ENROLL BUTTON */}
             <button
               onClick={() => setActiveTab('courses')}
-              className="px-3.5 py-2 rounded-lg text-xs font-bold text-white bg-[#16A34A] hover:bg-[#15803D] shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 font-bengali"
+              className="px-3.5 py-2 rounded-lg text-xs font-black text-[#006A4E] bg-white hover:bg-emerald-50 shadow-sm active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 shrink-0 font-bengali"
             >
-              <BookOpen className="w-4 h-4 text-white" />
+              <BookOpen className="w-4 h-4 text-[#006A4E]" />
               <span>কোর্সে জয়েন</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />
             </button>
 
             {/* AUTH CONTROLS: LOGIN WHEN LOGGED OUT, DASHBOARD & LOGOUT WHEN LOGGED IN */}
@@ -464,10 +463,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     else if (currentUser.role === 'instructor') setActiveTab('teacher-dashboard');
                     else setActiveTab('customer-dashboard');
                   }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-800 transition cursor-pointer"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#00543D] hover:bg-[#00412F] border border-emerald-500/40 text-xs font-bold text-white transition cursor-pointer"
                   title="আমার ড্যাশবোর্ড"
                 >
-                  <div className="w-6 h-6 rounded-full bg-[#16A34A] text-white overflow-hidden flex items-center justify-center font-bold text-xs shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-white text-[#006A4E] overflow-hidden flex items-center justify-center font-black text-xs shrink-0">
                     {currentUser.avatar ? (
                       <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
                     ) : (
@@ -482,7 +481,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     if (logout) logout();
                     else if (logoutMarketplace) logoutMarketplace();
                   }}
-                  className="p-2 rounded-lg bg-slate-50 hover:bg-red-50 text-slate-500 hover:text-[#DC2626] border border-slate-200 transition cursor-pointer"
+                  className="p-2 rounded-lg bg-[#00543D] hover:bg-rose-900/60 text-emerald-200 hover:text-white border border-emerald-500/40 transition cursor-pointer"
                   title="লগআউট"
                 >
                   <LogOut className="w-4 h-4" />
@@ -492,9 +491,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 type="button"
                 onClick={openAuthModal}
-                className="px-3.5 py-2 rounded-lg text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition cursor-pointer flex items-center gap-1.5 font-bengali active:scale-95"
+                className="px-3.5 py-2 rounded-lg text-xs font-bold text-white bg-[#00543D] hover:bg-[#00412F] border border-emerald-500/40 transition cursor-pointer flex items-center gap-1.5 font-bengali active:scale-95"
               >
-                <User className="w-3.5 h-3.5 text-[#16A34A]" />
+                <User className="w-3.5 h-3.5 text-emerald-300" />
                 <span>লগইন</span>
               </button>
             )}
@@ -510,24 +509,24 @@ export const Navbar: React.FC<NavbarProps> = ({
                   else if (currentUser.role === 'instructor') setActiveTab('teacher-dashboard');
                   else setActiveTab('customer-dashboard');
                 }}
-                className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition"
+                className="w-7 h-7 rounded-full bg-white text-[#006A4E] border border-emerald-300 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition"
                 title={`প্রোফাইল: ${currentUser.name}`}
               >
                 {currentUser.avatar ? (
                   <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-[11px] font-black text-[#16A34A]">{currentUser.name?.charAt(0).toUpperCase() || 'U'}</span>
+                  <span className="text-[11px] font-black text-[#006A4E]">{currentUser.name?.charAt(0).toUpperCase() || 'U'}</span>
                 )}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={openAuthModal}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-90 transition cursor-pointer"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white hover:bg-white/10 active:scale-90 transition cursor-pointer"
                 title="লগইন করুন"
                 aria-label="লগইন"
               >
-                <User className="w-5 h-5 text-[#16A34A]" />
+                <User className="w-5 h-5 text-emerald-200" />
               </button>
             )}
 
@@ -537,10 +536,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 e.stopPropagation();
                 setMobileMenuOpen(!mobileMenuOpen);
               }}
-              className="p-1.5 text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer active:scale-95 touch-manipulation"
+              className="p-1.5 text-white hover:bg-white/10 rounded-lg cursor-pointer active:scale-95 touch-manipulation"
               aria-label="মেনু খুলুন"
             >
-              {mobileMenuOpen ? <X className="w-5 h-5 text-slate-200" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
@@ -558,18 +557,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-hidden="true"
           />
 
-          {/* Side Drawer Panel (Slide-in from Right) - Clean White */}
-          <div className="fixed inset-y-0 right-0 w-[85vw] max-w-[320px] bg-white text-slate-800 shadow-2xl flex flex-col z-50 animate-in slide-in-from-right duration-300 ease-out border-l border-slate-200">
-            {/* Drawer Top Bar */}
-            <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shrink-0">
-              <span className="text-xs font-bold text-slate-500">মেনু</span>
+          {/* Side Drawer Panel (Slide-in from Right) */}
+          <div className="fixed inset-y-0 right-0 w-[85vw] max-w-[320px] bg-white text-slate-800 shadow-2xl flex flex-col z-50 animate-in slide-in-from-right duration-300 ease-out border-l border-[#00543D]">
+            {/* Drawer Top Bar - Signature #006A4E Brand Green */}
+            <div className="flex items-center justify-between px-4 py-3 bg-[#006A4E] text-white border-b border-[#00543D] shrink-0">
+              <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#E11D48]" />
+                PTENit মেনু
+              </span>
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition cursor-pointer active:scale-95"
+                className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition cursor-pointer active:scale-95"
                 aria-label="মেনু বন্ধ করুন"
               >
-                <X className="w-4 h-4 text-slate-600" />
+                <X className="w-4 h-4 text-white" />
               </button>
             </div>
 
@@ -585,15 +587,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }}
                   className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-between cursor-pointer ${
                     activeTab === 'home'
-                      ? 'bg-[#16A34A] text-white font-bold'
+                      ? 'bg-[#006A4E] text-white font-bold shadow-xs'
                       : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
                   <span className="flex items-center gap-2.5">
-                    <Home className="w-4 h-4 text-[#16A34A]" />
+                    <Home className={`w-4 h-4 ${activeTab === 'home' ? 'text-white' : 'text-[#006A4E]'}`} />
                     <span>হোমপেজ</span>
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className={`w-4 h-4 ${activeTab === 'home' ? 'text-white/80' : 'text-slate-400'}`} />
                 </button>
 
                 <button
@@ -604,15 +606,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }}
                   className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-between cursor-pointer ${
                     activeTab === 'courses'
-                      ? 'bg-[#16A34A] text-white font-bold'
+                      ? 'bg-[#006A4E] text-white font-bold shadow-xs'
                       : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
                   <span className="flex items-center gap-2.5">
-                    <BookOpen className="w-4 h-4 text-[#16A34A]" />
+                    <BookOpen className={`w-4 h-4 ${activeTab === 'courses' ? 'text-white' : 'text-[#006A4E]'}`} />
                     <span>কোর্সসমূহ</span>
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className={`w-4 h-4 ${activeTab === 'courses' ? 'text-white/80' : 'text-slate-400'}`} />
                 </button>
 
                 <button
@@ -623,15 +625,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }}
                   className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-between cursor-pointer ${
                     activeTab === 'services'
-                      ? 'bg-[#16A34A] text-white font-bold'
+                      ? 'bg-[#006A4E] text-white font-bold shadow-xs'
                       : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
                   <span className="flex items-center gap-2.5">
-                    <Briefcase className="w-4 h-4 text-[#16A34A]" />
+                    <Briefcase className={`w-4 h-4 ${activeTab === 'services' ? 'text-white' : 'text-[#006A4E]'}`} />
                     <span>আইটি সার্ভিসসমূহ</span>
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className={`w-4 h-4 ${activeTab === 'services' ? 'text-white/80' : 'text-slate-400'}`} />
                 </button>
 
                 <button
@@ -642,15 +644,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }}
                   className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-between cursor-pointer ${
                     activeTab === 'marketplace'
-                      ? 'bg-[#16A34A] text-white font-bold'
+                      ? 'bg-[#006A4E] text-white font-bold shadow-xs'
                       : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
                   <span className="flex items-center gap-2.5">
-                    <ShoppingBag className="w-4 h-4 text-[#16A34A]" />
+                    <ShoppingBag className={`w-4 h-4 ${activeTab === 'marketplace' ? 'text-white' : 'text-[#006A4E]'}`} />
                     <span>মার্কেটপ্লেস</span>
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className={`w-4 h-4 ${activeTab === 'marketplace' ? 'text-white/80' : 'text-slate-400'}`} />
                 </button>
 
                 <button
@@ -661,7 +663,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }}
                   className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-between cursor-pointer ${
                     activeTab === 'verify'
-                      ? 'bg-[#16A34A] text-white font-bold'
+                      ? 'bg-[#006A4E] text-white font-bold shadow-xs'
                       : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
@@ -669,7 +671,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <Award className="w-4 h-4 text-[#DC2626]" />
                     <span>সার্টিফিকেট যাচাই</span>
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className={`w-4 h-4 ${activeTab === 'verify' ? 'text-white/80' : 'text-slate-400'}`} />
                 </button>
 
                 <button
@@ -680,15 +682,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }}
                   className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-between cursor-pointer ${
                     activeTab === 'contact'
-                      ? 'bg-[#16A34A] text-white font-bold'
+                      ? 'bg-[#006A4E] text-white font-bold shadow-xs'
                       : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
                   }`}
                 >
                   <span className="flex items-center gap-2.5">
-                    <PhoneCall className="w-4 h-4 text-[#16A34A]" />
+                    <PhoneCall className={`w-4 h-4 ${activeTab === 'contact' ? 'text-white' : 'text-[#006A4E]'}`} />
                     <span>যোগাযোগ ও সাপোর্ট</span>
                   </span>
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                  <ChevronRight className={`w-4 h-4 ${activeTab === 'contact' ? 'text-white/80' : 'text-slate-400'}`} />
                 </button>
               </div>
 
@@ -714,7 +716,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       setMobileMenuOpen(false);
                       openAuthModal();
                     }}
-                    className="w-full py-2.5 px-3.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition active:scale-95 shadow-xs"
+                    className="w-full py-2.5 px-3.5 rounded-lg bg-[#006A4E] hover:bg-[#047857] text-white font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition active:scale-95 shadow-xs"
                   >
                     <User className="w-4 h-4" />
                     <span>লগইন করুন</span>

@@ -5,8 +5,6 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
-  ThumbsUp,
-  ThumbsDown,
   MessageCircle,
   Share2,
   MoreHorizontal,
@@ -56,7 +54,7 @@ export const GigCard: React.FC<GigCardProps> = ({
   deleteGig,
   badgeTag,
   className = "",
-  layoutMode = 'auto',
+  layoutMode = 'grid',
   openAuthModal,
   isBuyerPost = false,
 }) => {
@@ -98,14 +96,6 @@ export const GigCard: React.FC<GigCardProps> = ({
   const [likeCount, setLikeCount] = useState<number>(() => {
     const base = gig.sellerRating && gig.sellerRating > 4.5 ? 24 : 16;
     return isFavorite ? base + 1 : base;
-  });
-  const [isUpvoted, setIsUpvoted] = useState(false);
-  const [upCount, setUpCount] = useState<number>(() => {
-    return 18 + ((gig.id.charCodeAt(0) || 1) % 15);
-  });
-  const [isDownvoted, setIsDownvoted] = useState(false);
-  const [downCount, setDownCount] = useState<number>(() => {
-    return 2 + ((gig.id.charCodeAt(gig.id.length - 1) || 1) % 3);
   });
   const [copiedLink, setCopiedLink] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -237,22 +227,21 @@ export const GigCard: React.FC<GigCardProps> = ({
     return "18h";
   }, [gig]);
 
-  // Helper to ensure seller level is ALWAYS in English font & terminology (e.g. Top Rated, Level 2, Verified Buyer, Pro Seller)
+  // Helper to ensure seller level is ALWAYS in English font & terminology (e.g. Top Rated . Agency, Level 2, Verified Buyer)
   const englishSellerLevel = useMemo(() => {
     if (isBuyerPost) return "Verified Buyer";
     const level = gig.sellerLevel;
-    if (!level) return "Top Rated";
-    const str = String(level).trim();
-    if (str === "টপ রেটেড" || str === "টপরেটেড" || str.toLowerCase().includes("top")) return "Top Rated";
+    let str = String(level || '').replace(/[()]/g, '').trim();
     if (str === "ভেরিফায়েড বায়ার" || str.toLowerCase().includes("buyer")) return "Verified Buyer";
     if (str.includes("২") || str.includes("2")) return "Level 2";
     if (str.includes("১") || str.includes("1")) return "Level 1";
     if (str.includes("প্রো") || str.toLowerCase().includes("pro")) return "Pro Seller";
     if (str.toLowerCase().includes("level 2")) return "Level 2";
     if (str.toLowerCase().includes("level 1")) return "Level 1";
-    if (str.toLowerCase().includes("top rated")) return "Top Rated";
-    return "Top Rated";
-  }, [gig.sellerLevel, isBuyerPost]);
+    if (str.toLowerCase().includes("top") || str.toLowerCase().includes("agency")) return "Top Rated . Agency";
+    // For PTENit, under the seller name it is "Top Rated . Agency" (no brackets, smaller font)
+    return "Top Rated . Agency";
+  }, [gig.sellerLevel, isBuyerPost, isAgency]);
 
   const handleCarouselScroll = () => {
     if (carouselRef.current) {
@@ -310,34 +299,6 @@ export const GigCard: React.FC<GigCardProps> = ({
     });
   };
 
-  // Handle Upvote Reaction Toggle
-  const handleUpvoteToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsUpvoted((prev) => {
-      const next = !prev;
-      setUpCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
-      if (next && isDownvoted) {
-        setIsDownvoted(false);
-        setDownCount((c) => Math.max(0, c - 1));
-      }
-      return next;
-    });
-  };
-
-  // Handle Downvote Reaction Toggle
-  const handleDownvoteToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsDownvoted((prev) => {
-      const next = !prev;
-      setDownCount((c) => (next ? c + 1 : Math.max(0, c - 1)));
-      if (next && isUpvoted) {
-        setIsUpvoted(false);
-        setUpCount((c) => Math.max(0, c - 1));
-      }
-      return next;
-    });
-  };
-
   // Handle Send Message to Seller (Facebook Messenger Style)
   const handleMessageSeller = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -366,7 +327,7 @@ export const GigCard: React.FC<GigCardProps> = ({
   };
 
   // Check if we should render Facebook Mobile Card
-  const isFeedMode = layoutMode === 'feed' || layoutMode === 'auto';
+  const isFeedMode = layoutMode === 'feed';
 
   if (isBlocked) {
     return (
@@ -435,15 +396,9 @@ export const GigCard: React.FC<GigCardProps> = ({
               <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-sans font-medium mt-0.5 whitespace-nowrap flex-nowrap overflow-hidden">
                 <span className="shrink-0 font-sans">{postTime}</span>
                 <span className="text-slate-300 dark:text-slate-600 text-[10px] shrink-0 font-sans select-none">•</span>
-                <span className={`shrink-0 font-sans ${isBuyerPost ? 'text-blue-600 dark:text-blue-400' : 'text-[#16A34A] dark:text-emerald-400 font-semibold'}`}>
+                <span className={`shrink-0 font-sans font-medium text-[10px] sm:text-[11px] ${isBuyerPost ? 'text-blue-600 dark:text-blue-400' : 'text-[#006A4E] dark:text-emerald-400'}`}>
                   {englishSellerLevel}
                 </span>
-                {!isBuyerPost && isAgency && (
-                  <>
-                    <span className="text-slate-300 dark:text-slate-600 text-[10px] shrink-0 font-sans select-none">•</span>
-                    <span className="text-slate-600 dark:text-slate-400 shrink-0 font-sans">Agency</span>
-                  </>
-                )}
                 <span className="text-slate-300 dark:text-slate-600 text-[10px] shrink-0 font-sans select-none">•</span>
                 <Globe
                   className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-400 dark:text-slate-500 shrink-0"
@@ -646,88 +601,33 @@ export const GigCard: React.FC<GigCardProps> = ({
           </div>
         )}
 
-        {/* --- Reactions & Engagement Counter Bar --- */}
-        <div className="px-3.5 py-2 flex items-center justify-between gap-1 text-[13px] sm:text-[13.5px] text-slate-600 dark:text-slate-400">
-          {/* 1. Left: Votes Summary */}
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex -space-x-1 items-center">
-              <span className="w-4.5 h-4.5 rounded-full bg-[#16A34A] text-white flex items-center justify-center text-[10px] shadow-xs ring-1 ring-white">
-                <ThumbsUp className="w-2.5 h-2.5 fill-white text-white" />
-              </span>
-              <span className="w-4.5 h-4.5 rounded-full bg-rose-500 text-white flex items-center justify-center text-[10px] shadow-xs ring-1 ring-white">
-                <ThumbsDown className="w-2.5 h-2.5 fill-white text-white" />
+        {/* --- Engagement & Action Bar: Price on Left, Details Button on Right --- */}
+        <div className="p-2.5 sm:px-4 sm:py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium leading-none mb-0.5">
+              <span>{isBuyerPost ? "বাজেট" : "শুরু"}</span>
+              <span className="text-slate-300 dark:text-slate-600">•</span>
+              <span className="flex items-center gap-1">
+                <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-400" />
+                {viewCountInK}
               </span>
             </div>
-            <span className="font-medium text-slate-600 dark:text-slate-300">
-              {upCount} আপ • {downCount} ডাউন
+            <span className="text-sm sm:text-base md:text-lg font-black text-[#006A4E] dark:text-emerald-400 leading-tight">
+              ৳{price.toLocaleString("en-US")}
             </span>
           </div>
 
-          {/* 2. Right: Views Counter */}
-          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 shrink-0">
-            <Eye className="w-4 h-4 text-slate-400" />
-            <span className="font-medium">
-              {viewCountInK}
-            </span>
-          </div>
-        </div>
-
-        {/* --- Action Bar: 3-Action Buttons (আপ, ডাউন, বিস্তারিত) --- */}
-        <div className="px-2.5 sm:px-3.5 py-2 grid grid-cols-3 gap-2 sm:gap-3 items-center border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-          {/* 1. আপ বাটন (Up Button) */}
-          <button
-            type="button"
-            onClick={handleUpvoteToggle}
-            className={`py-2 px-2.5 sm:px-3 rounded-full text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer shadow-2xs ${
-              isUpvoted
-                ? "text-[#16A34A] dark:text-emerald-400 bg-green-50 dark:bg-emerald-950/50 border border-[#16A34A]/40 font-bold"
-                : "text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
-            }`}
-            title="আপ বাটন (Upvote)"
-          >
-            <ThumbsUp
-              className={`w-4 h-4 shrink-0 transition-transform ${
-                isUpvoted
-                  ? "fill-[#16A34A] dark:fill-emerald-400 text-[#16A34A] dark:text-emerald-400 scale-110"
-                  : "text-slate-600 dark:text-slate-400"
-              }`}
-            />
-            <span>আপ</span>
-          </button>
-
-          {/* 2. ডাউন বাটন (Down Button) */}
-          <button
-            type="button"
-            onClick={handleDownvoteToggle}
-            className={`py-2 px-2.5 sm:px-3 rounded-full text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer shadow-2xs ${
-              isDownvoted
-                ? "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 border border-rose-400/40 font-bold"
-                : "text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700"
-            }`}
-            title="ডাউন বাটন (Downvote)"
-          >
-            <ThumbsDown
-              className={`w-4 h-4 shrink-0 transition-transform ${
-                isDownvoted
-                  ? "fill-rose-600 dark:fill-rose-400 text-rose-600 dark:text-rose-400 scale-110"
-                  : "text-slate-600 dark:text-slate-400"
-              }`}
-            />
-            <span>ডাউন</span>
-          </button>
-
-          {/* 3. বিস্তারিত বাটন (Details Button) */}
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onClick();
             }}
-            className="py-2 px-2.5 sm:px-3 rounded-full text-xs sm:text-sm font-bold text-white bg-[#16A34A] hover:bg-[#15803D] flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs group/btn"
+            className="py-1.5 px-3 sm:py-2 sm:px-4 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold text-white bg-[#006A4E] hover:bg-[#047857] flex items-center justify-center gap-1 sm:gap-1.5 transition active:scale-95 cursor-pointer shadow-xs group/btn shrink-0"
             title="বিস্তারিত দেখুন"
           >
             <span>বিস্তারিত</span>
-            <ArrowRight className="w-4 h-4 text-white group-hover/btn:translate-x-0.5 transition-transform shrink-0" />
+            <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white group-hover/btn:translate-x-0.5 transition-transform shrink-0" />
           </button>
         </div>
       </div>
@@ -739,11 +639,11 @@ export const GigCard: React.FC<GigCardProps> = ({
         onClick={onClick}
         className={`${
           isFeedMode ? "hidden" : "flex"
-        } group relative bg-white dark:bg-slate-900 border-0 sm:border ${
+        } group relative bg-white dark:bg-slate-900 border ${
           userOrder
-            ? "sm:border-[#16A34A] ring-1 ring-[#16A34A]/25 shadow-md"
-            : "sm:border-slate-200 dark:sm:border-slate-800"
-        } rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm sm:shadow-xs hover:shadow-lg hover:border-[#16A34A] transition-all duration-300 cursor-pointer flex flex-col justify-between font-bengali ${className}`}
+            ? "border-[#16A34A] ring-1 ring-[#16A34A]/25 shadow-md"
+            : "border-slate-200 dark:border-slate-800"
+        } rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs hover:shadow-lg hover:border-[#16A34A] transition-all duration-300 cursor-pointer flex flex-col justify-between font-bengali ${className}`}
       >
         <div>
           {/* Thumbnail Header with Left/Right Image Navigation */}
@@ -891,7 +791,7 @@ export const GigCard: React.FC<GigCardProps> = ({
                     alt={gig.sellerName}
                     className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover border border-slate-200"
                   />
-                  <span className="absolute bottom-0 right-0 w-2 h-2 bg-[#16A34A] rounded-full ring-1 ring-white animate-pulse" />
+                  <span className="absolute bottom-0 right-0 w-2 h-2 bg-[#16A34A] rounded-full ring-1 ring-white" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1">
@@ -903,29 +803,21 @@ export const GigCard: React.FC<GigCardProps> = ({
                       title="Verified Profile"
                     />
                   </div>
-                  <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 block truncate font-sans font-medium">
+                  <span className={`text-[10px] sm:text-[11px] block truncate font-sans font-medium ${isBuyerPost ? 'text-blue-600 dark:text-blue-400' : 'text-[#006A4E] dark:text-emerald-400'}`}>
                     {englishSellerLevel}
                   </span>
                 </div>
               </div>
 
-              {isBuyerPost ? (
-                <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-md sm:rounded-full bg-blue-50 text-blue-700 text-[10px] sm:text-xs font-bold border border-blue-200 shrink-0">
-                  বায়ার
-                </span>
-              ) : isAgency ? (
-                <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-md sm:rounded-full bg-green-50 text-[#16A34A] text-[10px] sm:text-xs font-bold border border-green-200 shrink-0">
-                  Agency
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-md sm:rounded-full bg-slate-100 text-slate-700 text-[10px] sm:text-xs font-semibold border border-slate-200 shrink-0">
-                  Pro
+              {isBuyerPost && (
+                <span className="px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-md sm:rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 text-[10px] sm:text-xs font-bold border border-blue-200 dark:border-blue-800 shrink-0 font-sans">
+                  Buyer
                 </span>
               )}
             </div>
 
             {/* Gig Title */}
-            <h3 className="text-sm sm:text-base font-bold text-slate-900 line-clamp-2 leading-snug hover:text-[#16A34A] transition-colors min-h-[2.5rem] sm:min-h-[2.75rem]">
+            <h3 className="text-xs sm:text-base font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug hover:text-[#16A34A] transition-colors min-h-[2rem] sm:min-h-[2.75rem]">
               {gig.title}
             </h3>
 
@@ -935,7 +827,7 @@ export const GigCard: React.FC<GigCardProps> = ({
                 {gig.tags.slice(0, 2).map((tag, idx) => (
                   <span
                     key={idx}
-                    className="text-[10px] sm:text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[110px]"
+                    className="text-[9px] sm:text-xs font-medium text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 px-1.5 sm:px-2 py-0.5 rounded-md truncate max-w-[90px] sm:max-w-[110px]"
                   >
                     #{tag}
                   </span>
@@ -945,57 +837,31 @@ export const GigCard: React.FC<GigCardProps> = ({
           </div>
         </div>
 
-        {/* Footer Price & Action Ribbon */}
-        <div className="p-2 sm:p-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-b-2xl sm:rounded-b-3xl space-y-1.5">
-          <div className="flex items-center justify-between gap-1 px-1">
-            <span className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium block leading-tight">
+        {/* Footer: Price on Left, Details Button on Right */}
+        <div className="px-2.5 py-2 sm:px-3.5 sm:py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 rounded-b-2xl sm:rounded-b-3xl flex items-center justify-between gap-1.5 sm:gap-2">
+          {/* 1. Left: Price */}
+          <div className="flex flex-col min-w-0">
+            <span className="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium leading-none mb-0.5">
               {isBuyerPost ? "বাজেট" : "শুরু"}
             </span>
-            <span className="text-xs sm:text-sm md:text-base font-black text-[#16A34A] block leading-tight">
+            <span className="text-xs sm:text-base md:text-lg font-black text-[#006A4E] dark:text-emerald-400 leading-tight truncate">
               ৳{price.toLocaleString("en-US")}
             </span>
           </div>
 
-          {/* 3 Buttons: আপ, ডাউন, বিস্তারিত */}
-          <div className="grid grid-cols-3 gap-1 pt-1 border-t border-slate-200/60 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={handleUpvoteToggle}
-              className={`py-1.5 px-1 rounded-lg text-[10px] sm:text-[11px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 cursor-pointer ${
-                isUpvoted
-                  ? "text-[#16A34A] dark:text-emerald-400 bg-green-50 dark:bg-emerald-950/50"
-                  : "text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-100"
-              }`}
-              title="আপ বাটন"
-            >
-              <ThumbsUp className={`w-3 h-3 ${isUpvoted ? "fill-[#16A34A] text-[#16A34A]" : ""}`} />
-              <span>আপ</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDownvoteToggle}
-              className={`py-1.5 px-1 rounded-lg text-[10px] sm:text-[11px] font-bold flex items-center justify-center gap-0.5 transition active:scale-95 cursor-pointer ${
-                isDownvoted
-                  ? "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50"
-                  : "text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-100"
-              }`}
-              title="ডাউন বাটন"
-            >
-              <ThumbsDown className={`w-3 h-3 ${isDownvoted ? "fill-rose-600 text-rose-600" : ""}`} />
-              <span>ডাউন</span>
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClick();
-              }}
-              className="py-1.5 px-1 rounded-lg text-[10px] sm:text-[11px] font-bold text-white bg-[#16A34A] hover:bg-[#15803D] flex items-center justify-center gap-0.5 transition active:scale-95 cursor-pointer shadow-xs"
-              title="বিস্তারিত দেখুন"
-            >
-              <span>বিস্তারিত</span>
-            </button>
-          </div>
+          {/* 2. Right: Details Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+            className="py-1.5 px-2.5 sm:py-2 sm:px-4 rounded-lg sm:rounded-xl text-[11px] sm:text-sm font-bold text-white bg-[#006A4E] hover:bg-[#047857] flex items-center justify-center gap-1 sm:gap-1.5 transition active:scale-95 cursor-pointer shadow-xs group/btn shrink-0"
+            title="বিস্তারিত দেখুন"
+          >
+            <span>বিস্তারিত</span>
+            <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 text-white group-hover/btn:translate-x-0.5 transition-transform shrink-0" />
+          </button>
         </div>
       </div>
     </>

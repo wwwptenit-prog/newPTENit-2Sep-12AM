@@ -54,8 +54,11 @@ export interface ServiceDetailModalProps {
 }
 
 const formatSellerLevel = (level?: string): string => {
-  if (!level || level === 'টপ রেটেড' || level === 'টপরেটেড') return 'Top Rated';
-  return level;
+  let str = String(level || '').replace(/[()]/g, '').trim();
+  if (!str || str === 'টপ রেটেড' || str === 'টপরেটেড' || str === 'Top Rated') return 'Top Rated . Agency';
+  if (str.toLowerCase().includes('agency')) return 'Top Rated . Agency';
+  if (str.toLowerCase().includes('top')) return 'Top Rated . Agency';
+  return str;
 };
 
 export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
@@ -996,37 +999,37 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-xs">
 
           {/* 1. TOP BAR: ব্যাক বাটন | সেন্টারে: আগে কাজ শুরু / প্রিমিয়াম সার্ভিস | শেয়ার সোশ্যাল মিডিয়া */}
-          <div className="relative bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 rounded-t-2xl sm:rounded-t-3xl">
-            {/* LEFT: BACK BUTTON (বেক বাটন - ChevronLeft, কালো কালার, কোনো বর্ডার ছাড়া) */}
+          <div className="relative bg-[#006A4E] text-white border-b border-[#00543D] px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2 rounded-t-2xl sm:rounded-t-3xl shadow-xs">
+            {/* LEFT: BACK BUTTON (বেক বাটন - ChevronLeft, সাদা কালার, কোনো বর্ডার ছাড়া) */}
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 shrink-0 border-0 outline-none"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-[#00543D] text-white text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 shrink-0 border-0 outline-none"
               title={t('ফিরে যান', 'Go Back')}
             >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5] text-slate-900 dark:text-white" />
-              <span className="hidden xs:inline text-slate-900 dark:text-white">{t('ফিরে যান', 'Go Back')}</span>
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5] text-white" />
+              <span className="hidden xs:inline text-white">{t('ফিরে যান', 'Go Back')}</span>
             </button>
 
-            {/* CENTER: সার্ভিস বা গিগ হলে আগে কাজ শুরু বা প্রিমিয়াম সার্ভিস শো করবে (কালো আইকন ও টেক্সট) */}
+            {/* CENTER: সার্ভিস বা গিগ হলে আগে কাজ শুরু বা প্রিমিয়াম সার্ভিস শো করবে (সাদা আইকন ও টেক্সট) */}
             <div className="flex items-center justify-center min-w-0">
               <SinglePromoBadgeView 
                 item={{ id: service.id, title: service.title, price: (service as any).price, offerBadge: (service as any).offerBadge }} 
                 itemType="service" 
-                textColor="text-slate-900 dark:text-white"
+                textColor="text-white"
               />
             </div>
 
-            {/* RIGHT: শেয়ার সোশ্যাল মিডিয়া (Social Media Share - কালো আইকন ও টেক্সট) */}
+            {/* RIGHT: শেয়ার সোশ্যাল মিডিয়া (Social Media Share - সাদা আইকন ও টেক্সট) */}
             <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setIsShareMenuOpen(!isShareMenuOpen)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 border-0 outline-none"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl hover:bg-[#00543D] text-white text-xs sm:text-sm font-bold transition cursor-pointer active:scale-95 border-0 outline-none"
                 title="সোশ্যাল মিডিয়ায় শেয়ার করুন"
               >
-                <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-slate-900 dark:text-white" />
-                <span className="hidden sm:inline text-slate-900 dark:text-white">শেয়ার</span>
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                <span className="hidden sm:inline text-white">শেয়ার</span>
               </button>
 
               {/* Share Popover Dropdown */}
@@ -1610,7 +1613,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                             </>
                           ) : (
                             <>
-                              <span className="text-amber-500 font-bold whitespace-nowrap">{formatSellerLevel((service as any).sellerLevel) || "Top Rated Agency"}</span>
+                              <span className="text-[#006A4E] dark:text-emerald-400 font-bold whitespace-nowrap">{formatSellerLevel((service as any).sellerLevel) || "Top Rated . Agency"}</span>
                               <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">·</span>
                               <span className="text-[#15803d] dark:text-sky-400 font-semibold whitespace-nowrap">{(service as any).sellerTitle || "Full-Stack Engineers"}</span>
                             </>

@@ -113,7 +113,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         description: locService.shortDescription,
         sellerName: 'PTENit Official Agency',
         sellerAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-        sellerLevel: 'Official Top Rated Agency',
+        sellerLevel: 'Top Rated . Agency',
         isAgencyStaff: true,
         demoImages: service.demoImages || (service.galleryImages ? service.galleryImages : matchedGig.demoImages),
         demoUrl: service.demoUrl || matchedGig.demoUrl,
@@ -132,7 +132,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
       sellerId: 'ptenit-agency',
       sellerName: 'PTENit Official Agency',
       sellerAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      sellerLevel: 'Official Top Rated Agency',
+      sellerLevel: 'Top Rated . Agency',
       isAgencyStaff: true,
       title: locService.title,
       category: locService.category,
@@ -181,6 +181,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         gig={gigObj}
         onClick={() => handleOpenServiceDetail(service)}
         currentUser={currentUser}
+        layoutMode="grid"
       />
     );
   };
@@ -281,7 +282,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     setActiveTab('services');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="inline-flex items-center gap-1 text-[#38BDF8] hover:text-[#006A4E] font-bold text-xs sm:text-sm hover:underline transition-all cursor-pointer font-bengali shrink-0 group"
+                  className="inline-flex items-center gap-1 text-[#006A4E] dark:text-emerald-400 hover:text-[#047857] dark:hover:text-emerald-300 font-bold text-xs sm:text-sm hover:underline transition-all cursor-pointer font-bengali shrink-0 group"
                 >
                   <span>{t('সবগুলো দেখুন →', 'See All →')}</span>
                 </button>
@@ -316,11 +317,12 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
           <div className="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3 mb-4 sm:mb-6">
             <div className="space-y-0.5 sm:space-y-1 text-left min-w-0">
-              <h2 className="text-sm sm:text-lg md:text-2xl font-bold font-bengali text-slate-900 dark:text-white leading-tight">
-                {t('জনপ্রিয় গিগ ও ডিজিটাল সার্ভিসসমূহ', 'Popular Gigs & Digital Services')}
+              <h2 className="text-sm sm:text-lg md:text-2xl font-bold font-bengali text-slate-900 dark:text-white leading-tight flex items-center gap-2">
+                <span>{t('জনপ্রিয় গিগ ও সার্ভিস', 'Popular Gigs & Services')}</span>
+                <span className="hidden sm:inline-block w-2 h-2 rounded-full bg-[#006A4E]" />
               </h2>
               <p className="text-[11px] sm:text-xs md:text-sm text-slate-500 dark:text-slate-400 font-medium font-bengali">
-                {t('PTENit ভেরিফায়েড স্পেশালিস্টদের জনপ্রিয় ফ্রিল্যান্সিং গিগস।', 'Popular freelance gigs and services by verified specialists.')}
+                {t('ভেরিফায়েড ফ্রিল্যান্সিং গিগস', 'Verified Freelancing Gigs')}
               </p>
             </div>
 
@@ -332,9 +334,9 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                     setActiveTab('marketplace', 'All');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
-                  className="inline-flex items-center gap-1 text-[#38BDF8] hover:text-[#006A4E] font-bold text-xs sm:text-sm hover:underline transition-all cursor-pointer font-bengali shrink-0 group"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#006A4E] text-white hover:bg-[#00543D] font-bold text-xs sm:text-sm transition-all cursor-pointer font-bengali shrink-0 shadow-xs active:scale-95 group"
                 >
-                  <span>{t('সবগুলো দেখুন →', 'See All →')}</span>
+                  <span>{t('মার্কেটপ্লেস অল →', 'Marketplace All →')}</span>
                 </button>
               </div>
             )}
@@ -350,6 +352,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                   gig={gig}
                   onClick={() => navigateToGigDetail(gig)}
                   currentUser={currentUser}
+                  layoutMode="grid"
                 />
               ))}
             </div>
@@ -362,6 +365,7 @@ export const ServicesSection: React.FC<ServicesSectionProps> = ({
                   gig={gig}
                   onClick={() => navigateToGigDetail(gig)}
                   currentUser={currentUser}
+                  layoutMode="grid"
                 />
               ))}
             </div>

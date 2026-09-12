@@ -1054,7 +1054,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                             <button
                               type="button"
                               onClick={() => setActiveCurriculumModal(course)}
-                              className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer active:scale-98"
+                              className="py-1.5 px-2.5 sm:py-2 sm:px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer active:scale-98"
                             >
                               <span>বিস্তারিত</span>
                             </button>

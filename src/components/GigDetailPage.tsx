@@ -282,23 +282,23 @@ export const GigDetailPage: React.FC<GigDetailPageProps> = ({
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-bengali text-slate-900 dark:text-slate-100 pb-28 lg:pb-16 animate-fadeIn">
       
       {/* 1. TOP HEADER NAVIGATION BAR */}
-      <div className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 shadow-xs -mx-4 sm:-mx-8 md:-mx-12 lg:-mx-16 xl:-mx-20 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-3 mb-6">
+      <div className="sticky top-0 z-30 bg-[#006A4E] text-white backdrop-blur-md border-b border-[#00543D] shadow-md -mx-4 sm:-mx-8 md:-mx-12 lg:-mx-16 xl:-mx-20 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 py-3 mb-6">
         <div className="w-full max-w-[1920px] mx-auto flex items-center justify-between gap-3">
           
           <button
             onClick={onBack}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-[#006A4E] dark:bg-slate-800 dark:hover:bg-[#006A4E] text-slate-700 dark:text-slate-200 hover:text-white dark:hover:text-white font-bold text-xs sm:text-sm transition cursor-pointer shrink-0 shadow-xs active:scale-95"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#00543D] hover:bg-[#00412F] text-white font-bold text-xs sm:text-sm transition cursor-pointer shrink-0 shadow-xs active:scale-95"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>ফিরে যান</span>
           </button>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 truncate max-w-xs sm:max-w-md md:max-w-2xl">
-            <span onClick={onBack} className="hidden sm:inline hover:text-sky-400 cursor-pointer hover:underline transition">মার্কেটপ্লেস</span>
-            <ChevronRight className="w-3.5 h-3.5 shrink-0 hidden sm:inline" />
-            <span className="text-[#38BDF8] font-bold truncate">{gig.category}</span>
-            <ChevronRight className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">{gig.title}</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-emerald-100 truncate max-w-xs sm:max-w-md md:max-w-2xl">
+            <span onClick={onBack} className="hidden sm:inline hover:text-white cursor-pointer hover:underline transition">মার্কেটপ্লেস</span>
+            <ChevronRight className="w-3.5 h-3.5 shrink-0 hidden sm:inline text-emerald-300" />
+            <span className="text-white font-bold truncate">{gig.category}</span>
+            <ChevronRight className="w-3.5 h-3.5 shrink-0 text-emerald-300" />
+            <span className="truncate text-emerald-100">{gig.title}</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -307,7 +307,7 @@ export const GigDetailPage: React.FC<GigDetailPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(true)}
-                  className="px-2.5 py-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-[#006A4E] text-[#006A4E] dark:text-sky-400 hover:text-white transition cursor-pointer text-xs font-bold flex items-center gap-1"
+                  className="px-2.5 py-1.5 rounded-xl border border-emerald-400/40 bg-[#00543D] hover:bg-[#00412F] text-white transition cursor-pointer text-xs font-bold flex items-center gap-1"
                 >
                   <Edit className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">এডিট</span>
@@ -316,7 +316,7 @@ export const GigDetailPage: React.FC<GigDetailPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsPerformanceModalOpen(true)}
-                  className="px-2.5 py-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white transition cursor-pointer text-xs font-bold flex items-center gap-1"
+                  className="px-2.5 py-1.5 rounded-xl border border-emerald-400/40 bg-[#00543D] hover:bg-[#00412F] text-white transition cursor-pointer text-xs font-bold flex items-center gap-1"
                 >
                   <BarChart2 className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">অ্যানালিটিক্স</span>
@@ -327,10 +327,10 @@ export const GigDetailPage: React.FC<GigDetailPageProps> = ({
             <button
               type="button"
               onClick={handleCopyLink}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer relative"
+              className="p-2 rounded-xl bg-[#00543D] hover:bg-[#00412F] text-white transition cursor-pointer relative"
               title="লিংক শেয়ার করুন"
             >
-              <Share2 className="w-4 h-4 text-[#38BDF8]" />
+              <Share2 className="w-4 h-4 text-white" />
               {showCopyToast && (
                 <span className="absolute -bottom-8 right-0 bg-slate-900 text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-40">
                   লিংক কপি হয়েছে!
@@ -343,12 +343,12 @@ export const GigDetailPage: React.FC<GigDetailPageProps> = ({
               onClick={toggleSave}
               className={`p-2 rounded-xl border transition cursor-pointer ${
                 isSaved
-                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-500'
-                  : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'
+                  ? 'bg-rose-500/20 border-rose-400 text-rose-300'
+                  : 'bg-[#00543D] hover:bg-[#00412F] border-emerald-600/40 text-emerald-100'
               }`}
               title={isSaved ? 'সংরক্ষিত আছে' : 'সেভ করুন'}
             >
-              <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+              <Heart className={`w-4 h-4 ${isSaved ? 'fill-current text-rose-300' : 'text-white'}`} />
             </button>
 
             {/* 3-dots More Menu */}
@@ -356,7 +356,7 @@ export const GigDetailPage: React.FC<GigDetailPageProps> = ({
               <button
                 type="button"
                 onClick={() => setIsDetailMenuOpen((prev) => !prev)}
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                className="p-2 rounded-xl bg-[#00543D] hover:bg-[#00412F] text-white transition cursor-pointer"
                 title="মেনু"
               >
                 <MoreVertical className="w-4 h-4" />
@@ -887,7 +887,7 @@ export const GigDetailPage: React.FC<GigDetailPageProps> = ({
                   <button
                     type="button"
                     onClick={onBack}
-                    className="text-[#38BDF8] hover:text-sky-400 text-xs font-bold hover:underline transition cursor-pointer flex items-center gap-1 shrink-0"
+                    className="text-[#006A4E] dark:text-emerald-400 hover:text-[#047857] dark:hover:text-emerald-300 text-xs font-bold hover:underline transition cursor-pointer flex items-center gap-1 shrink-0"
                   >
                     <span>সবগুলো দেখুন →</span>
                   </button>

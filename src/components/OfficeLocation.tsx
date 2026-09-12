@@ -154,7 +154,7 @@ export const OfficeLocation: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-gradient-to-r from-[#006A4E] to-blue-600 hover:from-blue-600 hover:to-indigo-600 text-white font-bold text-sm rounded-xl shadow-lg hover:shadow-blue-500/20 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-[#006A4E] hover:bg-[#047857] text-white font-bold text-sm rounded-xl shadow-xs transition active:scale-95 cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Send className="w-4 h-4" />
                   <span>{t('মেসেজ পাঠান', 'Send Inquiry')}</span>

@@ -85,11 +85,10 @@ export const Hero: React.FC<HeroProps> = ({ setActiveTab, mouseCoords: parentMou
             >
               <button
                 onClick={() => setActiveTab('services')}
-                className="px-6 py-3 rounded-xl font-bold text-white bg-[#16A34A] hover:bg-[#15803D] shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-2 group text-sm sm:text-base font-bengali relative"
+                className="px-6 py-3 rounded-xl font-bold text-white bg-[#006A4E] hover:bg-[#047857] shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-2 group text-sm sm:text-base font-bengali"
               >
                 {t('সার্ভিস দেখুন', 'Services')}
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                <span className="w-2 h-2 rounded-full bg-[#DC2626]" />
               </button>
 
               <button

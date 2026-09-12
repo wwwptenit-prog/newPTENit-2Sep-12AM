@@ -189,23 +189,23 @@ export const OrderCheckoutModal: React.FC<OrderCheckoutModalProps> = ({
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 max-w-2xl w-full relative shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[88vh] overflow-hidden transition-all my-auto">
         
         {/* Header Section */}
-        <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white p-3.5 sm:p-4 flex items-center justify-between border-b border-slate-800/80 relative shrink-0">
+        <div className="bg-[#006A4E] text-white p-3.5 sm:p-4 flex items-center justify-between border-b border-[#00543D] relative shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#006A4E]/15 border border-blue-600/50/30 flex items-center justify-center text-[#38BDF8] shrink-0 shadow-xs">
-              <Sparkles className="w-4 h-4 text-[#38BDF8]" />
+            <div className="w-8 h-8 rounded-xl bg-[#00543D] border border-emerald-400/30 flex items-center justify-center text-white shrink-0 shadow-xs">
+              <Sparkles className="w-4 h-4 text-emerald-200" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#006A4E] text-white shadow-xs">
+                <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#00543D] text-emerald-100 border border-emerald-400/30 shadow-xs">
                   PTENit Checkout
                 </span>
-                <span className="text-[11px] font-bold text-slate-400">
+                <span className="text-[11px] font-bold text-emerald-100">
                   {currentStep === 4 ? 'অর্ডার প্রস্তুত!' : `ধাপ ${currentStep === 2 ? 1 : 2} / ২`}
                 </span>
               </div>
               <h2 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-2 mt-0.5">
                 <span>অর্ডার কনফার্মেশন</span>
-                <span className="text-[11px] font-black text-[#38BDF8] bg-[#006A4E]/10 border border-blue-600/50/30 px-2 py-0.5 rounded-md">
+                <span className="text-[11px] font-black text-white bg-[#00543D] border border-emerald-400/30 px-2 py-0.5 rounded-md">
                   {selectedPkgType === 'basic' ? 'বেসিক' : selectedPkgType === 'standard' ? 'স্ট্যান্ডার্ড' : 'প্রিমিয়াম'} (৳{finalPrice.toLocaleString('bn-BD')})
                 </span>
               </h2>
@@ -223,7 +223,7 @@ export const OrderCheckoutModal: React.FC<OrderCheckoutModalProps> = ({
                 }
               }
             }}
-            className="p-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer shrink-0 border border-slate-700/50"
+            className="p-1.5 rounded-full bg-[#00543D] hover:bg-[#00412F] text-emerald-100 hover:text-white transition cursor-pointer shrink-0 border border-emerald-600/40"
             title="বন্ধ করুন"
           >
             <X className="w-4 h-4" />

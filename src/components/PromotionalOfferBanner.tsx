@@ -43,7 +43,7 @@ export const PromotionalOfferBanner: React.FC<PromotionalOfferBannerProps> = ({ 
   if (!activeOffer) return null;
 
   return (
-    <div className="bg-[#16A34A] text-white py-8 px-4 relative overflow-hidden shadow-sm">
+    <div className="bg-[#006A4E] text-white py-8 px-4 relative overflow-hidden shadow-sm border-b border-[#00543D]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
         
         {/* Left Offer Text */}
@@ -55,7 +55,7 @@ export const PromotionalOfferBanner: React.FC<PromotionalOfferBannerProps> = ({ 
           <h2 className="text-base sm:text-xl md:text-2xl font-bold font-bengali">
             {activeOffer.title}
           </h2>
-          <p className="text-xs sm:text-sm text-green-50 font-bengali max-w-2xl">
+          <p className="text-xs sm:text-sm text-emerald-100 font-bengali max-w-2xl">
             {activeOffer.subtitle || t("আপনার পছন্দের সার্ভিস বা কোর্সটি আজই অর্ডার/এনরোল করুন", "Enroll or order your desired service/course today")}
           </p>
         </div>
@@ -65,22 +65,22 @@ export const PromotionalOfferBanner: React.FC<PromotionalOfferBannerProps> = ({ 
           {/* Countdown Clock - Clean White Boxes */}
           <div className="flex items-center gap-1.5 font-mono text-white">
             <div className="bg-white text-slate-900 px-3 py-1.5 rounded-lg text-center min-w-[50px] shadow-xs">
-              <span className="text-lg font-bold text-[#16A34A] block">{timeLeft.days}</span>
+              <span className="text-lg font-bold text-[#006A4E] block">{timeLeft.days}</span>
               <span className="text-[10px] text-slate-500 uppercase font-sans font-semibold">{t('দিন', 'Days')}</span>
             </div>
             <span className="text-xl font-bold">:</span>
             <div className="bg-white text-slate-900 px-3 py-1.5 rounded-lg text-center min-w-[50px] shadow-xs">
-              <span className="text-lg font-bold text-[#16A34A] block">{timeLeft.hours}</span>
+              <span className="text-lg font-bold text-[#006A4E] block">{timeLeft.hours}</span>
               <span className="text-[10px] text-slate-500 uppercase font-sans font-semibold">{t('ঘণ্টা', 'Hours')}</span>
             </div>
             <span className="text-xl font-bold">:</span>
             <div className="bg-white text-slate-900 px-3 py-1.5 rounded-lg text-center min-w-[50px] shadow-xs">
-              <span className="text-lg font-bold text-[#16A34A] block">{timeLeft.minutes}</span>
+              <span className="text-lg font-bold text-[#006A4E] block">{timeLeft.minutes}</span>
               <span className="text-[10px] text-slate-500 uppercase font-sans font-semibold">{t('মিনিট', 'Mins')}</span>
             </div>
             <span className="text-xl font-bold">:</span>
             <div className="bg-white text-slate-900 px-3 py-1.5 rounded-lg text-center min-w-[50px] shadow-xs">
-              <span className="text-lg font-bold text-[#16A34A] block">{timeLeft.seconds}</span>
+              <span className="text-lg font-bold text-[#006A4E] block">{timeLeft.seconds}</span>
               <span className="text-[10px] text-slate-500 uppercase font-sans font-semibold">{t('সেকেন্ড', 'Secs')}</span>
             </div>
           </div>

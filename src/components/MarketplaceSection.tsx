@@ -3183,7 +3183,7 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
       
       {/* PTENit MODERN MARKETPLACE HEADER */}
       {!selectedGig && !(viewMode === 'selling' && sellerSubTab === 'create_gig') && (
-        <div className="sticky top-0 z-40 bg-white text-slate-900 px-2 sm:px-4 lg:px-6 mb-0 sm:mb-3 shadow-xs border-b border-slate-200">
+        <div className="sticky top-0 z-40 bg-[#006A4E] text-white px-2 sm:px-4 lg:px-6 mb-0 sm:mb-3 shadow-md border-b border-[#00543D]">
           <div className="w-full px-2 sm:px-4 lg:px-6 py-1 sm:py-2 flex flex-col justify-between gap-2">
           
           {/* MOBILE PHONE HEADER (Facebook Lite Style Header & Merged Icon Navigation on Phone & Small Devices) */}
@@ -3220,12 +3220,12 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       />
                     ) : (
                       <>
-                        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#006A4E] flex items-center justify-center font-bold text-xs sm:text-base text-white shadow-xs shrink-0 relative">
+                        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#00543D] border border-emerald-400/40 flex items-center justify-center font-bold text-xs sm:text-base text-white shadow-xs shrink-0 relative">
                           P
                           <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#E11D48] border border-white" />
                         </div>
-                        <span className="font-heading text-sm sm:text-base font-black tracking-wider text-slate-900 flex items-center gap-0.5">
-                          PTEN<span className="text-[#006A4E]">it</span>
+                        <span className="font-heading text-sm sm:text-base font-black tracking-wider text-white flex items-center gap-0.5">
+                          PTEN<span className="text-emerald-200">it</span>
                           <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48] ml-0.5 inline-block" />
                         </span>
                       </>
@@ -3241,7 +3241,7 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder={viewMode === 'selling' ? "সার্ভিস বা অর্ডার..." : "সার্চ করুন..."}
-                      className="w-full text-center pl-7 pr-7 py-1 bg-slate-100 border border-slate-300 text-slate-900 rounded-lg text-xs placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-[#006A4E] font-bengali placeholder:text-center focus:placeholder:text-left focus:text-left"
+                      className="w-full text-center pl-7 pr-7 py-1 bg-white border border-emerald-400/40 text-slate-900 rounded-lg text-xs placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-300 font-bengali placeholder:text-center focus:placeholder:text-left focus:text-left shadow-xs"
                     />
                     <Search className="w-3.5 h-3.5 text-[#006A4E] absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     {searchQuery && (
@@ -3327,7 +3327,7 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                 <div className="flex items-center justify-end gap-1 shrink-0">
                   {currentUser ? (
                     <div
-                      className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center cursor-default select-none shrink-0 overflow-hidden border border-slate-300"
+                      className="w-7 h-7 rounded-full bg-[#00543D] flex items-center justify-center cursor-default select-none shrink-0 overflow-hidden border border-emerald-400"
                       title={`প্রোফাইল: ${currentUser.name}`}
                     >
                       <img
@@ -3340,11 +3340,11 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     <button
                       type="button"
                       onClick={openAuthModal}
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-slate-700 hover:text-[#006A4E] hover:bg-slate-100 active:scale-90 transition cursor-pointer"
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white hover:bg-[#00543D] active:scale-90 transition cursor-pointer"
                       title="লগইন করুন"
                       aria-label="লগইন"
                     >
-                      <User className="w-5 h-5 text-[#006A4E]" />
+                      <User className="w-5 h-5 text-white" />
                     </button>
                   )}
 
@@ -3353,17 +3353,17 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     onClick={() => {
                       setIsMobileMarketplaceMenuOpen(!isMobileMarketplaceMenuOpen);
                     }}
-                    className="p-1.5 text-slate-700 hover:text-slate-900 cursor-pointer shrink-0 active:scale-95 touch-manipulation"
+                    className="p-1.5 text-white hover:bg-[#00543D] rounded-lg cursor-pointer shrink-0 active:scale-95 touch-manipulation"
                     title="মেনুবার"
                   >
-                    {isMobileMarketplaceMenuOpen ? <X className="w-5 h-5 text-[#E11D48]" /> : <Menu className="w-5 h-5" />}
+                    {isMobileMarketplaceMenuOpen ? <X className="w-5 h-5 text-rose-300" /> : <Menu className="w-5 h-5 text-white" />}
                   </button>
                 </div>
               </div>
             )}
 
             {/* FACEBOOK LITE STYLE UNIFIED ICON NAVIGATION BAR */}
-            <div className="flex items-center justify-between px-2 pt-1.5 pb-0.5 text-slate-600 w-full overflow-hidden border-t border-slate-100">
+            <div className="flex items-center justify-between px-2 pt-1.5 pb-0.5 text-emerald-100 w-full overflow-hidden border-t border-[#00543D]">
               {/* 1. 🏠 Marketplace / Specialist Home */}
               <button
                 type="button"
@@ -3387,22 +3387,16 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                   setIsNotificationsOpen(false);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className={`flex-1 flex justify-center items-center py-1.5 transition active:scale-95 cursor-pointer ${
+                className={`flex-1 flex justify-center items-center py-1.5 transition active:scale-95 cursor-pointer rounded-lg ${
                   ((viewMode === 'buying' && activeSubTab === 'gigs' && (activeTab === 'marketplace' || !activeTab)) ||
                    (viewMode === 'selling' && specialistMainTab === 'marketplace' && (sellerSubTab === 'overview' || sellerSubTab === 'gigs'))) &&
                   !selectedGig && !isInboxModalOpen && !isNotificationsOpen
-                    ? 'text-[#006A4E]'
-                    : 'text-slate-600 hover:text-[#006A4E]'
+                    ? 'text-white bg-[#00543D]'
+                    : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/50'
                 }`}
                 title={viewMode === 'selling' ? 'সেলার ওভারভিউ / ড্যাশবোর্ড' : 'মার্কেটপ্লেস হোম'}
               >
-                <Home className={`w-5 h-5 ${
-                  ((viewMode === 'buying' && activeSubTab === 'gigs' && (activeTab === 'marketplace' || !activeTab)) ||
-                   (viewMode === 'selling' && specialistMainTab === 'marketplace' && (sellerSubTab === 'overview' || sellerSubTab === 'gigs'))) &&
-                  !selectedGig && !isInboxModalOpen && !isNotificationsOpen
-                    ? 'text-[#006A4E] stroke-[2.5]'
-                    : 'text-slate-600'
-                }`} />
+                <Home className="w-5 h-5 text-white stroke-[2.2]" />
               </button>
 
               {/* 2. 🛍️ Order & Courses / Specialist Client Orders */}
@@ -3429,31 +3423,25 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                   setIsNotificationsOpen(false);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className={`flex-1 flex justify-center items-center py-1.5 transition relative active:scale-95 cursor-pointer ${
+                className={`flex-1 flex justify-center items-center py-1.5 transition relative active:scale-95 cursor-pointer rounded-lg ${
                   ((viewMode === 'buying' && (activeSubTab === 'my-orders' || activeSubTab === 'my-courses' || activeSubTab === 'overview')) ||
                    (viewMode === 'selling' && specialistMainTab === 'marketplace' && sellerSubTab === 'orders')) &&
                   !selectedGig && !isInboxModalOpen && !isNotificationsOpen
-                    ? 'text-[#006A4E]'
-                    : 'text-slate-600 hover:text-[#006A4E]'
+                    ? 'text-white bg-[#00543D]'
+                    : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/50'
                 }`}
                 title={viewMode === 'selling' ? 'ক্লায়েন্ট অর্ডারসমূহ' : 'আমার ক্রয়কৃত প্রজেক্ট ও কোর্সসমূহ'}
               >
-                <ShoppingBag className={`w-5 h-5 ${
-                  ((viewMode === 'buying' && (activeSubTab === 'my-orders' || activeSubTab === 'my-courses' || activeSubTab === 'overview')) ||
-                   (viewMode === 'selling' && specialistMainTab === 'marketplace' && sellerSubTab === 'orders')) &&
-                  !selectedGig && !isInboxModalOpen && !isNotificationsOpen
-                    ? 'stroke-[2.5] text-[#006A4E]'
-                    : 'text-slate-600'
-                }`} />
+                <ShoppingBag className="w-5 h-5 text-white stroke-[2.2]" />
                 {viewMode === 'selling' ? (
                   marketplaceOrders && marketplaceOrders.length > 0 && (
-                    <span className="absolute -top-1 right-2 min-w-4 h-4 px-1 rounded-full bg-[#006A4E] text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                    <span className="absolute -top-1 right-2 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
                       {marketplaceOrders.length}
                     </span>
                   )
                 ) : (
                   allBuyerOrders && allBuyerOrders.length > 0 && (
-                    <span className="absolute -top-1 right-2 min-w-4 h-4 px-1 rounded-full bg-[#006A4E] text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                    <span className="absolute -top-1 right-2 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
                       {allBuyerOrders.length}
                     </span>
                   )
@@ -3470,14 +3458,14 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                   }
                   openMessengerInbox();
                 }}
-                className={`flex-1 flex justify-center items-center py-1.5 transition relative active:scale-95 cursor-pointer ${
-                  isMessengerInboxOpen || activeSubTab === 'messenger' ? 'text-[#006A4E]' : 'text-slate-600 hover:text-[#006A4E]'
+                className={`flex-1 flex justify-center items-center py-1.5 transition relative active:scale-95 cursor-pointer rounded-lg ${
+                  isMessengerInboxOpen || activeSubTab === 'messenger' ? 'text-white bg-[#00543D]' : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/50'
                 }`}
                 title={viewMode === 'selling' ? 'মেসেঞ্জার (সেলার ইনবক্স)' : 'মেসেঞ্জার'}
               >
-                <Mail className={`w-5 h-5 ${isMessengerInboxOpen || activeSubTab === 'messenger' ? 'text-[#006A4E] stroke-[2.5]' : 'text-slate-600'}`} />
+                <Mail className="w-5 h-5 text-white stroke-[2.2]" />
                 {unreadMarketplaceMsgCount > 0 && (
-                  <span className="absolute -top-1 right-2 min-w-4 h-4 px-1 rounded-full bg-[#E11D48] text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 right-2 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
                     {unreadMarketplaceMsgCount}
                   </span>
                 )}
@@ -3493,14 +3481,14 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                   }
                   openNotificationCenter();
                 }}
-                className={`flex-1 flex justify-center items-center py-1.5 transition relative active:scale-95 cursor-pointer ${
-                  isNotificationCenterOpen ? 'text-[#006A4E]' : 'text-slate-600 hover:text-[#006A4E]'
+                className={`flex-1 flex justify-center items-center py-1.5 transition relative active:scale-95 cursor-pointer rounded-lg ${
+                  isNotificationCenterOpen ? 'text-white bg-[#00543D]' : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/50'
                 }`}
                 title="নোটিফিকেশন"
               >
-                <Bell className={`w-5 h-5 ${isNotificationCenterOpen ? 'text-[#006A4E] stroke-[2.5]' : 'text-slate-600'}`} />
+                <Bell className="w-5 h-5 text-white stroke-[2.2]" />
                 {roleScopedNotifications.filter(n => !n.read).length > 0 && (
-                  <span className="absolute -top-1 right-2 min-w-4 h-4 px-1 rounded-full bg-[#E11D48] text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  <span className="absolute -top-1 right-2 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
                     {roleScopedNotifications.filter(n => !n.read).length}
                   </span>
                 )}
@@ -3510,18 +3498,16 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
               <button
                 type="button"
                 onClick={toggleOfferSound}
-                className={`flex-1 flex justify-center items-center py-1.5 transition relative active:scale-95 cursor-pointer ${
-                  isOfferSoundEnabled ? 'text-[#006A4E]' : 'text-slate-400 hover:text-slate-600'
-                }`}
+                className="flex-1 flex justify-center items-center py-1.5 transition relative active:scale-95 cursor-pointer rounded-lg text-emerald-100 hover:text-white hover:bg-[#00543D]/50"
                 title={isOfferSoundEnabled ? "সাউন্ড চালু (মিউট করতে ক্লিক করুন)" : "সাউন্ড বন্ধ (চালু করতে ক্লিক করুন)"}
               >
                 {isOfferSoundEnabled ? (
-                  <Volume2 className="w-5 h-5 text-[#006A4E] stroke-[2.5]" />
+                  <Volume2 className="w-5 h-5 text-white stroke-[2.2]" />
                 ) : (
-                  <VolumeX className="w-5 h-5 text-slate-400 hover:text-slate-600" />
+                  <VolumeX className="w-5 h-5 text-emerald-300/70" />
                 )}
                 <span className={`absolute -top-1 right-1 min-w-[20px] h-[15px] px-1 rounded-full text-white text-[8px] font-black flex items-center justify-center shadow-xs leading-none ${
-                  isOfferSoundEnabled ? 'bg-[#006A4E]' : 'bg-slate-400 text-slate-100'
+                  isOfferSoundEnabled ? 'bg-[#00543D] border border-emerald-400/40' : 'bg-slate-700 text-slate-200'
                 }`}>
                   {isOfferSoundEnabled ? 'ON' : 'OFF'}
                 </span>
@@ -3559,12 +3545,12 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                         setIsMobileFilterSheetOpen(prev => !prev);
                       }
                     }}
-                    className={`flex-1 flex justify-center items-center py-1.5 transition-all duration-200 relative active:scale-95 cursor-pointer group ${
+                    className={`flex-1 flex justify-center items-center py-1.5 transition-all duration-200 relative active:scale-95 cursor-pointer rounded-lg group ${
                       isAnyFilterActive
-                        ? 'text-[#E11D48] hover:text-[#BE123C]'
+                        ? 'text-rose-300 hover:text-rose-200 bg-[#00543D]'
                         : isMobileFilterSheetOpen
-                        ? 'text-[#006A4E]'
-                        : 'text-slate-600 hover:text-[#006A4E]'
+                        ? 'text-white bg-[#00543D]'
+                        : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/50'
                     }`}
                     title={
                       isAnyFilterActive
@@ -3573,21 +3559,19 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     }
                   >
                     {isAnyFilterActive ? (
-                      <RotateCcw className="w-5 h-5 text-[#E11D48] stroke-[2.4] transition-transform duration-300 group-hover:-rotate-90 group-active:scale-90" />
+                      <RotateCcw className="w-5 h-5 text-rose-300 stroke-[2.4] transition-transform duration-300 group-hover:-rotate-90 group-active:scale-90" />
                     ) : (
-                      <Filter className={`w-5 h-5 transition-transform duration-200 ${
-                        isMobileFilterSheetOpen ? 'text-[#006A4E] stroke-[2.5] scale-105' : 'text-slate-600 group-hover:text-[#006A4E]'
-                      }`} />
+                      <Filter className="w-5 h-5 text-white transition-transform duration-200" />
                     )}
 
                     {/* Dynamic Status Badge */}
                     {isAnyFilterActive ? (
-                      <span className="absolute -top-1.5 right-0 min-w-[28px] h-[15px] px-1 rounded-full bg-[#E11D48] text-white text-[8px] font-black flex items-center justify-center shadow-xs leading-none ring-1 ring-white animate-pulse">
+                      <span className="absolute -top-1.5 right-0 min-w-[28px] h-[15px] px-1 rounded-full bg-rose-500 text-white text-[8px] font-black flex items-center justify-center shadow-xs leading-none ring-1 ring-white animate-pulse">
                         রিসেট
                       </span>
                     ) : (
                       <span className={`absolute -top-1.5 right-0 min-w-[26px] h-[15px] px-1 rounded-full text-white text-[8px] font-black flex items-center justify-center shadow-xs leading-none transition-colors ${
-                        isMobileFilterSheetOpen ? 'bg-[#006A4E]' : 'bg-slate-400 text-slate-100 group-hover:bg-[#006A4E]'
+                        isMobileFilterSheetOpen ? 'bg-white text-[#006A4E]' : 'bg-[#00543D] border border-emerald-400/40 text-emerald-100'
                       }`}>
                         ফিল্টার
                       </span>
@@ -3596,6 +3580,46 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                 );
               })()}
             </div>
+
+            {/* MOBILE QUICK CATEGORY PILL STRIP (সকল সার্ভিস / ALL, গ্রাফিক্স, টেক...) */}
+            {activeSubTab === 'gigs' && viewMode === 'buying' && !selectedGig && !isInboxModalOpen && !isNotificationsOpen && (
+              <div className="flex items-center gap-1.5 pt-1.5 pb-1 overflow-x-auto scrollbar-none whitespace-nowrap border-t border-[#00543D]/80">
+                {[
+                  { key: 'All', label: 'সকল (All)' },
+                  { key: 'Graphics & Design', label: 'গ্রাফিক্স' },
+                  { key: 'Programming & Tech', label: 'ওয়েব ও টেক' },
+                  { key: 'Digital Marketing', label: 'মার্কেটিং' },
+                  { key: 'Video & Animation', label: 'ভিডিও' },
+                  { key: 'SEO & Growth', label: 'এসইও' },
+                  { key: 'AI Services', label: 'এআই' },
+                  { key: 'Education & Training', label: 'ট্রেনিং' }
+                ].map((cat) => {
+                  const isActive = selectedCategory === cat.key;
+                  return (
+                    <button
+                      key={cat.key}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory(cat.key);
+                        setActiveSubTab('gigs');
+                        setSelectedGig(null);
+                        setSearchQuery('');
+                        if (cat.key === 'All' && setActiveTab) {
+                          setActiveTab('marketplace', 'All', true);
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer shrink-0 active:scale-95 ${
+                        isActive
+                          ? 'bg-white text-[#006A4E] shadow-sm font-black'
+                          : 'bg-[#00543D] text-emerald-100 hover:text-white hover:bg-[#00412F] border border-emerald-500/30'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* MOBILE FILTER POPUP (ফিল্টার বাটনে ক্লিক করলে ঠিক সেখানে পপ এর ভিতর ফিল্টার) */}
             {isMobileFilterSheetOpen && (
@@ -3652,7 +3676,7 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                               : 'text-slate-800 border-slate-200'
                           }`}
                         >
-                          <option value="All">সব ক্যাটাগরি</option>
+                          <option value="All">সব ক্যাটাগরি (All)</option>
                           <option value="AI Services">এআই ও সফটওয়্যার</option>
                           <option value="Programming & Tech">প্রোগ্রামিং ও টেকনোলজি</option>
                           <option value="Graphics & Design">গ্রাফিক্স ও ডিজাইন</option>
@@ -4170,12 +4194,12 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                         />
                       ) : (
                         <div className="flex items-center gap-1.5">
-                          <div className="w-8 h-8 rounded-xl bg-[#006A4E] flex items-center justify-center font-bold text-lg text-white shadow-xs shrink-0 relative">
+                          <div className="w-8 h-8 rounded-xl bg-white text-[#006A4E] flex items-center justify-center font-bold text-lg shadow-xs shrink-0 relative">
                             P
                             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#E11D48] border-2 border-white" />
                           </div>
-                          <span className="font-heading text-xl lg:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-0.5">
-                            PTEN<span className="text-[#006A4E]">it</span>
+                          <span className="font-heading text-xl lg:text-2xl font-black tracking-tight text-white flex items-center gap-0.5">
+                            PTEN<span className="text-emerald-200">it</span>
                             <span className="w-2 h-2 rounded-full bg-[#E11D48] ml-1 inline-block" title="লাল-সবুজের অহংকার" />
                           </span>
                         </div>
@@ -4188,10 +4212,10 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       onClick={() => {
                         if (setActiveTab) setActiveTab('home');
                       }}
-                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition cursor-pointer active:scale-95 shadow-xs shrink-0"
+                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-white bg-[#00543D] hover:bg-[#00412F] rounded-lg border border-emerald-400/30 transition cursor-pointer active:scale-95 shadow-xs shrink-0"
                       title="পিটেনআইটি মূল ওয়েবসাইটে ফিরে যান (হোম, কোর্স ও সার্ভিস)"
                     >
-                      <Home className="w-3.5 h-3.5 text-[#006A4E]" />
+                      <Home className="w-3.5 h-3.5 text-emerald-200" />
                       <span className="hidden xl:inline">মূল ওয়েবসাইট</span>
                       <span className="xl:hidden">হোম</span>
                     </button>
@@ -4207,10 +4231,10 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                           setActiveSubTab('gigs');
                         }
                       }}
-                      className="flex items-center w-full bg-slate-50 border border-slate-300 hover:border-slate-400 focus-within:border-[#006A4E] focus-within:ring-1 focus-within:ring-[#006A4E] rounded-lg overflow-hidden transition shadow-xs"
+                      className="flex items-center w-full bg-white border border-emerald-400/40 focus-within:border-white focus-within:ring-2 focus-within:ring-white/50 rounded-lg overflow-hidden transition shadow-sm"
                     >
                       <div className="pl-3 pr-1.5 text-slate-400 shrink-0">
-                        <Search className="w-4 h-4" />
+                        <Search className="w-4 h-4 text-emerald-700" />
                       </div>
                       <input
                         type="text"
@@ -4230,7 +4254,7 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       )}
                       <button
                         type="submit"
-                        className="bg-[#006A4E] hover:bg-[#047857] text-white font-bold text-xs lg:text-sm px-4 lg:px-5 py-1.5 lg:py-2 flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow-xs active:scale-95 whitespace-nowrap"
+                        className="bg-[#00543D] hover:bg-[#00412F] text-white font-bold text-xs lg:text-sm px-4 lg:px-5 py-1.5 lg:py-2 flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow-xs active:scale-95 whitespace-nowrap"
                       >
                         <Search className="w-3.5 h-3.5 text-white" />
                         <span>খুঁজুন</span>
@@ -4300,10 +4324,10 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                         setSelectedGig(null);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className="text-xs lg:text-sm font-bold text-[#006A4E] hover:text-white hover:bg-[#006A4E] border border-[#006A4E]/40 px-2.5 lg:px-3 py-1.5 rounded-lg transition duration-150 cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95"
+                      className="text-xs lg:text-sm font-bold text-white bg-[#00543D] hover:bg-[#00412F] border border-emerald-400/40 px-2.5 lg:px-3 py-1.5 rounded-lg transition duration-150 cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 shadow-xs"
                       title="সেলার মোডে সুইচ করুন (গিগ ও অর্ডার পরিচালনা)"
                     >
-                      <Zap className="w-3.5 h-3.5" />
+                      <Zap className="w-3.5 h-3.5 text-emerald-200" />
                       <span>Switch to Selling</span>
                     </button>
 
@@ -4316,8 +4340,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       }}
                       className={`hidden 2xl:block text-xs lg:text-sm font-semibold transition px-2.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap ${
                         activeSubTab === 'ptenit-services'
-                          ? 'text-[#006A4E] font-bold bg-emerald-50'
-                          : 'text-slate-600 hover:text-slate-900'
+                          ? 'text-white font-bold bg-[#00543D]'
+                          : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/50'
                       }`}
                       title="PTENit অফিশিয়াল এজেন্সি সার্ভিসেস"
                     >
@@ -4332,8 +4356,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       }}
                       className={`hidden 2xl:block text-xs lg:text-sm font-semibold transition px-2.5 py-1.5 rounded-lg cursor-pointer whitespace-nowrap ${
                         activeSubTab === 'courses'
-                          ? 'text-[#006A4E] font-bold bg-emerald-50'
-                          : 'text-slate-600 hover:text-slate-900'
+                          ? 'text-white font-bold bg-[#00543D]'
+                          : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/50'
                       }`}
                       title="আইটি ট্রেনিং ও কোর্সসমূহ"
                     >
@@ -4354,14 +4378,14 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                           setActiveSubTab('my-orders');
                           setOrderHubTab('orders');
                         }}
-                        className={`p-1.5 lg:p-2 rounded-lg relative text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer ${
-                          activeSubTab === 'my-orders' ? 'text-[#006A4E] bg-emerald-50' : ''
+                        className={`p-1.5 lg:p-2 rounded-lg relative text-emerald-100 hover:text-white hover:bg-[#00543D] transition cursor-pointer ${
+                          activeSubTab === 'my-orders' ? 'text-white bg-[#00543D]' : ''
                         }`}
                         title="আমার অর্ডারসমূহ"
                       >
                         <ShoppingBag className="w-4 lg:w-5 h-4 lg:h-5" />
                         {allBuyerOrders.length > 0 && (
-                          <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#006A4E] text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                          <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
                             {allBuyerOrders.length}
                           </span>
                         )}
@@ -4377,8 +4401,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                           }
                           openMessengerInbox();
                         }}
-                        className={`p-1.5 lg:p-2 rounded-lg relative text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer ${
-                          isMessengerInboxOpen || activeSubTab === 'messenger' ? 'text-[#006A4E] bg-emerald-50' : ''
+                        className={`p-1.5 lg:p-2 rounded-lg relative text-emerald-100 hover:text-white hover:bg-[#00543D] transition cursor-pointer ${
+                          isMessengerInboxOpen || activeSubTab === 'messenger' ? 'text-white bg-[#00543D]' : ''
                         }`}
                         title="ইনবক্স / মেসেজ"
                       >
@@ -4397,12 +4421,12 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                           setSelectedGig(null);
                           setActiveSubTab('saved_gigs');
                         }}
-                        className={`p-1.5 lg:p-2 rounded-lg relative text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer ${
-                          activeSubTab === 'saved_gigs' ? 'text-[#006A4E] bg-emerald-50' : ''
+                        className={`p-1.5 lg:p-2 rounded-lg relative text-emerald-100 hover:text-white hover:bg-[#00543D] transition cursor-pointer ${
+                          activeSubTab === 'saved_gigs' ? 'text-white bg-[#00543D]' : ''
                         }`}
                         title="সংরক্ষিত গিগ তালিকা (Favorites)"
                       >
-                        <Heart className={`w-4 lg:w-5 h-4 lg:h-5 ${savedGigIds.length > 0 ? 'text-[#E11D48] fill-[#E11D48]/20' : ''}`} />
+                        <Heart className={`w-4 lg:w-5 h-4 lg:h-5 ${savedGigIds.length > 0 ? 'text-[#E11D48] fill-[#E11D48]/30' : ''}`} />
                         {savedGigIds.length > 0 && (
                           <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#E11D48] text-white text-[9px] font-black flex items-center justify-center shadow-xs">
                             {savedGigIds.length}
@@ -4420,8 +4444,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                           }
                           openNotificationCenter();
                         }}
-                        className={`p-1.5 lg:p-2 rounded-lg relative text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer ${
-                          isNotificationCenterOpen ? 'text-[#006A4E] bg-emerald-50' : ''
+                        className={`p-1.5 lg:p-2 rounded-lg relative text-emerald-100 hover:text-white hover:bg-[#00543D] transition cursor-pointer ${
+                          isNotificationCenterOpen ? 'text-white bg-[#00543D]' : ''
                         }`}
                         title="নোটিফিকেশন সেন্টার"
                       >
@@ -4437,13 +4461,13 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       <button
                         type="button"
                         onClick={toggleOfferSound}
-                        className="w-7 lg:w-8 h-7 lg:h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition active:scale-95 cursor-pointer relative"
+                        className="w-7 lg:w-8 h-7 lg:h-8 rounded-lg bg-[#00543D] hover:bg-[#00412F] text-white border border-emerald-400/30 flex items-center justify-center transition active:scale-95 cursor-pointer relative"
                         title={isOfferSoundEnabled ? "অর্ডার নোটিফিকেশন সাউন্ড চালু" : "অর্ডার নোটিফিকেশন সাউন্ড বন্ধ"}
                       >
                         {isOfferSoundEnabled ? (
-                          <Volume2 className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-[#006A4E]" />
+                          <Volume2 className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-emerald-200" />
                         ) : (
-                          <VolumeX className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-slate-400" />
+                          <VolumeX className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-emerald-300/60" />
                         )}
                       </button>
                     </div>
@@ -4452,10 +4476,10 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     <button
                       type="button"
                       onClick={() => setIsPostProjectModalOpen(true)}
-                      className="hidden lg:flex px-2.5 lg:px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold transition items-center gap-1.5 border border-slate-200 cursor-pointer shrink-0 whitespace-nowrap active:scale-95"
+                      className="hidden lg:flex px-2.5 lg:px-3 py-1.5 rounded-lg bg-[#00543D] hover:bg-[#00412F] text-white text-xs font-bold transition items-center gap-1.5 border border-emerald-400/40 cursor-pointer shrink-0 whitespace-nowrap active:scale-95 shadow-xs"
                       title="কাস্টম প্রজেক্ট রিকোয়েস্ট পোস্ট করুন"
                     >
-                      <Plus className="w-3.5 h-3.5 text-[#006A4E]" />
+                      <Plus className="w-3.5 h-3.5 text-emerald-200" />
                       <span>পোস্ট প্রজেক্ট</span>
                     </button>
 
@@ -4463,71 +4487,33 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     {currentUser ? (
                       <div
                         onClick={() => setIsMobileMarketplaceMenuOpen(true)}
-                        className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-slate-100 hover:bg-slate-200 transition cursor-pointer border border-slate-200 shrink-0 select-none"
+                        className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-[#00543D] hover:bg-[#00412F] transition cursor-pointer border border-emerald-400/40 shrink-0 select-none text-white shadow-xs"
                         title={`প্রোফাইল মেনু: ${currentUser.name}`}
                       >
                         <div className="relative">
                           <img
                             src={currentUser.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"}
                             alt={currentUser.name}
-                            className="w-6 h-6 lg:w-7 lg:h-7 rounded-full object-cover border border-emerald-600"
+                            className="w-6 h-6 lg:w-7 lg:h-7 rounded-full object-cover border border-emerald-300"
                           />
-                          <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#006A4E] border border-white" />
+                          <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-white" />
                         </div>
-                        <span className="hidden xl:inline text-xs font-bold text-slate-700 max-w-[65px] truncate">
+                        <span className="hidden xl:inline text-xs font-bold text-white max-w-[65px] truncate">
                           {currentUser.name.split(' ')[0]}
                         </span>
-                        <ChevronDown className="w-3 h-3 text-slate-500" />
+                        <ChevronDown className="w-3 h-3 text-emerald-200" />
                       </div>
                     ) : (
                       <button
                         type="button"
                         onClick={openAuthModal}
-                        className="px-3 lg:px-3.5 py-1.5 rounded-lg bg-[#006A4E] hover:bg-[#047857] text-white font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0 whitespace-nowrap active:scale-95"
+                        className="px-3 lg:px-3.5 py-1.5 rounded-lg bg-white hover:bg-emerald-50 text-[#006A4E] font-bold text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs shrink-0 whitespace-nowrap active:scale-95"
                       >
-                        <User className="w-3.5 h-3.5" />
+                        <User className="w-3.5 h-3.5 text-[#006A4E]" />
                         <span>লগইন</span>
                       </button>
                     )}
                   </div>
-                </div>
-
-                {/* Horizontal Category Strip */}
-                <div className="border-t border-slate-200 pt-2 pb-1.5 flex items-center justify-between text-xs lg:text-[13px] text-slate-600 overflow-x-auto scrollbar-none whitespace-nowrap gap-4 lg:gap-6">
-                  {[
-                    { key: 'All', label: 'সকল সার্ভিস' },
-                    { key: 'Graphics & Design', label: 'গ্রাফিক্স ও ডিজাইন' },
-                    { key: 'Programming & Tech', label: 'প্রোগ্রামিং ও টেক' },
-                    { key: 'Digital Marketing', label: 'ডিজিটাল মার্কেটিং' },
-                    { key: 'Video & Animation', label: 'ভিডিও ও অ্যানিমেশন' },
-                    { key: 'SEO & Growth', label: 'এসইও ও গ্রোথ' },
-                    { key: 'AI Services', label: 'এআই ও অটোমেশন' },
-                    { key: 'Education & Training', label: 'এডুকেশন ও ট্রেনিং' }
-                  ].map((cat) => {
-                    const isActive = selectedCategory === cat.key;
-                    return (
-                      <button
-                        key={cat.key}
-                        type="button"
-                        onClick={() => {
-                          setSelectedCategory(cat.key);
-                          setActiveSubTab('gigs');
-                          setSelectedGig(null);
-                          window.scrollTo({ top: 350, behavior: 'smooth' });
-                        }}
-                        className={`relative pb-1 font-medium transition cursor-pointer shrink-0 ${
-                          isActive
-                            ? 'text-[#006A4E] font-bold'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        <span>{cat.label}</span>
-                        {isActive && (
-                          <span className="absolute bottom-0 inset-x-0 h-0.5 bg-[#006A4E] rounded-full" />
-                        )}
-                      </button>
-                    );
-                  })}
                 </div>
               </div>
             ) : (
@@ -4556,15 +4542,15 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       />
                     ) : (
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-[#006A4E] flex items-center justify-center font-bold text-lg text-white shadow-xs shrink-0 relative">
+                        <div className="w-8 h-8 rounded-xl bg-white text-[#006A4E] flex items-center justify-center font-bold text-lg shadow-xs shrink-0 relative">
                           P
                           <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#E11D48] border-2 border-white" />
                         </div>
-                        <span className="font-heading text-xl lg:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-0.5">
-                          PTEN<span className="text-[#006A4E]">it</span>
+                        <span className="font-heading text-xl lg:text-2xl font-black tracking-tight text-white flex items-center gap-0.5">
+                          PTEN<span className="text-emerald-200">it</span>
                           <span className="w-2 h-2 rounded-full bg-[#E11D48] ml-1 inline-block" title="লাল-সবুজের অহংকার" />
                         </span>
-                        <span className="px-2 py-0.5 bg-emerald-50 text-[#006A4E] border border-emerald-200 rounded-md text-[10px] lg:text-[11px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                        <span className="px-2 py-0.5 bg-[#00543D] text-white border border-emerald-400/40 rounded-md text-[10px] lg:text-[11px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs">
                           <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48]" />
                           Seller Hub
                         </span>
@@ -4578,10 +4564,10 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     onClick={() => {
                       if (setActiveTab) setActiveTab('home');
                     }}
-                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-200 transition cursor-pointer active:scale-95 shadow-xs shrink-0"
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-white bg-[#00543D] hover:bg-[#00412F] rounded-lg border border-emerald-400/30 transition cursor-pointer active:scale-95 shadow-xs shrink-0"
                     title="পিটেনআইটি মূল ওয়েবসাইটে ফিরে যান (হোম, কোর্স ও সার্ভিস)"
                   >
-                    <Home className="w-3.5 h-3.5 text-[#006A4E]" />
+                    <Home className="w-3.5 h-3.5 text-emerald-200" />
                     <span className="hidden xl:inline">মূল ওয়েবসাইট</span>
                     <span className="xl:hidden">হোম</span>
                   </button>
@@ -4599,8 +4585,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     }}
                     className={`px-2.5 lg:px-3 py-1.5 text-xs lg:text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 rounded-lg whitespace-nowrap ${
                       sellerSubTab === 'overview'
-                        ? 'text-[#006A4E] font-bold bg-emerald-50 border-b-2 border-[#006A4E]'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        ? 'text-white font-bold bg-[#00543D] border-b-2 border-white'
+                        : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/60'
                     }`}
                   >
                     <LayoutDashboard className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
@@ -4617,14 +4603,14 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     }}
                     className={`px-2.5 lg:px-3 py-1.5 text-xs lg:text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 rounded-lg relative whitespace-nowrap ${
                       sellerSubTab === 'orders'
-                        ? 'text-[#006A4E] font-bold bg-emerald-50 border-b-2 border-[#006A4E]'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        ? 'text-white font-bold bg-[#00543D] border-b-2 border-white'
+                        : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/60'
                     }`}
                   >
                     <ShoppingBag className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
                     <span>অর্ডারসমূহ</span>
                     {marketplaceOrders.length > 0 && (
-                      <span className="ml-0.5 px-1.5 py-0.2 bg-[#006A4E] text-white text-[9px] font-black rounded-full shadow-xs">
+                      <span className="ml-0.5 px-1.5 py-0.2 bg-rose-500 text-white text-[9px] font-black rounded-full shadow-xs">
                         {marketplaceOrders.length}
                       </span>
                     )}
@@ -4640,8 +4626,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     }}
                     className={`px-2.5 lg:px-3 py-1.5 text-xs lg:text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 rounded-lg whitespace-nowrap ${
                       sellerSubTab === 'gigs' && specialistMainTab === 'marketplace'
-                        ? 'text-[#006A4E] font-bold bg-emerald-50 border-b-2 border-[#006A4E]'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        ? 'text-white font-bold bg-[#00543D] border-b-2 border-white'
+                        : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/60'
                     }`}
                   >
                     <Folder className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
@@ -4658,8 +4644,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     }}
                     className={`px-2.5 lg:px-3 py-1.5 text-xs lg:text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 rounded-lg whitespace-nowrap ${
                       specialistMainTab === 'payments'
-                        ? 'text-[#006A4E] font-bold bg-emerald-50 border-b-2 border-[#006A4E]'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        ? 'text-white font-bold bg-[#00543D] border-b-2 border-white'
+                        : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/60'
                     }`}
                   >
                     <Wallet className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
@@ -4670,10 +4656,10 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                   <button
                     type="button"
                     onClick={() => setIsPostProjectModalOpen(true)}
-                    className="px-2.5 lg:px-3 py-1.5 text-xs lg:text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer flex items-center gap-1.5 rounded-lg whitespace-nowrap"
+                    className="px-2.5 lg:px-3 py-1.5 text-xs lg:text-sm font-semibold text-emerald-100 hover:text-white hover:bg-[#00543D]/60 transition cursor-pointer flex items-center gap-1.5 rounded-lg whitespace-nowrap"
                     title="লাইভ বায়ার রিকোয়েস্ট ও কাস্টম প্রজেক্ট"
                   >
-                    <FileText className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-[#006A4E]" />
+                    <FileText className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-emerald-200" />
                     <span>বায়ার রিকোয়েস্ট</span>
                   </button>
 
@@ -4687,8 +4673,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     }}
                     className={`hidden 2xl:flex px-2.5 lg:px-3 py-1.5 text-xs lg:text-sm font-semibold transition cursor-pointer items-center gap-1.5 rounded-lg whitespace-nowrap ${
                       specialistMainTab === 'mentor'
-                        ? 'text-[#006A4E] font-bold bg-emerald-50 border-b-2 border-[#006A4E]'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        ? 'text-white font-bold bg-[#00543D] border-b-2 border-white'
+                        : 'text-emerald-100 hover:text-white hover:bg-[#00543D]/60'
                     }`}
                   >
                     <GraduationCap className="w-3.5 lg:w-4 h-3.5 lg:h-4" />
@@ -4708,10 +4694,10 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       setSelectedGig(null);
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
-                    className="text-xs lg:text-sm font-bold text-slate-700 hover:text-slate-900 hover:bg-slate-100 px-2.5 lg:px-3 py-1.5 rounded-lg border border-slate-200 transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95"
+                    className="text-xs lg:text-sm font-bold text-white bg-[#00543D] hover:bg-[#00412F] px-2.5 lg:px-3 py-1.5 rounded-lg border border-emerald-400/40 transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap active:scale-95 shadow-xs"
                     title="বায়ার ব্রাউজিং মোডে ফিরে যান"
                   >
-                    <ShoppingBag className="w-3.5 h-3.5 text-[#006A4E]" />
+                    <ShoppingBag className="w-3.5 h-3.5 text-emerald-200" />
                     <span>Switch to Buying</span>
                   </button>
 
@@ -4722,10 +4708,10 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       setSelectedGig(null);
                       setSellerSubTab('create_gig');
                     }}
-                    className="px-3 lg:px-3.5 py-1.5 bg-[#006A4E] hover:bg-[#047857] text-white font-bold text-xs lg:text-sm rounded-lg transition shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap relative group"
+                    className="px-3 lg:px-3.5 py-1.5 bg-white hover:bg-emerald-50 text-[#006A4E] font-bold text-xs lg:text-sm rounded-lg transition shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap relative group"
                     title="নতুন প্রফেশনাল গিগ তৈরি করুন"
                   >
-                    <Plus className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-white" />
+                    <Plus className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-[#006A4E]" />
                     <span>নতুন গিগ তৈরি</span>
                     <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48]" />
                   </button>
@@ -4742,8 +4728,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                         }
                         openMessengerInbox();
                       }}
-                      className={`p-1.5 lg:p-2 rounded-lg relative text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer ${
-                        isMessengerInboxOpen || activeSubTab === 'messenger' ? 'text-[#006A4E] bg-emerald-50' : ''
+                      className={`p-1.5 lg:p-2 rounded-lg relative text-emerald-100 hover:text-white hover:bg-[#00543D] transition cursor-pointer ${
+                        isMessengerInboxOpen || activeSubTab === 'messenger' ? 'text-white bg-[#00543D]' : ''
                       }`}
                       title="ইনবক্স / ক্লায়েন্ট মেসেজ"
                     >
@@ -4765,8 +4751,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                         }
                         openNotificationCenter();
                       }}
-                      className={`p-1.5 lg:p-2 rounded-lg relative text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer ${
-                        isNotificationCenterOpen ? 'text-[#006A4E] bg-emerald-50' : ''
+                      className={`p-1.5 lg:p-2 rounded-lg relative text-emerald-100 hover:text-white hover:bg-[#00543D] transition cursor-pointer ${
+                        isNotificationCenterOpen ? 'text-white bg-[#00543D]' : ''
                       }`}
                       title="অর্ডার ও সেলার নোটিফিকেশন"
                     >
@@ -4782,13 +4768,13 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     <button
                       type="button"
                       onClick={toggleOfferSound}
-                      className="w-7 lg:w-8 h-7 lg:h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition active:scale-95 cursor-pointer relative"
+                      className="w-7 lg:w-8 h-7 lg:h-8 rounded-lg bg-[#00543D] hover:bg-[#00412F] text-white border border-emerald-400/30 flex items-center justify-center transition active:scale-95 cursor-pointer relative"
                       title={isOfferSoundEnabled ? "অর্ডার নোটিফিকেশন সাউন্ড চালু" : "অর্ডার নোটিফিকেশন সাউন্ড বন্ধ"}
                     >
                       {isOfferSoundEnabled ? (
-                        <Volume2 className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-[#006A4E]" />
+                        <Volume2 className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-emerald-200" />
                       ) : (
-                        <VolumeX className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-slate-400" />
+                        <VolumeX className="w-3.5 lg:w-4 h-3.5 lg:h-4 text-emerald-300/60" />
                       )}
                     </button>
                   </div>
@@ -4797,21 +4783,21 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                   {currentUser ? (
                     <div
                       onClick={() => setIsMobileMarketplaceMenuOpen(true)}
-                      className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-slate-100 hover:bg-slate-200 transition cursor-pointer border border-slate-200 shrink-0 select-none"
+                      className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-[#00543D] hover:bg-[#00412F] transition cursor-pointer border border-emerald-400/40 shrink-0 select-none text-white shadow-xs"
                       title={`সেলার প্রোফাইল: ${currentUser.name}`}
                     >
                       <div className="relative">
                         <img
                           src={currentUser.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"}
                           alt={currentUser.name}
-                          className="w-6 h-6 lg:w-7 lg:h-7 rounded-full object-cover border border-emerald-600"
+                          className="w-6 h-6 lg:w-7 lg:h-7 rounded-full object-cover border border-emerald-300"
                         />
-                        <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-[#006A4E] border border-white" />
+                        <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-400 border border-white" />
                       </div>
-                      <span className="hidden xl:inline text-xs font-bold text-slate-700 max-w-[65px] truncate">
+                      <span className="hidden xl:inline text-xs font-bold text-white max-w-[65px] truncate">
                         {currentUser.name.split(' ')[0]}
                       </span>
-                      <ChevronDown className="w-3 h-3 text-slate-500" />
+                      <ChevronDown className="w-3 h-3 text-emerald-200" />
                     </div>
                   ) : null}
                 </div>
@@ -7657,12 +7643,12 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                                       <button
                                         type="button"
                                         onClick={() => setViewingOrderDetails(ord)}
-                                        className="py-1.5 sm:py-2 px-2.5 bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-black text-[10px] sm:text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-xs whitespace-nowrap"
+                                        className="py-1.5 px-2.5 sm:py-2 sm:px-4 bg-[#006A4E] hover:bg-[#047857] active:scale-95 text-white font-bold text-xs sm:text-sm rounded-lg sm:rounded-xl transition cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 shadow-xs whitespace-nowrap"
                                         title="কাজের সম্পূর্ণ তথ্য ও ব্রিফ দেখুন"
                                       >
-                                        <Info className="w-3.5 h-3.5 text-white" />
+                                        <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
                                         <span>বিস্তারিত</span>
-                                        <ExternalLink className="w-2.5 h-2.5 text-white/80" />
+                                        <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white/80" />
                                       </button>
                                     </div>
 
@@ -9179,13 +9165,13 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                           onClick={() => setSelectedCategory(cat)}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[14px] sm:text-[15px] font-medium transition cursor-pointer text-left ${
                             selectedCategory === cat
-                              ? 'bg-[#1877F2]/10 text-[#1877F2] font-bold'
+                              ? 'bg-[#006A4E]/10 text-[#006A4E] dark:text-emerald-400 font-bold'
                               : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                           }`}
                         >
-                          <span className="truncate">{cat === 'All' ? 'সব ক্যাটাগরি' : cat}</span>
+                          <span className="truncate">{cat === 'All' ? 'সব ক্যাটাগরি (All)' : cat}</span>
                           {selectedCategory === cat && (
-                            <span className="w-2 h-2 rounded-full bg-[#1877F2]" />
+                            <span className="w-2 h-2 rounded-full bg-[#006A4E] dark:bg-emerald-400" />
                           )}
                         </button>
                       ))}
@@ -9341,7 +9327,7 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                       </div>
                       <button
                         onClick={() => setActiveSubTab('gigs')}
-                        className="text-[11px] sm:text-xs font-bold text-[#38BDF8] hover:underline cursor-pointer shrink-0"
+                        className="text-[11px] sm:text-xs font-bold text-[#006A4E] dark:text-emerald-400 hover:text-[#047857] dark:hover:text-emerald-300 hover:underline cursor-pointer shrink-0"
                       >
                         সবগুলো →
                       </button>
@@ -9574,8 +9560,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                     </div>
 
                     <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                      <span className="text-xs font-bold text-[#38BDF8]">কোর্স ফি:</span>
-                      <span className="text-base font-black text-slate-900 dark:text-white">
+                      <span className="text-xs font-bold text-[#006A4E] dark:text-emerald-400">কোর্স ফি:</span>
+                      <span className="text-base font-black text-[#006A4E] dark:text-emerald-400">
                         {crs.isFree ? 'ফ্রি কোর্স' : `৳${(crs.discountPrice || crs.price || 0).toLocaleString('bn-BD')}`}
                       </span>
                     </div>
@@ -12500,12 +12486,12 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                                         <button
                                           type="button"
                                           onClick={() => setViewingOrderDetails(ord)}
-                                          className="py-1.5 sm:py-2 px-2.5 bg-slate-700 hover:bg-slate-800 active:scale-95 text-white font-black text-[10px] sm:text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1 shadow-xs whitespace-nowrap"
+                                          className="py-1.5 px-2.5 sm:py-2 sm:px-4 bg-[#006A4E] hover:bg-[#047857] active:scale-95 text-white font-bold text-xs sm:text-sm rounded-lg sm:rounded-xl transition cursor-pointer flex items-center justify-center gap-1 sm:gap-1.5 shadow-xs whitespace-nowrap"
                                           title="কাজের সম্পূর্ণ তথ্য ও ব্রিফ দেখুন"
                                         >
-                                          <Info className="w-3.5 h-3.5 text-white" />
+                                          <Info className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
                                           <span>বিস্তারিত</span>
-                                          <ExternalLink className="w-2.5 h-2.5 text-white/80" />
+                                          <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white/80" />
                                         </button>
                                       </div>
                                     </div>
@@ -13615,7 +13601,7 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
 
               <button
                 type="submit"
-                className="w-full py-2.5 bg-[#006A4E] hover:bg-[#19a34a] text-white font-black text-xs rounded-xl transition shadow cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-[#006A4E] hover:bg-[#047857] text-white font-black text-xs rounded-xl transition shadow-xs cursor-pointer flex items-center justify-center gap-2 active:scale-95"
               >
                 <Send className="w-4 h-4" />
                 <span>মেসেজ পাঠান</span>
