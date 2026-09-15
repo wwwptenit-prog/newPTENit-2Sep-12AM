@@ -2365,7 +2365,7 @@ const SingleChatWindow: React.FC<SingleChatWindowProps> = ({
   return (
     <div className="w-[320px] sm:w-[360px] max-w-[calc(100vw-1rem)] bg-white dark:bg-[#1C2733] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col pointer-events-auto transition-all duration-200 overflow-hidden ring-1 ring-black/10 animate-in slide-in-from-bottom-5 duration-200">
       {/* Header Bar */}
-      <div className="px-3.5 py-2.5 bg-[#006A4E] border-b border-[#00543D] text-white flex items-center justify-between select-none shadow-md">
+      <div className="px-3.5 py-2.5 bg-gradient-to-r from-[#0084FF] to-[#0066CC] text-white flex items-center justify-between select-none shadow-md">
         <div className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer" onClick={onMinimize} title="মিনিমাইজ / ম্যাক্সিমাইজ করুন">
           <div className="relative shrink-0">
             {win.senderRole === 'customer' || win.senderRole === 'buyer' ? (
@@ -2560,7 +2560,7 @@ const SingleChatWindow: React.FC<SingleChatWindowProps> = ({
                 disabled={!inputText.trim()}
                 className={`p-2 rounded-full transition cursor-pointer shadow-xs active:scale-95 flex items-center justify-center shrink-0 ${
                   inputText.trim()
-                    ? 'bg-[#006A4E] hover:bg-[#047857] text-white'
+                    ? 'bg-[#0084FF] hover:bg-[#0073e6] text-white'
                     : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
                 }`}
                 title="মেসেজ পাঠান"
@@ -2934,7 +2934,7 @@ const FullScreenChatThread: React.FC<FullScreenChatThreadProps> = ({
             disabled={!inputText.trim()}
             className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full cursor-pointer transition shadow-xs shrink-0 active:scale-95 flex items-center justify-center ${
               inputText.trim()
-                ? 'bg-[#006A4E] hover:bg-[#047857] text-white opacity-100'
+                ? 'bg-[#0084FF] hover:bg-[#0073e6] text-white opacity-100'
                 : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
             }`}
             title="মেসেজ পাঠান"

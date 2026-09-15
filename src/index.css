@@ -5,6 +5,15 @@
   --font-heading: 'Inter', 'Noto Sans Bengali', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-bengali: 'Noto Sans Bengali', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-english: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Official 6 Colors Theme Definition */
+  --color-primary: #006A4E;
+  --color-cta: #E31E24;
+  --color-error: #E31E24;
+  --color-info: #1E3A8A;
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-text: #111827;
 }
 
 @layer base {
@@ -14,6 +23,15 @@
     --font-heading: var(--font-bilingual);
     --font-bengali: var(--font-bilingual);
     --font-english: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    /* 6 Official Colors */
+    --color-primary: #006A4E;
+    --color-cta: #E31E24;
+    --color-error: #E31E24;
+    --color-info: #1E3A8A;
+    --color-background: #F8FAFC;
+    --color-surface: #FFFFFF;
+    --color-text: #111827;
   }
 
   html {
@@ -31,7 +49,7 @@
     font-weight: 400;
     line-height: 1.55;
     letter-spacing: normal;
-    background-color: #F5F7FA;
+    background-color: #F8FAFC;
     color: #111827;
     max-width: 100vw;
     overflow-x: hidden;
@@ -87,28 +105,27 @@
 
 /* PTENit Official Brand Identity: Clean Bangladeshi Red & Green (লাল-সবুজ) */
 :root {
-  --pten-green: #006A4E;           /* Clean Official Green */
-  --pten-green-hover: #047857;     /* Rich Green Hover */
-  --pten-green-active: #065F46;    /* Deep Clean Green */
-  --pten-green-light: #10B981;     /* Bright Green Accent */
-  --pten-green-tint: #ECFDF5;      /* Soft Green Tint */
-  --pten-green-border: #A7F3D0;
+  --pten-green: #006A4E;           /* Clean Vibrant Green */
+  --pten-green-hover: #00543e;     /* Rich Green Hover */
+  --pten-green-active: #004231;    /* Deep Clean Green */
+  --pten-green-light: #008562;     /* Bright Green Accent */
+  --pten-green-tint: #F0FDF4;      /* Soft Green Tint */
+  --pten-green-border: #BBF7D0;
 
-  --pten-red: #E11D48;             /* Clean Solid Red/Rose */
-  --pten-red-hover: #BE123C;       /* Deep Ruby Red */
-  --pten-red-glow: rgba(225, 29, 72, 0.4);
+  --pten-red: #E31E24;             /* Clean Solid Red */
+  --pten-red-hover: #B81419;       /* Deep Ruby Red */
+  --pten-red-glow: rgba(220, 38, 38, 0.4);
 
   /* Unified Theme Variables */
   --brand-primary: #006A4E;
-  --brand-primary-hover: #047857;
-  --brand-accent: #E11D48;
+  --brand-accent: #E31E24;
   --fb-blue: #006A4E;
-  --fb-blue-hover: #047857;
-  --fb-blue-active: #065F46;
+  --fb-blue-hover: #00543e;
+  --fb-blue-active: #004231;
   --gemini-blue: #006A4E;
-  --gemini-rich: #047857;
+  --gemini-rich: #00543e;
   --gemini-indigo: #006A4E;
-  --gemini-purple: #E11D48;
+  --gemini-purple: #E31E24;
   --gemini-sparkle: #006A4E;
   --gemini-text: #006A4E;
 }
@@ -138,15 +155,15 @@
 }
 
 .bg-ptenit-red {
-  background-color: #E11D48 !important;
+  background-color: #E31E24 !important;
 }
 
 .text-ptenit-red {
-  color: #E11D48 !important;
+  color: #E31E24 !important;
 }
 
 .border-ptenit-red {
-  border-color: #E11D48 !important;
+  border-color: #E31E24 !important;
 }
 
 .bg-ptenit-dark {
@@ -155,6 +172,60 @@
 
 .bg-ptenit-card {
   background-color: #FFFFFF;
+}
+
+/* 6 Official Color Utility Helpers */
+.bg-official-primary { background-color: #006A4E !important; }
+.text-official-primary { color: #006A4E !important; }
+.border-official-primary { border-color: #006A4E !important; }
+
+.bg-official-cta, .bg-official-error { background-color: #E31E24 !important; }
+.text-official-cta, .text-official-error { color: #E31E24 !important; }
+.border-official-cta, .border-official-error { border-color: #E31E24 !important; }
+
+.bg-official-info { background-color: #1E3A8A !important; }
+.text-official-info { color: #1E3A8A !important; }
+.border-official-info { border-color: #1E3A8A !important; }
+
+.bg-official-background { background-color: #F8FAFC !important; }
+.bg-official-surface { background-color: #FFFFFF !important; }
+.text-official-main { color: #111827 !important; }
+
+/* Responsive Typography Specification
+   Hero: Mobile text-3xl, Desktop md:text-5xl
+   Page Title: Mobile text-2xl, Desktop md:text-4xl
+   Section: Mobile text-xl, Desktop md:text-3xl
+   Card Title: Mobile text-lg, Desktop md:text-2xl
+   Subtitle: Mobile text-base, Desktop md:text-xl
+   Body: Mobile text-sm, Desktop md:text-base
+   Caption: Mobile text-xs, Desktop text-xs
+*/
+.typo-hero {
+  @apply text-3xl md:text-5xl font-black leading-tight;
+}
+
+.typo-page-title {
+  @apply text-2xl md:text-4xl font-bold leading-snug;
+}
+
+.typo-section {
+  @apply text-xl md:text-3xl font-bold leading-snug;
+}
+
+.typo-card-title {
+  @apply text-lg md:text-2xl font-bold leading-snug;
+}
+
+.typo-subtitle {
+  @apply text-base md:text-xl font-medium leading-relaxed;
+}
+
+.typo-body {
+  @apply text-sm md:text-base font-normal leading-normal;
+}
+
+.typo-caption {
+  @apply text-xs leading-normal;
 }
 
 /* Custom scrollbar */
@@ -209,7 +280,7 @@
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #16a34a;
+    background: #006A4E;
   }
 }
 
@@ -242,7 +313,7 @@
 
 .liquid-glass-interactive:hover {
   background: #F8FAFC !important;
-  border-color: #16A34A !important;
+  border-color: #006A4E !important;
   box-shadow: 0 4px 12px rgba(22, 163, 74, 0.1) !important;
   transform: translateY(-1px);
 }
@@ -256,7 +327,7 @@
 
 .liquid-glass-input:focus {
   background: #FFFFFF !important;
-  border-color: #16A34A !important;
+  border-color: #006A4E !important;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15) !important;
   outline: none;
 }
@@ -283,205 +354,75 @@
   color: #0F172A !important;
 }
 
-/* Professional Card */
+/* Premium Card (Clean White) */
 .premium-card {
   background: #FFFFFF !important;
   border: 1px solid #E2E8F0 !important;
-  border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
   color: #0F172A !important;
   overflow: hidden;
 }
 
-/* Professional Accent Badges */
+/* Glass/Premium Inner Elements */
+.premium-card .glass {
+  background: rgba(255,255,255,.045);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.07);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+/* Colorful Accent */
 .premium-card .green {
-  background: #006A4E;
-  color: #ffffff;
+  background: linear-gradient(135deg, #00e887, #00bfa5);
 }
 
 .premium-card .blue {
-  background: #2563EB;
-  color: #ffffff;
+  background: linear-gradient(135deg, #00d9ff, #4f7cff);
 }
 
 .premium-card .purple {
-  background: #7C3AED;
-  color: #ffffff;
+  background: linear-gradient(135deg, #9b5cff, #e94cff);
 }
 
 .premium-card .gold {
-  background: #D97706;
-  color: #ffffff;
+  background: linear-gradient(135deg, #00e887, #ffd43b);
 }
 
 /* Pills */
 .premium-card .pill {
-  border: 1px solid #E2E8F0 !important;
-  background: #F8FAFC;
-  color: #334155;
+  border: 0 !important;
+  background: rgba(255,255,255,.07);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
 }
 
 /* Main Balance Highlight */
 .premium-card .balance {
-  background: #F0FDF4;
-  border: 1px solid #BBF7D0;
+  background:
+    radial-gradient(circle at 0% 50%, rgba(0,232,135,.20), transparent 35%),
+    linear-gradient(120deg, rgba(0,232,135,.10), rgba(79,124,255,.10), rgba(155,92,255,.12));
+  border: 1px solid rgba(0,232,135,.28);
 }
 
-/* Primary Action - Clean Solid */
+/* Primary Action */
 .premium-card .primary-action {
-  background: #006A4E !important;
-  color: #FFFFFF !important;
+  background: linear-gradient(100deg, #00e887, #00d9ff, #ffd43b);
+  color: #031711 !important;
   border: 0 !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.premium-card .primary-action:hover {
-  background: #047857 !important;
+  box-shadow: 0 8px 25px rgba(0,232,135,.22);
 }
 
 /* Progress */
 .premium-card .progress {
-  background: #006A4E;
-}
-
-/* Standard Purpose-Driven Button System */
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  min-height: 40px;
-  border-radius: 0.625rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  background-color: #006A4E;
-  color: #FFFFFF;
-  transition: background-color 0.15s ease, transform 0.1s ease;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-.btn-primary:hover {
-  background-color: #047857;
-}
-.btn-primary:active {
-  transform: scale(0.98);
-}
-
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  min-height: 40px;
-  border-radius: 0.625rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  background-color: #FFFFFF;
-  color: #006A4E;
-  border: 1px solid #006A4E;
-  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
-  cursor: pointer;
-}
-.btn-secondary:hover {
-  background-color: #F0FDF4;
-}
-.btn-secondary:active {
-  transform: scale(0.98);
-}
-
-.btn-success {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  min-height: 40px;
-  border-radius: 0.625rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  background-color: #16A34A;
-  color: #FFFFFF;
-  transition: background-color 0.15s ease, transform 0.1s ease;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-.btn-success:hover {
-  background-color: #15803D;
-}
-.btn-success:active {
-  transform: scale(0.98);
-}
-
-.btn-warning {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  min-height: 40px;
-  border-radius: 0.625rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  background-color: #D97706;
-  color: #FFFFFF;
-  transition: background-color 0.15s ease, transform 0.1s ease;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-.btn-warning:hover {
-  background-color: #B45309;
-}
-.btn-warning:active {
-  transform: scale(0.98);
-}
-
-.btn-danger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  min-height: 40px;
-  border-radius: 0.625rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  background-color: #E11D48;
-  color: #FFFFFF;
-  transition: background-color 0.15s ease, transform 0.1s ease;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-.btn-danger:hover {
-  background-color: #BE123C;
-}
-.btn-danger:active {
-  transform: scale(0.98);
-}
-
-.btn-neutral {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  min-height: 40px;
-  border-radius: 0.625rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  background-color: #F1F5F9;
-  color: #334155;
-  border: 1px solid #E2E8F0;
-  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
-  cursor: pointer;
-}
-.btn-neutral:hover {
-  background-color: #E2E8F0;
-  color: #0F172A;
-}
-.btn-neutral:active {
-  transform: scale(0.98);
+  background: linear-gradient(
+    90deg,
+    #00e887,
+    #00d9ff,
+    #4f7cff,
+    #9b5cff
+  );
+  box-shadow: 0 0 14px rgba(0,217,255,.35);
 }
 
 
@@ -489,30 +430,30 @@
 
 /* Global Text Selection - Crisp White Text with Bangladesh National Emerald Green Highlight */
 ::selection {
-  background-color: #16A34A !important;
+  background-color: #006A4E !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
 
 ::-moz-selection {
-  background-color: #16A34A !important;
+  background-color: #006A4E !important;
   color: #ffffff !important;
 }
 
 *::selection {
-  background-color: #16A34A !important;
+  background-color: #006A4E !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
 
 *::-moz-selection {
-  background-color: #16A34A !important;
+  background-color: #006A4E !important;
   color: #ffffff !important;
 }
 
 input::selection,
 textarea::selection {
-  background-color: #16A34A !important;
+  background-color: #006A4E !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }

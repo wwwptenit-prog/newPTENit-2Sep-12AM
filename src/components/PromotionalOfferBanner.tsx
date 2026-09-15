@@ -43,7 +43,7 @@ export const PromotionalOfferBanner: React.FC<PromotionalOfferBannerProps> = ({ 
   if (!activeOffer) return null;
 
   return (
-    <div className="bg-[#006A4E] text-white py-8 px-4 relative overflow-hidden shadow-sm border-b border-[#00543D]">
+    <div className="bg-[#006A4E] text-white py-8 px-4 relative overflow-hidden shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
         
         {/* Left Offer Text */}
@@ -55,7 +55,7 @@ export const PromotionalOfferBanner: React.FC<PromotionalOfferBannerProps> = ({ 
           <h2 className="text-base sm:text-xl md:text-2xl font-bold font-bengali">
             {activeOffer.title}
           </h2>
-          <p className="text-xs sm:text-sm text-emerald-100 font-bengali max-w-2xl">
+          <p className="text-xs sm:text-sm text-green-50 font-bengali max-w-2xl">
             {activeOffer.subtitle || t("আপনার পছন্দের সার্ভিস বা কোর্সটি আজই অর্ডার/এনরোল করুন", "Enroll or order your desired service/course today")}
           </p>
         </div>
@@ -87,7 +87,7 @@ export const PromotionalOfferBanner: React.FC<PromotionalOfferBannerProps> = ({ 
 
           <button
             onClick={() => setActiveTab('courses')}
-            className="px-5 py-2.5 rounded-lg font-bold text-white bg-[#DC2626] hover:bg-[#B91C1C] shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-2 text-sm shrink-0"
+            className="px-5 py-2.5 rounded-lg font-bold text-white bg-[#E31E24] hover:bg-[#B81419] shadow-xs active:scale-95 transition-all cursor-pointer flex items-center gap-2 text-sm shrink-0"
           >
             {activeOffer.ctaText || t("অফারটি গ্রহণ করুন", "Claim Offer Now")}
             <ArrowRight className="w-4 h-4 text-white" />

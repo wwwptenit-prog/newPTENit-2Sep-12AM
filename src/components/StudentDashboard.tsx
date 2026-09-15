@@ -960,21 +960,13 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                                 <span className="px-2 py-0.5 bg-[#006A4E]/15 text-[#38BDF8] text-[10px] font-bold rounded-lg border border-blue-600/50/30">
                                   {course.category}
                                 </span>
-                                {enr.status === 'pending' ? (
-                                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-[10px] font-bold rounded-lg border border-amber-500/30 flex items-center gap-1">
-                                    <Clock className="w-3 h-3 animate-spin" /> পেমেন্ট ভেরিফিকেশন অপেক্ষমান (Pending)
-                                  </span>
-                                ) : enr.status === 'cancelled' ? (
-                                  <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 text-[10px] font-bold rounded-lg border border-rose-500/30 flex items-center gap-1">
-                                    <Lock className="w-3 h-3" /> পেমেন্ট বাতিল (Locked)
-                                  </span>
-                                ) : enr.status === 'completed' ? (
+                                {enr.status === 'completed' ? (
                                   <span className="px-2 py-0.5 bg-blue-500/20 text-sky-400 text-[10px] font-bold rounded-lg border border-blue-500/30 flex items-center gap-1">
                                     <CheckCircle className="w-3 h-3" /> কোর্স সম্পন্ন
                                   </span>
                                 ) : (
-                                  <span className="px-2 py-0.5 bg-[#006A4E]/20 text-[#38BDF8] text-[10px] font-bold rounded-lg border border-emerald-500/30 flex items-center gap-1">
-                                    <Clock className="w-3 h-3" /> সক্রিয় ব্যাচ
+                                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-500 text-[10px] font-bold rounded-lg border border-amber-500/30 flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> লাইভ ব্যাচ চলমান
                                   </span>
                                 )}
                               </div>
@@ -1015,46 +1007,20 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
                         {/* PC Feature Action Suite Grid */}
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
-                          {enr.status === 'pending' && (
-                            <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-500/30 rounded-xl text-amber-800 dark:text-amber-300 text-[11px] font-sans">
-                              Payment submitted successfully. Please wait while we verify your payment. Access will be activated after admin approval.
-                            </div>
-                          )}
-
                           {/* Main Action Buttons */}
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => onStartLearning(course.id)}
-                              className={`flex-1 py-2.5 px-3 ${
-                                enr.status === 'pending'
-                                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
-                                  : enr.status === 'cancelled'
-                                  ? 'bg-rose-600 hover:bg-rose-700 text-white'
-                                  : 'bg-[#006A4E] hover:bg-[#047857] text-white'
-                              } font-black text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98`}
+                              className="flex-1 py-2.5 px-3 bg-[#006A4E] hover:bg-[#047857] text-white font-black text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                             >
-                              {enr.status === 'pending' ? (
-                                <>
-                                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                                  <span>অপেক্ষমান (Pending)</span>
-                                </>
-                              ) : enr.status === 'cancelled' ? (
-                                <>
-                                  <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
-                                  <span>বাতিল (এক্সেস লকড)</span>
-                                </>
-                              ) : (
-                                <>
-                                  <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
-                                  <span>ক্লাসে যান</span>
-                                </>
-                              )}
+                              <PlayCircle className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+                              <span>ক্লাসে যান</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => setActiveCurriculumModal(course)}
-                              className="py-1.5 px-2.5 sm:py-2 sm:px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer active:scale-98"
+                              className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 transition cursor-pointer active:scale-98"
                             >
                               <span>বিস্তারিত</span>
                             </button>

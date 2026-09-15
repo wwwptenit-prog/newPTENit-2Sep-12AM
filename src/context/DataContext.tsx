@@ -525,7 +525,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [services, setServices] = useState<Service[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_services`);
-    return saved ? JSON.parse(saved) : initialServices;
+    if (saved) {
+      try {
+        const parsed: Service[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(s => {
+            const init = initialServices.find(i => i.id === s.id);
+            return {
+              ...s,
+              badge: s.badge || init?.badge || (['web-dev', 'branding'].includes(s.id) ? 'প্রিমিয়াম' : 'আগে কাজ শুরু')
+            };
+          });
+        }
+      } catch {}
+    }
+    return initialServices;
   });
 
   const [gallery, setGallery] = useState<GalleryItem[]>(() => {
