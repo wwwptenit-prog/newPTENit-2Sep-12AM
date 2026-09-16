@@ -20,6 +20,10 @@ import {
   Ban,
   Eye,
   ExternalLink,
+  Pencil,
+  Trash2,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 import { MarketplaceGig, User as UserType } from "../types";
 import { useData } from "../context/DataContext";
@@ -37,6 +41,7 @@ interface GigCardProps {
   savedGigIds?: string[];
   toggleFavorite?: (gigId: string, e: React.MouseEvent) => void;
   deleteGig?: (gigId: string) => void;
+  onEdit?: (gig: MarketplaceGig) => void;
   badgeTag?: string;
   className?: string;
   layoutMode?: 'feed' | 'grid' | 'auto';
@@ -51,6 +56,7 @@ export const GigCard: React.FC<GigCardProps> = ({
   savedGigIds = [],
   toggleFavorite,
   deleteGig,
+  onEdit,
   badgeTag,
   className = "",
   layoutMode = 'auto',
@@ -102,6 +108,26 @@ export const GigCard: React.FC<GigCardProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isReported, setIsReported] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('spam');
+  const [reportDetails, setReportDetails] = useState('');
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((prev) => (prev === msg ? null : prev));
+    }, 2800);
+  };
+
+  const isOwner = !!(
+    effectiveUser && (
+      (gig.sellerId && gig.sellerId === effectiveUser.id) ||
+      (effectiveUser.name && gig.sellerName && gig.sellerName.toLowerCase().trim() === effectiveUser.name.toLowerCase().trim())
+    )
+  );
   const [shareCount, setShareCount] = useState<number>(() => {
     return 5 + ((gig.id.charCodeAt(gig.id.length - 1) || 1) % 8);
   });
@@ -319,13 +345,19 @@ export const GigCard: React.FC<GigCardProps> = ({
   const handleShareLink = (e: React.MouseEvent) => {
     e.stopPropagation();
     const shareUrl = `${window.location.origin}/?tab=marketplace&gig=${gig.id}`;
-    if (navigator.clipboard) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(shareUrl).then(() => {
         setCopiedLink(true);
+        triggerToast("✓ পোস্টের লিংক ক্লিপবোর্ডে কপি হয়েছে!");
+        setTimeout(() => setCopiedLink(false), 2200);
+      }).catch(() => {
+        setCopiedLink(true);
+        triggerToast("✓ পোস্টের লিংক কপি হয়েছে!");
         setTimeout(() => setCopiedLink(false), 2200);
       });
     } else {
       setCopiedLink(true);
+      triggerToast("✓ পোস্টের লিংক কপি হয়েছে!");
       setTimeout(() => setCopiedLink(false), 2200);
     }
   };
@@ -335,17 +367,18 @@ export const GigCard: React.FC<GigCardProps> = ({
 
   if (isBlocked) {
     return (
-      <div className={`${isFeedMode ? "flex sm:hidden" : "hidden"} p-4 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 text-center font-bengali space-y-2`}>
-        <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-          🚫 <strong>{gig.sellerName}</strong>-কে ব্লক করা হয়েছে। এই সেলারের পোস্ট লুকানো রয়েছে।
+      <div className="p-3.5 sm:p-4 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 text-center font-bengali space-y-2 my-2">
+        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium">
+          🚫 <strong>{gig.sellerName}</strong>-কে ব্লক করা হয়েছে। এই পোস্ট লুকানো রয়েছে।
         </p>
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             setIsBlocked(false);
+            triggerToast("✓ ব্যবহারকারীকে আনব্লক করা হয়েছে।");
           }}
-          className="text-xs font-bold text-[#006A4E] hover:underline cursor-pointer"
+          className="px-3.5 py-1.5 bg-white dark:bg-slate-700 hover:bg-slate-50 text-xs font-bold text-[#006A4E] dark:text-emerald-400 rounded-lg shadow-2xs border border-slate-200 dark:border-slate-600 cursor-pointer active:scale-95 transition"
         >
           আনব্লক করুন
         </button>
@@ -422,74 +455,129 @@ export const GigCard: React.FC<GigCardProps> = ({
                 e.stopPropagation();
                 setIsMenuOpen((prev) => !prev);
               }}
-              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition cursor-pointer"
-              title="Menu"
+              className="p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition cursor-pointer"
+              title="মেনু"
             >
               <MoreHorizontal className="w-5 h-5" />
             </button>
 
             {/* Quick 3-Dots Dropdown Menu */}
             {isMenuOpen && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-9 z-30 w-48 bg-white border border-slate-200 rounded-xl shadow-xl p-1 text-xs space-y-0.5 animate-fadeIn"
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    handleShareLink(e);
-                    setIsMenuOpen(false);
-                  }}
-                  className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-slate-100 flex items-center gap-2 text-slate-700 font-medium cursor-pointer"
+              <>
+                <div
+                  className="fixed inset-0 z-20"
+                  onClick={() => setIsMenuOpen(false)}
+                />
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute right-0 top-9 z-30 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1 text-xs space-y-0.5 animate-fadeIn font-bengali"
                 >
-                  <Copy className="w-3.5 h-3.5 text-[#006A4E]" />
-                  <span>{copiedLink ? "Copied!" : "Copy Link"}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onClick();
-                  }}
-                  className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-slate-100 flex items-center gap-2 text-slate-700 font-medium cursor-pointer"
-                >
-                  <ShoppingBag className="w-3.5 h-3.5 text-[#006A4E]" />
-                  <span>View Full Gig</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      handleShareLink(e);
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium cursor-pointer transition"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-[#006A4E] dark:text-emerald-400" />
+                    <span>{copiedLink ? "লিংক কপি হয়েছে!" : "লিংক কপি করুন"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMenuOpen(false);
+                      onClick();
+                    }}
+                    className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium cursor-pointer transition"
+                  >
+                    <ShoppingBag className="w-3.5 h-3.5 text-[#006A4E] dark:text-emerald-400" />
+                    <span>বিস্তারিত দেখুন</span>
+                  </button>
 
-                <div className="border-t border-slate-100 my-1" />
+                  {isOwner ? (
+                    <>
+                      {onEdit && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsMenuOpen(false);
+                            onEdit(gig);
+                          }}
+                          className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium cursor-pointer transition"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-blue-500" />
+                          <span>এডিট করুন</span>
+                        </button>
+                      )}
+                      {deleteGig && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsMenuOpen(false);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2 text-rose-600 dark:text-rose-400 font-medium cursor-pointer transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                          <span>মুছে ফেলুন</span>
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsMenuOpen(false);
+                          if (toggleFavorite) {
+                            toggleFavorite(gig.id, e);
+                          }
+                          triggerToast(!isFavorite ? "✓ পোস্টটি পছন্দের তালিকায় সংরক্ষণ করা হয়েছে!" : "পোস্টটি পছন্দের তালিকা থেকে সরানো হয়েছে।");
+                        }}
+                        className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium cursor-pointer transition"
+                      >
+                        <Bookmark className={`w-3.5 h-3.5 ${isFavorite ? 'text-amber-500 fill-amber-500' : 'text-slate-500 dark:text-slate-400'}`} />
+                        <span>{isFavorite ? "সংরক্ষিত থেকে সরান" : "সংরক্ষণ করুন"}</span>
+                      </button>
 
-                {/* Report Option */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsMenuOpen(false);
-                    setIsReported(true);
-                    alert(`Report submitted for "${gig.title}". Our team will review this.`);
-                  }}
-                  className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-red-50 flex items-center gap-2 text-red-600 font-medium cursor-pointer"
-                >
-                  <Flag className="w-3.5 h-3.5 text-red-500" />
-                  <span>{isReported ? "Reported" : "Report"}</span>
-                </button>
+                      <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
 
-                {/* Block Option */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsMenuOpen(false);
-                    if (window.confirm(`Block "${gig.sellerName}"? All posts from this seller will be hidden from your feed.`)) {
-                      setIsBlocked(true);
-                    }
-                  }}
-                  className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-red-50 flex items-center gap-2 text-red-600 font-medium cursor-pointer"
-                >
-                  <Ban className="w-3.5 h-3.5 text-red-500" />
-                  <span>Block Seller</span>
-                </button>
-              </div>
+                      {/* Report Option */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsMenuOpen(false);
+                          setIsReportModalOpen(true);
+                        }}
+                        className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2 text-rose-600 dark:text-rose-400 font-medium cursor-pointer transition"
+                      >
+                        <Flag className="w-3.5 h-3.5 text-rose-500" />
+                        <span>{isReported ? "রিপোর্ট গৃহীত হয়েছে" : "রিপোর্ট করুন"}</span>
+                      </button>
+
+                      {/* Block Option */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsMenuOpen(false);
+                          setIsBlockModalOpen(true);
+                        }}
+                        className="w-full px-2.5 py-1.5 text-left rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2 text-red-600 font-medium cursor-pointer transition"
+                      >
+                        <Ban className="w-3.5 h-3.5 text-red-500" />
+                        <span>ব্লক করুন</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -579,88 +667,62 @@ export const GigCard: React.FC<GigCardProps> = ({
           </div>
         )}
 
-        {/* --- Reactions & Engagement Counter Bar --- */}
-        <div className="px-3.5 py-2 flex items-center justify-between gap-1 text-[13.5px] text-slate-600">
-          {/* 1. Left: Engagement Counter (Total votes in PC view, Likes in Mobile view) */}
+        {/* --- Reactions & Engagement Counter Bar (Unified: Exact same on Phone & PC) --- */}
+        <div className="px-3 sm:px-3.5 py-2 flex items-center justify-between gap-1 text-xs sm:text-[13.5px] text-slate-600">
+          {/* 1. Left: Votes Summary */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* PC View Votes Summary */}
-            <div className="hidden sm:flex items-center gap-2">
-              <div className="flex -space-x-1 items-center">
-                <span className="w-4.5 h-4.5 rounded-full bg-[#006A4E] text-white flex items-center justify-center text-[10px] shadow-xs ring-1 ring-white">
-                  <ThumbsUp className="w-2.5 h-2.5 fill-white text-white" />
-                </span>
-                <span className="w-4.5 h-4.5 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-[10px] shadow-xs ring-1 ring-white">
-                  <ThumbsDown className="w-2.5 h-2.5 fill-slate-600 text-slate-600" />
-                </span>
-              </div>
-              <span className="font-semibold text-slate-700 text-[13.5px]">
-                মোট {upCount + downCount} জন ভোট দিয়েছেন
+            <div className="flex -space-x-1 items-center">
+              <span className="w-4.5 h-4.5 rounded-full bg-[#006A4E] text-white flex items-center justify-center text-[10px] shadow-xs ring-1 ring-white">
+                <ThumbsUp className="w-2.5 h-2.5 fill-white text-white" />
+              </span>
+              <span className="w-4.5 h-4.5 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center text-[10px] shadow-xs ring-1 ring-white">
+                <ThumbsDown className="w-2.5 h-2.5 fill-slate-600 text-slate-600" />
               </span>
             </div>
-
-            {/* Mobile View Likes */}
-            <div className="flex sm:hidden items-center gap-2">
-              <div className="flex -space-x-1 items-center">
-                <span className="w-4.5 h-4.5 rounded-full bg-[#006A4E] text-white flex items-center justify-center text-[10px] shadow-xs ring-1 ring-white">
-                  <ThumbsUp className="w-2.5 h-2.5 fill-white text-white" />
-                </span>
-                <span className="w-4.5 h-4.5 rounded-full bg-[#E31E24] text-white flex items-center justify-center text-[10px] shadow-xs ring-1 ring-white">
-                  <Heart className="w-2.5 h-2.5 fill-white text-white" />
-                </span>
-              </div>
-              <span className="font-medium text-slate-600 text-[13.5px]">
-                {likeCount} {likeCount === 1 ? "like" : "likes"}
-              </span>
-            </div>
+            <span className="font-semibold text-slate-700 text-xs sm:text-[13.5px]">
+              মোট {upCount + downCount} জন ভোট দিয়েছেন
+            </span>
           </div>
 
           {/* 2. Right: Views Counter */}
-          <div className="flex items-center gap-1.5 text-[13.5px] text-slate-500 shrink-0">
-            <Eye className="w-4 h-4 text-slate-400" />
-            <span className="font-medium text-slate-500 text-[13.5px]">
+          <div className="flex items-center gap-1.5 text-xs sm:text-[13.5px] text-slate-500 shrink-0">
+            <Eye className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-slate-400" />
+            <span className="font-medium text-slate-500">
               {viewCountInK} ভিউ
             </span>
           </div>
         </div>
 
-        {/* --- Action Bar: PC View (Up, Down, Details - Like/Message/Share removed) --- */}
-        <div className="hidden sm:grid sm:grid-cols-3 gap-2.5 items-center px-3.5 py-2.5 border-t border-slate-100 bg-white">
-          {/* 1. আপ বাটন (Upvote - বাটনে কাউন্ট ছাড়া) */}
+        {/* --- Action Bar (Unified for Both Phone & PC: Up, Down, Details) --- */}
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5 items-center px-2 sm:px-3.5 py-2 sm:py-2.5 border-t border-slate-100 bg-white">
+          {/* 1. আপ বাটন (Upvote - সাথে সংখ্যা, ফুল বর্ডার কালার ছাড়া শুধু আইকন কালার) */}
           <button
             type="button"
             onClick={handleUpvoteToggle}
-            className={`py-2.5 px-4 rounded-xl text-[14px] font-bold flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer border ${
-              isUpvoted
-                ? "text-[#006A4E] bg-emerald-50 border-emerald-300 shadow-2xs"
-                : "text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-200/70"
-            }`}
+            className="py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl text-xs sm:text-[14px] font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all active:scale-95 cursor-pointer border border-slate-200/70 bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap"
             title="আপভোট"
           >
             <ThumbsUp
-              className={`w-4 h-4 transition-transform ${
+              className={`w-3.5 sm:w-4 h-3.5 sm:h-4 transition-transform shrink-0 ${
                 isUpvoted ? "fill-[#006A4E] text-[#006A4E] scale-110" : "text-slate-600"
               }`}
             />
-            <span>আপ</span>
+            <span>আপ {upCount}</span>
           </button>
 
-          {/* 2. ডাউন বাটন (Downvote - বাটনে কাউন্ট ছাড়া) */}
+          {/* 2. ডাউন বাটন (Downvote - সাথে সংখ্যা, ফুল বর্ডার কালার ছাড়া শুধু আইকন কালার) */}
           <button
             type="button"
             onClick={handleDownvoteToggle}
-            className={`py-2.5 px-4 rounded-xl text-[14px] font-bold flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer border ${
-              isDownvoted
-                ? "text-rose-600 bg-rose-50 border-rose-300 shadow-2xs"
-                : "text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-200/70"
-            }`}
+            className="py-2 sm:py-2.5 px-1.5 sm:px-3 rounded-xl text-xs sm:text-[14px] font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all active:scale-95 cursor-pointer border border-slate-200/70 bg-slate-100 hover:bg-slate-200 text-slate-700 whitespace-nowrap"
             title="ডাউনভোট"
           >
             <ThumbsDown
-              className={`w-4 h-4 transition-transform ${
+              className={`w-3.5 sm:w-4 h-3.5 sm:h-4 transition-transform shrink-0 ${
                 isDownvoted ? "fill-rose-600 text-rose-600 scale-110" : "text-slate-600"
               }`}
             />
-            <span>ডাউন</span>
+            <span>ডাউন {downCount}</span>
           </button>
 
           {/* 3. বিস্তারিত বাটন (Details) */}
@@ -670,86 +732,11 @@ export const GigCard: React.FC<GigCardProps> = ({
               e.stopPropagation();
               onClick();
             }}
-            className="py-2.5 px-4 rounded-xl text-[14px] font-bold text-white bg-[#006A4E] hover:bg-[#00543e] flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs group/btn"
+            className="py-2 sm:py-2.5 px-2 sm:px-4 rounded-xl text-xs sm:text-[14px] font-bold text-white bg-[#006A4E] hover:bg-[#00543e] flex items-center justify-center gap-1 sm:gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs group/btn"
             title="বিস্তারিত দেখুন"
           >
             <span>বিস্তারিত দেখুন</span>
-            <ArrowRight className="w-4 h-4 text-white group-hover/btn:translate-x-0.5 transition-transform" />
-          </button>
-        </div>
-
-        {/* --- Action Bar: Mobile View (< sm) --- */}
-        <div className="sm:hidden px-2.5 py-2 grid grid-cols-4 gap-1.5 items-center border-t border-slate-100 bg-white">
-          {/* 1. Like / Upvote */}
-          <button
-            type="button"
-            onClick={handleUpvoteToggle}
-            className={`py-2 px-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs ${
-              isUpvoted
-                ? "text-[#006A4E] bg-green-50 font-bold"
-                : "text-slate-700 bg-slate-100 hover:bg-slate-200"
-            }`}
-            title="লাইক"
-          >
-            <ThumbsUp
-              className={`w-3.5 h-3.5 ${
-                isUpvoted ? "fill-[#006A4E] text-[#006A4E]" : "text-slate-600"
-              }`}
-            />
-            <span>লাইক</span>
-            <span className="text-[11px] font-bold">{upCount}</span>
-          </button>
-
-          {/* 2. Message / চ্যাট */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (openMessengerInbox) {
-                openMessengerInbox(gig.sellerId, gig.sellerName);
-              } else {
-                onClick();
-              }
-            }}
-            className="py-2 px-1.5 rounded-full text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs"
-            title={isBuyerPost ? "বায়ারকে ইনবক্স করুন" : "সেলারকে ইনবক্স করুন"}
-          >
-            <MessageCircle className="w-3.5 h-3.5 text-[#006A4E]" />
-            <span>মেসেজ</span>
-          </button>
-
-          {/* 3. Share / লিঙ্ক কপি */}
-          <button
-            type="button"
-            onClick={handleShareLink}
-            className="py-2 px-1.5 rounded-full text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 flex items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-2xs"
-            title="গিগ লিঙ্ক কপি করুন"
-          >
-            {copiedLink ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-[#006A4E]" />
-                <span className="text-[#006A4E] font-bold">কপি</span>
-              </>
-            ) : (
-              <>
-                <Share2 className="w-3.5 h-3.5 text-slate-600" />
-                <span>শেয়ার</span>
-              </>
-            )}
-          </button>
-
-          {/* 4. Details Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick();
-            }}
-            className="py-2 px-1.5 rounded-full text-xs font-bold text-white bg-[#006A4E] hover:bg-[#00543e] flex items-center justify-center gap-1 transition active:scale-95 cursor-pointer shadow-xs"
-            title="বিস্তারিত দেখুন"
-          >
-            <span>বিস্তারিত</span>
-            <ArrowRight className="w-3.5 h-3.5 text-white" />
+            <ArrowRight className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white group-hover/btn:translate-x-0.5 transition-transform" />
           </button>
         </div>
       </div>
@@ -946,6 +933,195 @@ export const GigCard: React.FC<GigCardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Floating Action Feedback Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 bg-slate-900/95 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold rounded-2xl shadow-2xl border border-slate-700 dark:border-slate-300 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 font-bengali pointer-events-none">
+          <Check className="w-4 h-4 text-emerald-400 dark:text-emerald-600" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {isReportModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs font-bengali"
+          onClick={() => setIsReportModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md p-4 sm:p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-rose-600">
+                <Flag className="w-5 h-5" />
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+                  পোস্ট রিপোর্ট করুন
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsReportModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-1">
+              পোস্ট: <strong>"{gig.title}"</strong> ({gig.sellerName})
+            </p>
+
+            <div className="space-y-1.5 text-xs">
+              <label className="font-bold text-slate-700 dark:text-slate-200 block">
+                রিপোর্টের কারণ নির্বাচন করুন:
+              </label>
+              {[
+                { id: 'spam', label: 'স্প্যাম বা ভুয়া অফার' },
+                { id: 'misleading', label: 'বিভ্রান্তিকর বা অসত্য বিবরণ' },
+                { id: 'inappropriate', label: 'অনুপযুক্ত বা আপত্তিকর কন্টেন্ট' },
+                { id: 'copyright', label: 'কপিরাইট বা বুদ্ধিবৃত্তিক সম্পদ লঙ্ঘন' },
+                { id: 'other', label: 'অন্যান্য কারণ' },
+              ].map((item) => (
+                <label
+                  key={item.id}
+                  className="flex items-center gap-2 p-2 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition"
+                >
+                  <input
+                    type="radio"
+                    name={`report-reason-${gig.id}`}
+                    value={item.id}
+                    checked={reportReason === item.id}
+                    onChange={() => setReportReason(item.id)}
+                    className="accent-[#006A4E]"
+                  />
+                  <span className="text-slate-700 dark:text-slate-300">{item.label}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+                অতিরিক্ত তথ্য (ঐচ্ছিক):
+              </label>
+              <textarea
+                rows={2}
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="বিস্তারিত বিবরণ লিখুন..."
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 outline-none focus:border-[#006A4E]"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsReportModalOpen(false)}
+                className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsReported(true);
+                  setIsReportModalOpen(false);
+                  triggerToast("✓ আপনার রিপোর্টটি জমা হয়েছে। টিম এটি পর্যালোচনা করবে।");
+                }}
+                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs"
+              >
+                রিপোর্ট জমা দিন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Block Confirmation Modal */}
+      {isBlockModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs font-bengali"
+          onClick={() => setIsBlockModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-sm p-4 sm:p-5 shadow-2xl space-y-3.5 animate-in fade-in zoom-in-95 text-center"
+          >
+            <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center mx-auto">
+              <Ban className="w-6 h-6" />
+            </div>
+            <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+              {gig.sellerName}-কে ব্লক করতে চান?
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              এই ব্যবহারকারীর সমস্ত পোস্ট ও সার্ভিস আপনার ফিড থেকে লুকিয়ে রাখা হবে। পরবর্তীতে যেকোনো সময় আনব্লক করতে পারবেন।
+            </p>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsBlockModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                না, ফিরে যান
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsBlocked(true);
+                  setIsBlockModalOpen(false);
+                  triggerToast("🚫 ব্যবহারকারীকে ব্লক করা হয়েছে।");
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs"
+              >
+                হ্যাঁ, ব্লক করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal (Owner Only) */}
+      {isDeleteModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs font-bengali"
+          onClick={() => setIsDeleteModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-sm p-4 sm:p-5 shadow-2xl space-y-3.5 animate-in fade-in zoom-in-95 text-center"
+          >
+            <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
+              পোস্টটি মুছে ফেলতে চান?
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              "{gig.title}" পোস্টটি সম্পূর্ণভাবে মুছে ফেলা হবে।
+            </p>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  if (deleteGig) deleteGig(gig.id);
+                  triggerToast("✓ পোস্টটি সফলভাবে মুছে ফেলা হয়েছে।");
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs"
+              >
+                মুছে ফেলুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

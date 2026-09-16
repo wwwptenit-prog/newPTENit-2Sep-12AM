@@ -84,6 +84,8 @@ interface DataContextType {
   initialMessengerTab: 'messages' | 'notifications' | 'courses';
   openMessengerInbox: (conversationId?: string, initialTab?: 'messages' | 'notifications' | 'courses', orderId?: string) => void;
   closeMessengerInbox: () => void;
+  marketplaceMode: 'buying' | 'selling';
+  setMarketplaceMode: (mode: 'buying' | 'selling') => void;
   assignments: Assignment[];
   submissions: AssignmentSubmission[];
   customerProjects: CustomerProject[];
@@ -127,7 +129,12 @@ interface DataContextType {
   ) => MarketplaceOrder | null;
   deliverMarketplaceOrder: (orderId: string, note: string, fileUrl?: string, fileName?: string) => void;
   requestOrderRevision: (orderId: string, note: string) => void;
-  approveOrderAndReleaseEscrow: (orderId: string, rating?: number, reviewComment?: string) => void;
+  approveOrderAndReleaseEscrow: (
+    orderId: string,
+    rating?: number,
+    reviewComment?: string,
+    paymentInfo?: { method?: string; transactionId?: string; senderPhone?: string }
+  ) => void;
   cancelMarketplaceOrder: (orderId: string, reason?: string) => void;
   updateMarketplaceOrderStatus: (orderId: string, status: MarketplaceOrder['status'], updateNote?: string) => void;
   addMarketplaceOrder: (order: MarketplaceOrder) => void;
@@ -221,6 +228,11 @@ interface DataContextType {
   rejectMentorApplication: (userId?: string, reason?: string) => void;
   
   // Direct Messages & Popovers
+  rightColumnView: 'default' | 'messages' | 'notifications';
+  setRightColumnView: React.Dispatch<React.SetStateAction<'default' | 'messages' | 'notifications'>>;
+  readConversationIds: string[];
+  markConversationRead: (id: string) => void;
+  markAllConversationsRead: () => void;
   markDirectMessageRead: (id: string) => void;
   markAllDirectMessagesRead: () => void;
   sendDirectMessage: (msg: Omit<DirectMessageItem, 'id' | 'read'>) => void;
@@ -791,6 +803,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeMessengerOrderId, setActiveMessengerOrderId] = useState<string | null>(null);
   const [isMessengerInboxOpen, setIsMessengerInboxOpen] = useState(false);
   const [initialMessengerTab, setInitialMessengerTab] = useState<'messages' | 'notifications' | 'courses'>('messages');
+  const [rightColumnView, setRightColumnView] = useState<'default' | 'messages' | 'notifications'>('default');
+
+  const [readConversationIds, setReadConversationIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_read_convo_ids`);
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return [];
+  });
 
   const [assignments, setAssignments] = useState<Assignment[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_assignments`);
@@ -2073,6 +2094,51 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const markDirectMessageRead = (id: string) => {
     setDirectMessages(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
+    setReadConversationIds(prev => {
+      if (prev.includes(id)) return prev;
+      const next = [...prev, id];
+      localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const markConversationRead = (convoId: string) => {
+    setReadConversationIds(prev => {
+      if (prev.includes(convoId)) return prev;
+      const next = [...prev, convoId];
+      localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(next));
+      return next;
+    });
+    setDirectMessages(prev => prev.map(m => {
+      const isMatch =
+        m.id === convoId ||
+        m.senderId === convoId ||
+        convoId.includes(m.id) ||
+        (m.senderName && convoId.toLowerCase().includes(m.senderName.toLowerCase())) ||
+        (m.senderName && m.senderName.toLowerCase().includes(convoId.toLowerCase()));
+      if (isMatch) {
+        return { ...m, read: true, unreadCount: 0 };
+      }
+      return m;
+    }));
+  };
+
+  const markAllConversationsRead = () => {
+    setDirectMessages(prev => prev.map(m => ({ ...m, read: true, unreadCount: 0 })));
+    setReadConversationIds(prev => {
+      const allIds = Array.from(new Set([
+        ...prev,
+        ...directMessages.map(m => m.id),
+        'chat-client-sohag',
+        'chat-client-tanjim',
+        'chat-client-sumaiya',
+        'chat-tanvir-ahmed',
+        'chat-creative-pixels',
+        'chat-piten-support'
+      ]));
+      localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(allIds));
+      return allIds;
+    });
   };
 
   const markAllDirectMessagesRead = () => {
@@ -2178,6 +2244,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const closeNotificationCenter = () => {
     setIsNotificationCenterOpen(false);
     setIsMessengerInboxOpen(false);
+  };
+
+  const [marketplaceMode, setMarketplaceModeState] = useState<'buying' | 'selling'>(() => {
+    try {
+      const saved = localStorage.getItem('marketplace_mode');
+      if (saved === 'selling' || saved === 'buying') return saved;
+    } catch {}
+    return 'buying';
+  });
+
+  const setMarketplaceMode = (mode: 'buying' | 'selling') => {
+    setMarketplaceModeState(mode);
+    try {
+      localStorage.setItem('marketplace_mode', mode);
+    } catch {}
   };
 
   const clearAllNotifications = () => {
@@ -2778,7 +2859,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ]);
   };
 
-  const approveOrderAndReleaseEscrow = (orderId: string, rating = 5, reviewComment?: string) => {
+  const approveOrderAndReleaseEscrow = (
+    orderId: string,
+    rating = 5,
+    reviewComment?: string,
+    paymentInfo?: { method?: string; transactionId?: string; senderPhone?: string }
+  ) => {
     setMarketplaceOrders(prev => prev.map(o => {
       if (o.id === orderId) {
         const bonus = o.sellerReviewBonus || 0;
@@ -2789,7 +2875,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           status: 'completed',
           rating,
           reviewComment,
-          sellerPayout: finalPayout
+          sellerPayout: finalPayout,
+          ...(paymentInfo?.method ? { paymentMethod: paymentInfo.method } : {}),
+          ...(paymentInfo?.transactionId ? { transactionId: paymentInfo.transactionId } : {}),
+          ...(paymentInfo?.senderPhone ? { buyerPhone: paymentInfo.senderPhone } : {}),
+          isWorkFirstPaid: true,
+          paidAt: new Date().toISOString()
         };
       }
       return o;
@@ -2798,8 +2889,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setNotifications(prev => [
       {
         id: `notif-${Date.now()}`,
-        title: '🎉 প্রজেক্ট কমপ্লিট & এস্ক্রো পেমেন্ট রিলিজ!',
-        message: `অর্ডার ID #${orderId} সফলভাবে সম্পন্ন হয়েছে এবং ফান্ড রিলিজ করা হয়েছে। (রেটিং: ${rating}★)`,
+        title: paymentInfo?.transactionId ? '🎉 প্রজেক্ট কমপ্লিট & বকেয়া বিল পরিশোধ সম্পন্ন!' : '🎉 প্রজেক্ট কমপ্লিট & এস্ক্রো পেমেন্ট রিলিজ!',
+        message: paymentInfo?.transactionId
+          ? `অর্ডার ID #${orderId} এর বকেয়া বিল (TrxID: ${paymentInfo.transactionId}) সফলভাবে পরিশোধ ও ফান্ড রিলিজ করা হয়েছে। সেলার তার ওয়ালেটে পেআউট পেয়েছেন। (রেটিং: ${rating}★)`
+          : `অর্ডার ID #${orderId} সফলভাবে সম্পন্ন হয়েছে এবং ফান্ড রিলিজ করা হয়েছে। (রেটিং: ${rating}★)`,
         time: 'এখনই',
         read: false,
         type: 'success',
@@ -3007,6 +3100,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initialMessengerTab,
         openMessengerInbox,
         closeMessengerInbox,
+        marketplaceMode,
+        setMarketplaceMode,
         isNotificationCenterOpen,
         setIsNotificationCenterOpen,
         openNotificationCenter,
@@ -3098,6 +3193,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         applyForMentorship,
         approveMentorApplication,
         rejectMentorApplication,
+        rightColumnView,
+        setRightColumnView,
+        readConversationIds,
+        markConversationRead,
+        markAllConversationsRead,
         markDirectMessageRead,
         markAllDirectMessagesRead,
         sendDirectMessage,
