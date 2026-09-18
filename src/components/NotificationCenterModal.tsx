@@ -28,7 +28,6 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
     isNotificationCenterOpen,
     isMessengerInboxOpen,
     closeNotificationCenter,
-    closeMessengerInbox,
     markNotificationRead,
     markAllNotificationsRead,
     clearAllNotifications,
@@ -220,15 +219,9 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={() => {
-                    closeNotificationCenter();
-                    if (closeMessengerInbox) closeMessengerInbox();
-                    window.dispatchEvent(new CustomEvent('marketplace:navigate', {
-                      detail: { viewMode: 'buying', subTab: 'gigs' }
-                    }));
-                  }}
+                  onClick={closeNotificationCenter}
                   className="p-1.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition cursor-pointer active:scale-95"
-                  title="হোমে ফিরে যান"
+                  title="বন্ধ করুন"
                 >
                   <ChevronLeft className="w-6 h-6 stroke-[2.5] text-slate-600" />
                 </button>

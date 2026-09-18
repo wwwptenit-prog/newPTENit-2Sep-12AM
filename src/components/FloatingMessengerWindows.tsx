@@ -177,11 +177,6 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
     }
   }, [isMessengerInboxOpen, initialMessengerTab, currentUser]);
 
-  const markDirectMessageReadRef = useRef(markDirectMessageRead);
-  useEffect(() => {
-    markDirectMessageReadRef.current = markDirectMessageRead;
-  }, [markDirectMessageRead]);
-
   // Synchronize selected conversation ID whenever messenger opens or activeMessengerConversationId changes
   useEffect(() => {
     if (activeMessengerConversationId) {
@@ -192,13 +187,13 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
         next.add(activeMessengerConversationId);
         return next;
       });
-      if (markDirectMessageReadRef.current) {
-        markDirectMessageReadRef.current(activeMessengerConversationId);
+      if (markDirectMessageRead) {
+        markDirectMessageRead(activeMessengerConversationId);
       }
     } else if (!isMessengerInboxOpen) {
       setSelectedConversationId(null);
     }
-  }, [activeMessengerConversationId, isMessengerInboxOpen]);
+  }, [activeMessengerConversationId, isMessengerInboxOpen, markDirectMessageRead]);
 
   useEffect(() => {
     if (selectedConversationId) {
@@ -208,11 +203,11 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
         next.add(selectedConversationId);
         return next;
       });
-      if (markDirectMessageReadRef.current) {
-        markDirectMessageReadRef.current(selectedConversationId);
+      if (markDirectMessageRead) {
+        markDirectMessageRead(selectedConversationId);
       }
     }
-  }, [selectedConversationId]);
+  }, [selectedConversationId, markDirectMessageRead]);
 
   // Always reset mobile search and settings modals when switching tabs or closing/opening messenger or changing conversation
   useEffect(() => {
@@ -233,13 +228,9 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
     setIsNoteModalOpen(false);
     setIsNewChatModalOpen(false);
     setIsAiModalOpen(false);
-    setActiveTopTab('messages');
     if (setActiveMessengerConversationId) setActiveMessengerConversationId(null);
     closeMessengerInbox();
-    if (closeNotificationCenter) closeNotificationCenter();
-    window.dispatchEvent(new CustomEvent('marketplace:navigate', {
-      detail: { viewMode: isSellerMode ? 'selling' : 'buying', subTab: 'gigs' }
-    }));
+    if (isNotificationCenterOpen) closeNotificationCenter();
   };
 
   // Call timer interval

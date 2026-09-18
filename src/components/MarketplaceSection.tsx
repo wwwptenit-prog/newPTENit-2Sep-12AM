@@ -4169,8 +4169,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
               const isNotificationsActive = isNotificationsOpen || isNotificationCenterOpen || (isMessengerInboxOpen && initialMessengerTab === 'notifications') || (rightColumnView === 'notifications' && (typeof window !== 'undefined' && window.innerWidth >= 1024));
 
               const isHomeActive = !selectedGig && !isInboxModalOpen && !isNotificationsOpen && !isNotificationCenterOpen && !isMessengerInboxOpen && !isNotificationsActive && !isMessengerActive && !isOrdersActive && !isBuyerPublicPostsActive && !isSavedActive && (
-                (viewMode === 'buying' && (activeSubTab === 'gigs' || activeSubTab === 'overview' || !activeSubTab)) ||
-                (viewMode === 'selling' && (sellerSubTab === 'overview' || sellerSubTab === 'gigs' || !sellerSubTab))
+                (viewMode === 'buying' && (activeSubTab === 'gigs' || activeSubTab === 'overview')) ||
+                (viewMode === 'selling' && (sellerSubTab === 'overview' || sellerSubTab === 'gigs'))
               );
 
               const buyerPublicPostsCount = buyerOpenPosts.length;
