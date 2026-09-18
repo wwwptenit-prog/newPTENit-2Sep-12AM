@@ -37,6 +37,7 @@ import {
 import { useData } from '../context/DataContext';
 import { Service, MarketplaceOrder, MarketplaceGigPackage, MarketplaceGig } from '../types';
 import { SinglePromoBadgeView } from '../utils/badgeHelper';
+import { extractDiscountPercent, calculateOriginalPrice } from '../utils/discountHelper';
 
 const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = "w-3.5 h-3.5" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -301,11 +302,29 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
 
   const currentPackage = servicePackages[selectedTier];
 
-  // Work-first condition: If service is 'আগে কাজ শুরু', no upfront payment is needed; payment is after work delivery!
+  // Premium condition: Digital products, software, and items explicitly marked as 'প্রিমিয়াম'
+  // In accordance with user directive: "যেটা প্রিমিয়াম সেটাতে বিল প্রদান করতে হবে, যেমন ডিজিটাল প্রডাক্ট সহ যা কিনতে হয়।"
+  const isPremium =
+    service.badge === 'প্রিমিয়াম' ||
+    service.badge === 'Premium' ||
+    service.offerBadge === 'premium' ||
+    service.offerBadge === 'প্রিমিয়াম' ||
+    service.offerBadge?.includes('প্রিমিয়াম') ||
+    service.category === 'Digital Products' ||
+    service.category === 'ডিজিটাল প্রোডাক্ট' ||
+    service.tags?.includes('প্রিমিয়াম') ||
+    ['web-dev', 'branding', 'software-dev', 'premium-app', 'digital-product', 'source-code', 'fullstack-app', 'saas-system'].includes(service.id);
+
+  // Work-first condition: If service is explicitly 'আগে কাজ শুরু', no upfront payment is needed; payment is after delivery.
+  // Premium services and digital products strictly require bill payment / escrow checkout.
   const isWorkFirst =
-    service.badge === 'আগে কাজ শুরু' ||
-    service.offerBadge === 'work_first' ||
-    (service.badge !== 'প্রিমিয়াম' && service.badge !== 'Premium' && service.offerBadge !== 'premium' && !['web-dev', 'branding'].includes(service.id));
+    !isPremium &&
+    (service.badge === 'আগে কাজ শুরু' ||
+      service.offerBadge === 'work_first' ||
+      service.offerBadge === 'আগে কাজ শুরু' ||
+      service.offerBadge?.includes('আগে কাজ শুরু'));
+
+  const serviceDiscountPercent = !isWorkFirst && !isPremium ? extractDiscountPercent((service as any).offerBadge || service.badge) : null;
 
   // Lightbox keyboard controls
   useEffect(() => {
@@ -822,19 +841,19 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                 <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                   {isWorkFirst ? 'প্রদেয় অগ্রিম' : 'অফার'}
                 </span>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    isWorkFirst
-                      ? 'text-emerald-800 dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700'
-                      : selectedTier === 'basic'
-                      ? 'text-[#00543e] bg-blue-50 dark:bg-blue-950/40 border-sky-300/80 dark:border-blue-700/60'
-                      : selectedTier === 'standard'
-                      ? 'text-red-600 bg-red-50 dark:bg-red-950/40 border-red-300/80 dark:border-red-700/60'
-                      : 'text-purple-600 bg-purple-50 dark:bg-purple-950/40 border-purple-300/80 dark:border-purple-700/60'
-                  }`}
-                >
-                  {isWorkFirst ? '০ টাকা অগ্রিম | কাজের পর পেমেন্ট' : '৩০% ছাড়'}
-                </span>
+                {!isWorkFirst && serviceDiscountPercent && (
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      selectedTier === 'basic'
+                        ? 'text-[#00543e] bg-blue-50 dark:bg-blue-950/40 border-sky-300/80 dark:border-blue-700/60'
+                        : selectedTier === 'standard'
+                        ? 'text-red-600 bg-red-50 dark:bg-red-950/40 border-red-300/80 dark:border-red-700/60'
+                        : 'text-purple-600 bg-purple-50 dark:bg-purple-950/40 border-purple-300/80 dark:border-purple-700/60'
+                    }`}
+                  >
+                    {serviceDiscountPercent.toLocaleString('bn-BD')}% ছাড়
+                  </span>
+                )}
               </div>
               <div
                 className={`text-2xl sm:text-3xl font-black tracking-tight ${
@@ -857,14 +876,25 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                 )}
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-xs text-slate-400 dark:text-slate-500 font-medium block">
-                {isWorkFirst ? 'কাজের পর বাজেট' : 'রেগুলার প্রাইস'}
-              </span>
-              <div className={`text-base sm:text-lg font-bold ${isWorkFirst ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500 line-through'}`}>
-                ৳{(currentPackage.price ?? 2500).toLocaleString('bn-BD')}
+            {serviceDiscountPercent ? (
+              <div className="text-right">
+                <span className="text-xs text-slate-400 dark:text-slate-500 font-medium block">
+                  রেগুলার প্রাইস
+                </span>
+                <div className="text-base sm:text-lg font-bold text-slate-400 dark:text-slate-500 line-through">
+                  ৳{calculateOriginalPrice(currentPackage.price ?? 2500, serviceDiscountPercent).toLocaleString('bn-BD')}
+                </div>
               </div>
-            </div>
+            ) : isWorkFirst ? (
+              <div className="text-right">
+                <span className="text-xs text-slate-400 dark:text-slate-500 font-medium block">
+                  কাজের পর বাজেট
+                </span>
+                <div className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-200">
+                  ৳{(currentPackage.price ?? 2500).toLocaleString('bn-BD')}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* ডেলিভারি সময় ও রিভিশন */}
@@ -1804,9 +1834,11 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                   <span className={`px-3 py-1 font-bold text-xs rounded-full inline-block ${
                     isWorkFirst
                       ? 'bg-emerald-500/15 text-[#006A4E] dark:text-emerald-400'
+                      : isPremium
+                      ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
                       : 'bg-blue-500/15 text-blue-700 dark:text-sky-400'
                   }`}>
-                    {isWorkFirst ? 'আগে কাজ শুরু — ০ টাকা অগ্রিম' : 'সার্ভিস বুকিং ও পেমেন্ট'}
+                    {isWorkFirst ? 'আগে কাজ শুরু — ০ টাকা অগ্রিম' : isPremium ? '👑 প্রিমিয়াম সার্ভিস' : 'সার্ভিস বুকিং ও পেমেন্ট'}
                   </span>
                   <h3 className="text-lg sm:text-xl font-black font-heading text-slate-900 dark:text-white">
                     {isWorkFirst
@@ -1884,7 +1916,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                       <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-2xl text-emerald-900 dark:text-emerald-200 text-xs space-y-1 font-bengali shadow-xs">
                         <div className="flex items-center gap-2 font-bold text-sm text-[#006A4E] dark:text-emerald-300">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span>আগে কাজ শুরু — কোনো অগ্রিম পেমেন্ট নেই!</span>
+                          <span>আগে কাজ শুরু</span>
                         </div>
                         <p className="text-[11px] leading-relaxed text-emerald-800 dark:text-emerald-300/90 font-normal">
                           আপনাকে এখনই কোনো টাকা দিতে হবে না। ফর্মটি সাবমিট করলে আমাদের এজেন্সি অবিলম্বে কাজ শুরু করবে।
@@ -1987,11 +2019,11 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                       {isWorkFirst ? (
                         <>
                           <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                          <span>আগে কাজ শুরু করুন (৳০ অগ্রিম, কাজের পর পেমেন্ট)</span>
+                          <span>আগে কাজ শুরু করুন</span>
                         </>
                       ) : (
                         <>
-                          <span>পরবর্তী ধাপ: পেমেন্ট মেথড</span>
+                          <span>পরবর্তী ধাপ</span>
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}

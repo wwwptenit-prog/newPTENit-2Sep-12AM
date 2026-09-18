@@ -1117,7 +1117,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const officialIds = ['web-dev', 'digital-marketing', 'graphics-design', 'app-development', 'seo-optimization', 'video-editing', 'cyber-security', 'software-dev'];
+          const officialIds = [
+            'gig-workfirst-web',
+            'gig-premium-erp',
+            'gig-workfirst-marketing',
+            'gig-premium-mobile',
+            'gig-workfirst-design',
+            'gig-premium-ai',
+            'web-dev',
+            'digital-marketing',
+            'graphics-design',
+            'app-development',
+            'seo-optimization',
+            'video-editing',
+            'cyber-security',
+            'software-dev'
+          ];
           const missingOfficial = initialGigs.filter(g => officialIds.includes(g.id) && !parsed.some(p => p.id === g.id));
           if (missingOfficial.length > 0) {
             return [...missingOfficial, ...parsed];
@@ -2092,43 +2107,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const markDirectMessageRead = (id: string) => {
-    setDirectMessages(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
+  const markDirectMessageRead = useCallback((id: string) => {
+    setDirectMessages(prev => {
+      const target = prev.find(m => m.id === id);
+      if (!target || (target.read && (!target.unreadCount || target.unreadCount === 0))) {
+        return prev;
+      }
+      return prev.map(m => m.id === id ? { ...m, read: true, unreadCount: 0 } : m);
+    });
     setReadConversationIds(prev => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
-      localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(next));
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(next));
+      } catch {}
       return next;
     });
-  };
+  }, []);
 
-  const markConversationRead = (convoId: string) => {
+  const markConversationRead = useCallback((convoId: string) => {
     setReadConversationIds(prev => {
       if (prev.includes(convoId)) return prev;
       const next = [...prev, convoId];
-      localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(next));
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(next));
+      } catch {}
       return next;
     });
-    setDirectMessages(prev => prev.map(m => {
-      const isMatch =
-        m.id === convoId ||
-        m.senderId === convoId ||
-        convoId.includes(m.id) ||
-        (m.senderName && convoId.toLowerCase().includes(m.senderName.toLowerCase())) ||
-        (m.senderName && m.senderName.toLowerCase().includes(convoId.toLowerCase()));
-      if (isMatch) {
-        return { ...m, read: true, unreadCount: 0 };
-      }
-      return m;
-    }));
-  };
+    setDirectMessages(prev => {
+      let changed = false;
+      const updated = prev.map(m => {
+        const isMatch =
+          m.id === convoId ||
+          m.senderId === convoId ||
+          convoId.includes(m.id) ||
+          (m.senderName && convoId.toLowerCase().includes(m.senderName.toLowerCase())) ||
+          (m.senderName && m.senderName.toLowerCase().includes(convoId.toLowerCase()));
+        if (isMatch && (!m.read || m.unreadCount)) {
+          changed = true;
+          return { ...m, read: true, unreadCount: 0 };
+        }
+        return m;
+      });
+      return changed ? updated : prev;
+    });
+  }, []);
 
-  const markAllConversationsRead = () => {
-    setDirectMessages(prev => prev.map(m => ({ ...m, read: true, unreadCount: 0 })));
+  const markAllConversationsRead = useCallback(() => {
+    setDirectMessages(prev => {
+      const hasUnread = prev.some(m => !m.read || m.unreadCount);
+      if (!hasUnread) return prev;
+      return prev.map(m => ({ ...m, read: true, unreadCount: 0 }));
+    });
     setReadConversationIds(prev => {
       const allIds = Array.from(new Set([
         ...prev,
-        ...directMessages.map(m => m.id),
         'chat-client-sohag',
         'chat-client-tanjim',
         'chat-client-sumaiya',
@@ -2136,14 +2169,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         'chat-creative-pixels',
         'chat-piten-support'
       ]));
-      localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(allIds));
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(allIds));
+      } catch {}
       return allIds;
     });
-  };
+  }, []);
 
-  const markAllDirectMessagesRead = () => {
-    setDirectMessages(prev => prev.map(m => ({ ...m, read: true })));
-  };
+  const markAllDirectMessagesRead = useCallback(() => {
+    setDirectMessages(prev => {
+      const hasUnread = prev.some(m => !m.read);
+      if (!hasUnread) return prev;
+      return prev.map(m => ({ ...m, read: true }));
+    });
+  }, []);
 
   const sendDirectMessage = (msg: Omit<DirectMessageItem, 'id' | 'read'>) => {
     const newMsg: DirectMessageItem = {
@@ -2228,23 +2267,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsMessengerInboxOpen(true);
   };
 
-  const closeMessengerInbox = () => {
+  const closeMessengerInbox = useCallback(() => {
     setActiveMessengerConversationId(null);
     setActiveMessengerOrderId(null);
     setIsMessengerInboxOpen(false);
     setIsNotificationCenterOpen(false);
-  };
+    setInitialMessengerTab('messages');
+    setRightColumnView('default');
+  }, []);
 
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
-  const openNotificationCenter = () => {
+  const openNotificationCenter = useCallback(() => {
     openMessengerInbox(undefined, 'notifications');
-  };
+  }, [openMessengerInbox]);
 
-  const closeNotificationCenter = () => {
+  const closeNotificationCenter = useCallback(() => {
     setIsNotificationCenterOpen(false);
     setIsMessengerInboxOpen(false);
-  };
+    setInitialMessengerTab('messages');
+    setRightColumnView('default');
+  }, []);
 
   const [marketplaceMode, setMarketplaceModeState] = useState<'buying' | 'selling'>(() => {
     try {
@@ -2254,12 +2297,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return 'buying';
   });
 
-  const setMarketplaceMode = (mode: 'buying' | 'selling') => {
-    setMarketplaceModeState(mode);
+  const setMarketplaceMode = useCallback((mode: 'buying' | 'selling') => {
+    setMarketplaceModeState(prev => (prev === mode ? prev : mode));
     try {
       localStorage.setItem('marketplace_mode', mode);
     } catch {}
-  };
+  }, []);
 
   const clearAllNotifications = () => {
     setNotifications([]);
@@ -3010,6 +3053,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const deleteMarketplaceOrder = (id: string) => {
     setMarketplaceOrders(prev => prev.filter(o => o.id !== id));
+    setCustomerProjects(prev => prev.filter(p => p.id !== id && `ord-${p.id}` !== id && `ord-ptenit-${p.id}` !== id));
   };
 
   const updateMarketplaceOrder = (id: string, updates: Partial<MarketplaceOrder>) => {

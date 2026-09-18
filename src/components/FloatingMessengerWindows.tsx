@@ -52,7 +52,7 @@ import {
   HelpCircle,
   CheckCircle,
   MessageSquare,
-  Filter
+  Package
 } from 'lucide-react';
 
 interface ConversationItem {
@@ -177,6 +177,11 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
     }
   }, [isMessengerInboxOpen, initialMessengerTab, currentUser]);
 
+  const markDirectMessageReadRef = useRef(markDirectMessageRead);
+  useEffect(() => {
+    markDirectMessageReadRef.current = markDirectMessageRead;
+  }, [markDirectMessageRead]);
+
   // Synchronize selected conversation ID whenever messenger opens or activeMessengerConversationId changes
   useEffect(() => {
     if (activeMessengerConversationId) {
@@ -187,13 +192,13 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
         next.add(activeMessengerConversationId);
         return next;
       });
-      if (markDirectMessageRead) {
-        markDirectMessageRead(activeMessengerConversationId);
+      if (markDirectMessageReadRef.current) {
+        markDirectMessageReadRef.current(activeMessengerConversationId);
       }
     } else if (!isMessengerInboxOpen) {
       setSelectedConversationId(null);
     }
-  }, [activeMessengerConversationId, isMessengerInboxOpen, markDirectMessageRead]);
+  }, [activeMessengerConversationId, isMessengerInboxOpen]);
 
   useEffect(() => {
     if (selectedConversationId) {
@@ -203,11 +208,11 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
         next.add(selectedConversationId);
         return next;
       });
-      if (markDirectMessageRead) {
-        markDirectMessageRead(selectedConversationId);
+      if (markDirectMessageReadRef.current) {
+        markDirectMessageReadRef.current(selectedConversationId);
       }
     }
-  }, [selectedConversationId, markDirectMessageRead]);
+  }, [selectedConversationId]);
 
   // Always reset mobile search and settings modals when switching tabs or closing/opening messenger or changing conversation
   useEffect(() => {
@@ -228,9 +233,13 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
     setIsNoteModalOpen(false);
     setIsNewChatModalOpen(false);
     setIsAiModalOpen(false);
+    setActiveTopTab('messages');
     if (setActiveMessengerConversationId) setActiveMessengerConversationId(null);
     closeMessengerInbox();
-    if (isNotificationCenterOpen) closeNotificationCenter();
+    if (closeNotificationCenter) closeNotificationCenter();
+    window.dispatchEvent(new CustomEvent('marketplace:navigate', {
+      detail: { viewMode: isSellerMode ? 'selling' : 'buying', subTab: 'gigs' }
+    }));
   };
 
   // Call timer interval
@@ -888,6 +897,24 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
                 <ShoppingBag className="w-5 h-5 transition-all text-white/60 stroke-[1.8] group-hover:text-white" />
               </button>
 
+              {/* 2.5 Buyer Mode: My Public Posts (নিজের পাবলিক পোস্ট) */}
+              {!isSellerMode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCloseAll();
+                    if (onNavigateTab) onNavigateTab('marketplace', 'my-orders');
+                    window.dispatchEvent(new CustomEvent('marketplace:navigate', {
+                      detail: { viewMode: 'buying', subTab: 'my-orders', buyerOrderStatusFilter: 'public_projects' }
+                    }));
+                  }}
+                  className="relative flex-1 flex flex-col justify-center items-center py-2 h-11 transition-all active:scale-95 cursor-pointer rounded-xl group text-white/60 hover:text-white"
+                  title="আমার উন্মুক্ত পোস্টসমূহ"
+                >
+                  <Globe className="w-5 h-5 transition-all text-white/60 stroke-[1.8] group-hover:text-white" />
+                </button>
+              )}
+
               {/* 3. Messenger */}
               <button
                 type="button"
@@ -942,41 +969,75 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
                 )}
               </button>
 
-              {/* 5. Sound Toggle (ON/OFF) */}
-              <button
-                type="button"
-                onClick={toggleOfferSound}
-                className="relative flex-1 flex flex-col justify-center items-center py-2 h-11 transition-all active:scale-95 cursor-pointer rounded-xl text-white/70 hover:text-white group"
-                title={isOfferSoundEnabled ? "সাউন্ড চালু (মিউট করতে ক্লিক করুন)" : "সাউন্ড বন্ধ (চালু করতে ক্লিক করুন)"}
-              >
-                {isOfferSoundEnabled ? (
-                  <Volume2 className="w-5 h-5 text-white stroke-[2.4] scale-105" />
-                ) : (
-                  <VolumeX className="w-5 h-5 text-white/60 stroke-[1.8]" />
-                )}
-                <span className={`absolute -top-1 right-1 min-w-[20px] h-[15px] px-1 rounded-full text-white text-[8px] font-black flex items-center justify-center shadow-xs leading-none ${
-                  isOfferSoundEnabled ? 'bg-white/25 border border-white/40 text-white' : 'bg-white/10 border border-white/20 text-white/80'
-                }`}>
-                  {isOfferSoundEnabled ? 'ON' : 'OFF'}
-                </span>
-              </button>
+              {/* 5. In Seller Mode: Sound Toggle & My Gigs/Posts Button (Package) */}
+              {isSellerMode && (
+                <>
+                  <button
+                    type="button"
+                    onClick={toggleOfferSound}
+                    className="relative flex-1 flex flex-col justify-center items-center py-2 h-11 transition-all active:scale-95 cursor-pointer rounded-xl text-white/70 hover:text-white group"
+                    title={isOfferSoundEnabled ? "সাউন্ড চালু (মিউট করতে ক্লিক করুন)" : "সাউন্ড বন্ধ (চালু করতে ক্লিক করুন)"}
+                  >
+                    {isOfferSoundEnabled ? (
+                      <Volume2 className="w-5 h-5 text-white stroke-[2.4] scale-105" />
+                    ) : (
+                      <VolumeX className="w-5 h-5 text-white/60 stroke-[1.8]" />
+                    )}
+                    <span className={`absolute -top-1 right-1 min-w-[20px] h-[15px] px-1 rounded-full text-white text-[8px] font-black flex items-center justify-center shadow-xs leading-none ${
+                      isOfferSoundEnabled ? 'bg-white/25 border border-white/40 text-white' : 'bg-white/10 border border-white/20 text-white/80'
+                    }`}>
+                      {isOfferSoundEnabled ? 'ON' : 'OFF'}
+                    </span>
+                  </button>
 
-              {/* 6. Filter */}
-              <button
-                type="button"
-                onClick={() => {
-                  handleCloseAll();
-                  if (onNavigateTab) onNavigateTab('marketplace', isSellerMode ? 'selling' : 'All');
-                  window.dispatchEvent(new CustomEvent('marketplace:open-filter'));
-                }}
-                className="relative flex-1 flex flex-col justify-center items-center py-2 h-11 transition-all active:scale-95 cursor-pointer rounded-xl group text-white/60 hover:text-white"
-                title="ফিল্টার ও সর্ট করুন"
-              >
-                <Filter className="w-5 h-5 transition-transform duration-200 text-white/60 stroke-[1.8] group-hover:text-white" />
-                <span className="absolute -top-1.5 right-0 min-w-[26px] h-[15px] px-1 rounded-full text-white text-[8px] font-black flex items-center justify-center shadow-xs leading-none bg-white/25 border border-white/40">
-                  ফিল্টার
-                </span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleCloseAll();
+                      if (onNavigateTab) onNavigateTab('marketplace', 'selling');
+                      window.dispatchEvent(new CustomEvent('marketplace:navigate', {
+                        detail: { viewMode: 'selling', specialistMainTab: 'marketplace', sellerSubTab: 'my_gigs', subTab: 'gigs' }
+                      }));
+                    }}
+                    className="relative flex-1 flex flex-col justify-center items-center py-2 h-11 transition-all active:scale-95 cursor-pointer rounded-xl group text-white/60 hover:text-white"
+                    title="আমার আপলোডকৃত গিগ ও পোস্টসমূহ"
+                  >
+                    <Package className="w-5 h-5 transition-all text-white/60 stroke-[1.8] group-hover:text-white" />
+                  </button>
+                </>
+              )}
+
+              {/* 5. In Buyer Mode: Favorites / Saved Gigs Button */}
+              {!isSellerMode && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCloseAll();
+                    if (onNavigateTab) onNavigateTab('marketplace', 'saved_gigs');
+                    window.dispatchEvent(new CustomEvent('marketplace:navigate', {
+                      detail: { viewMode: 'buying', subTab: 'saved_gigs' }
+                    }));
+                  }}
+                  className="relative flex-1 flex flex-col justify-center items-center py-2 h-11 transition-all active:scale-95 cursor-pointer rounded-xl group text-white/60 hover:text-white"
+                  title="পছন্দের পোস্ট ও গিগসমূহ"
+                >
+                  <Heart className="w-5 h-5 transition-all text-white/60 stroke-[1.8] group-hover:text-white" />
+                  {(() => {
+                    try {
+                      const raw = localStorage.getItem('ptenit_saved_gigs');
+                      const count = raw ? JSON.parse(raw).length : 0;
+                      if (count > 0) {
+                        return (
+                          <span className="absolute -top-1 right-1.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                            {count}
+                          </span>
+                        );
+                      }
+                    } catch {}
+                    return null;
+                  })()}
+                </button>
+              )}
             </div>
 
             {/* Sub-Header Attached Below 6 Icons */}

@@ -37,7 +37,16 @@ const LazyFallback: React.FC = () => (
 );
 
 const MainAppContent: React.FC = () => {
-  const { currentUser, courses, siteSettings, closeMessengerInbox, marketplaceMode } = useData();
+  const {
+    currentUser,
+    courses,
+    siteSettings,
+    closeMessengerInbox,
+    marketplaceMode,
+    isNotificationCenterOpen,
+    closeNotificationCenter,
+    isMessengerInboxOpen,
+  } = useData();
 
   const [activeTab, setActiveTab] = useState<string>('home');
   const [marketplaceCategory, setMarketplaceCategory] = useState<string>('All');
@@ -202,6 +211,16 @@ const MainAppContent: React.FC = () => {
 
   // Comprehensive Universal Back Button Handler
   const handleGoBack = () => {
+    // 0. Close Notification Center or Messenger if open, and return to Home
+    if (isNotificationCenterOpen || isMessengerInboxOpen) {
+      if (closeNotificationCenter) closeNotificationCenter();
+      if (closeMessengerInbox) closeMessengerInbox();
+      window.dispatchEvent(new CustomEvent('marketplace:navigate', {
+        detail: { viewMode: 'buying', subTab: 'gigs' }
+      }));
+      return;
+    }
+
     // 1. Close Certificate Modal if open
     if (activeCertificateCode) {
       setActiveCertificateCode(null);
