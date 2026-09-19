@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up - Create Your PTENit Account</title>
+  <meta name="description" content="Create an account on PTENit to place orders, manage IT services, and track project status.">
+  <link rel="icon" type="image/svg+xml" href="assets/logo/favicon.svg">
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="container navbar">
+      <a href="index.html" class="nav-brand">
+        <img src="assets/logo/logo.svg" alt="PTENit Logo">
+      </a>
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="products.html" class="nav-link">Products</a>
+        <a href="about.html" class="nav-link">About</a>
+        <a href="contact.html" class="nav-link">Contact</a>
+      </nav>
+      <div class="nav-actions">
+        <button type="button" class="icon-btn theme-toggle-btn" title="Toggle Theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- AUTH CARD -->
+  <section class="auth-page">
+    <div class="auth-card">
+      <div class="auth-header">
+        <img src="assets/logo/logo.svg" alt="PTENit Logo">
+        <h2>Create Account</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.35rem;">
+          Join PTENit to access software and managed services
+        </p>
+      </div>
+
+      <form id="signupForm" onsubmit="handleSignup(event)" style="display: flex; flex-direction: column; gap: 1.1rem;">
+        <div class="form-group">
+          <label for="regName">Full Name *</label>
+          <input type="text" id="regName" required class="form-control" placeholder="e.g. Mahbubul Alam">
+        </div>
+
+        <div class="form-group">
+          <label for="regEmail">Email Address *</label>
+          <input type="email" id="regEmail" required class="form-control" placeholder="name@company.com">
+        </div>
+
+        <div class="form-group">
+          <label for="regPhone">WhatsApp / Phone Number *</label>
+          <input type="tel" id="regPhone" required class="form-control" placeholder="+88017XXXXXXXX">
+        </div>
+
+        <div class="form-group">
+          <label for="regPassword">Password *</label>
+          <input type="password" id="regPassword" required minlength="6" class="form-control" placeholder="Minimum 6 characters">
+        </div>
+
+        <div class="form-group">
+          <label for="regConfirmPassword">Confirm Password *</label>
+          <input type="password" id="regConfirmPassword" required minlength="6" class="form-control" placeholder="Re-type password">
+        </div>
+
+        <div style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">
+          <input type="checkbox" id="termsCheck" required style="margin-top: 0.2rem;">
+          <label for="termsCheck">I agree to PTENit's <a href="about.html" style="color: var(--accent); font-weight: 700;">Terms of Service</a> &amp; <a href="about.html" style="color: var(--accent); font-weight: 700;">Privacy Policy</a>.</label>
+        </div>
+
+        <button type="submit" id="regSubmitBtn" class="btn btn-primary btn-lg" style="margin-top: 0.5rem;">
+          Complete Registration
+        </button>
+      </form>
+
+      <div style="text-align: center; margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.9rem; color: var(--text-muted);">
+        Already have an account? <a href="login.html" style="color: var(--accent); font-weight: 800;">Sign In</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="site-footer" style="padding: 2rem 0;">
+    <div class="container footer-bottom" style="border: none; padding: 0;">
+      <p>&copy; 2026 PTENit. 100% cPanel Ready.</p>
+    </div>
+  </footer>
+
+  <script src="firebase.js"></script>
+  <script src="script.js"></script>
+  <script>
+    async function handleSignup(e) {
+      e.preventDefault();
+      const name = document.getElementById("regName").value.trim();
+      const email = document.getElementById("regEmail").value.trim();
+      const phone = document.getElementById("regPhone").value.trim();
+      const pass = document.getElementById("regPassword").value;
+      const confirmPass = document.getElementById("regConfirmPassword").value;
+      const btn = document.getElementById("regSubmitBtn");
+
+      if (pass !== confirmPass) {
+        showToast("Passwords do not match!", "error");
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Creating Account...";
+
+      try {
+        const res = await window.PTENitFirebase.signupUser(name, email, pass, phone);
+        if (res.success) {
+          showToast("Account created successfully!", "success");
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 1000);
+        } else {
+          showToast(res.message || "Registration failed. Try another email.", "error");
+          btn.disabled = false;
+          btn.textContent = "Complete Registration";
+        }
+      } catch (err) {
+        showToast("Error: " + err.message, "error");
+        btn.disabled = false;
+        btn.textContent = "Complete Registration";
+      }
+    }
+  </script>
+</body>
+</html>

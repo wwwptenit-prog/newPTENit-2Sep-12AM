@@ -479,6 +479,14 @@ app.post('/api/payment/verify-gateway', async (req, res) => {
   }
 });
 
+// Serve cPanel Ready pure HTML/CSS/JS site
+app.use('/public_html', express.static(path.join(process.cwd(), 'public_html')));
+app.use('/cpanel', express.static(path.join(process.cwd(), 'public_html')));
+app.get('/download-cpanel-zip', (req, res) => {
+  const zipPath = path.join(process.cwd(), 'public_html', 'ptenit-cpanel-ready.zip');
+  res.download(zipPath, 'ptenit-cpanel-ready.zip');
+});
+
 // Vite middleware or production static files
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {

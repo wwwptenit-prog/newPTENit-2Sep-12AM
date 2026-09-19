@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PTENit - Modern IT Solutions &amp; Digital Services Marketplace</title>
+  <meta name="description" content="PTENit provides enterprise web development, custom software, ultra-fast cPanel NVMe hosting, cybersecurity audits, and digital services with instant WhatsApp ordering.">
+  <meta name="keywords" content="PTENit, Web Development, cPanel Hosting, Software Development, bKash Payment, WhatsApp Order, IT Solutions">
+  <meta property="og:title" content="PTENit - Modern IT Solutions &amp; Marketplace">
+  <meta property="og:description" content="100% cPanel ready IT solutions, web development, and digital services with WhatsApp ordering.">
+  <meta property="og:image" content="assets/images/hero-illustration.svg">
+  <meta property="og:type" content="website">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="assets/logo/favicon.svg">
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Firebase Compat CDN Libraries (No build process required) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+
+  <!-- SITE HEADER / NAVBAR -->
+  <header class="site-header">
+    <div class="container navbar">
+      <a href="index.html" class="nav-brand">
+        <img src="assets/logo/logo.svg" alt="PTENit Logo">
+      </a>
+
+      <!-- Desktop Navigation -->
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link active">Home</a>
+        <a href="products.html" class="nav-link">Products &amp; Services</a>
+        <a href="about.html" class="nav-link">About Us</a>
+        <a href="contact.html" class="nav-link">Contact</a>
+        <a href="admin.html" class="nav-link">Admin</a>
+      </nav>
+
+      <!-- Action Icons -->
+      <div class="nav-actions">
+        <!-- Theme Switcher -->
+        <button type="button" class="icon-btn theme-toggle-btn" title="Toggle Theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <!-- Cart Icon -->
+        <a href="cart.html" class="icon-btn" title="Shopping Cart">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+          <span class="cart-badge" style="display: none;">0</span>
+        </a>
+
+        <!-- User / Login -->
+        <a href="login.html" class="icon-btn nav-user-link" title="Account Login">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </a>
+
+        <!-- Mobile Drawer Toggle -->
+        <button type="button" class="icon-btn mobile-toggle" aria-label="Toggle Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Drawer -->
+    <div class="mobile-nav">
+      <a href="index.html" class="nav-link active">Home</a>
+      <a href="products.html" class="nav-link">Products &amp; Services</a>
+      <a href="about.html" class="nav-link">About Us</a>
+      <a href="contact.html" class="nav-link">Contact</a>
+      <a href="cart.html" class="nav-link">Cart &amp; Checkout</a>
+      <a href="admin.html" class="nav-link">Admin Panel</a>
+      <a href="login.html" class="btn btn-navy" style="margin-top: 1rem;">Login / Register</a>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="hero-section">
+    <div class="container hero-grid">
+      <div class="hero-content">
+        <div class="badge badge-green">
+          <span>⚡ 100% cPanel Ready &amp; Cloud Integrated</span>
+        </div>
+        <h1 class="hero-title">
+          Scale Your Business With Modern <span>PTENit</span> Solutions
+        </h1>
+        <p class="hero-desc">
+          High-performance web applications, tailored business software, lightning-fast cPanel cloud hosting, and end-to-end IT support with seamless WhatsApp checkout.
+        </p>
+        <div class="hero-actions">
+          <a href="products.html" class="btn btn-primary btn-lg">Explore Services</a>
+          <button type="button" onclick="orderSingleViaWhatsApp({name:'General Consultation', price:0, category:'IT Inquiry'})" class="btn btn-whatsapp btn-lg">
+            <span>💬 WhatsApp Order</span>
+          </button>
+          <a href="contact.html" class="btn btn-outline btn-lg">Get Free Quote</a>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat-item">
+            <h4>500+</h4>
+            <p>Projects Delivered</p>
+          </div>
+          <div class="stat-item">
+            <h4>99.9%</h4>
+            <p>Uptime Guaranteed</p>
+          </div>
+          <div class="stat-item">
+            <h4>24/7</h4>
+            <p>Direct Support</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <img src="assets/images/hero-illustration.svg" alt="PTENit IT Solutions Preview" width="500" height="400">
+      </div>
+    </div>
+  </section>
+
+  <!-- CORE SERVICES SECTION -->
+  <section class="services-section">
+    <div class="container">
+      <div class="section-header">
+        <span class="badge badge-green">What We Offer</span>
+        <h2>High-Impact IT Services Built for Growth</h2>
+        <p>From initial design and cloud deployment to ongoing server maintenance, we build software that works reliably.</p>
+      </div>
+
+      <div class="services-grid">
+        <div class="service-card">
+          <div class="service-icon">🌐</div>
+          <h3>Custom Web Development</h3>
+          <p>Modern responsive websites with clean HTML5/CSS3/JS, blazing fast load times, and effortless cPanel hosting compatibility.</p>
+          <a href="products.html" class="btn btn-sm btn-outline" style="margin-top: auto;">Learn More &rarr;</a>
+        </div>
+
+        <div class="service-card">
+          <div class="service-icon">⚙️</div>
+          <h3>Enterprise Software &amp; ERP</h3>
+          <p>Streamline operations with billing, inventory, customer management, and automated invoicing software customized to your team.</p>
+          <a href="products.html" class="btn btn-sm btn-outline" style="margin-top: auto;">Learn More &rarr;</a>
+        </div>
+
+        <div class="service-card">
+          <div class="service-icon">☁️</div>
+          <h3>NVMe Cloud &amp; cPanel Hosting</h3>
+          <p>Ultra-fast LiteSpeed servers with automated daily backups, free SSL certificates, and 99.9% uptime server stability.</p>
+          <a href="products.html" class="btn btn-sm btn-outline" style="margin-top: auto;">Learn More &rarr;</a>
+        </div>
+
+        <div class="service-card">
+          <div class="service-icon">🛡️</div>
+          <h3>Cybersecurity &amp; Auditing</h3>
+          <p>Penetration testing, malware removal, firewall configuration, and SSL hardening to protect your digital presence.</p>
+          <a href="products.html" class="btn btn-sm btn-outline" style="margin-top: auto;">Learn More &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURED PRODUCTS & SERVICES SECTION -->
+  <section class="products-section">
+    <div class="container">
+      <div class="section-header">
+        <span class="badge badge-green">Store &amp; Services</span>
+        <h2>Popular Products &amp; Solutions</h2>
+        <p>Browse pre-packaged IT services, licenses, and hosting tiers ready for immediate order.</p>
+      </div>
+
+      <!-- Filter and Search Bar -->
+      <div class="product-filter-bar">
+        <div class="filter-tabs" id="homeFilterTabs">
+          <button type="button" class="filter-btn active" data-cat="all">All Solutions</button>
+          <button type="button" class="filter-btn" data-cat="Web Services">Web Services</button>
+          <button type="button" class="filter-btn" data-cat="Software">Software</button>
+          <button type="button" class="filter-btn" data-cat="Cloud & Hosting">Cloud &amp; Hosting</button>
+          <button type="button" class="filter-btn" data-cat="Security">Security</button>
+        </div>
+
+        <div class="search-box">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="homeSearchInput" placeholder="Search services...">
+        </div>
+      </div>
+
+      <!-- Dynamic Products Grid -->
+      <div class="product-grid" id="homeProductsContainer">
+        <!-- Rendered dynamically by script -->
+      </div>
+
+      <div style="text-align: center; margin-top: 3rem;">
+        <a href="products.html" class="btn btn-navy btn-lg">View All Catalog Items &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHY CHOOSE US -->
+  <section class="why-section">
+    <div class="container why-grid">
+      <div>
+        <span class="badge badge-green">Why Choose PTENit</span>
+        <h2>Engineered for Reliability &amp; Rapid Execution</h2>
+        <p style="color: var(--text-muted); margin-top: 0.75rem;">We eliminate technical friction so you can focus on building and expanding your business.</p>
+
+        <div class="feature-list">
+          <div class="feature-item">
+            <div class="feature-icon">🚀</div>
+            <div>
+              <h4>100% cPanel Ready</h4>
+              <p>Zero complicated build chains or node crashes. Upload directly to public_html and go live in minutes.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🔥</div>
+            <div>
+              <h4>Firebase Powered Database &amp; Auth</h4>
+              <p>Connect your real Firestore and Storage with simple config replacement, or run seamlessly with local fallback.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">📱</div>
+            <div>
+              <h4>Instant WhatsApp Checkout</h4>
+              <p>Direct 1-click order dispatches straight to your customer care WhatsApp with order summary and details.</p>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">💳</div>
+            <div>
+              <h4>Multi-Channel Local Payments</h4>
+              <p>Accept bKash, Nagad, Rocket, Bank Wire, and Cash on Delivery with ease.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: center;">
+        <img src="assets/images/service-web.svg" alt="Why PTENit" style="border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); max-height: 380px;">
+      </div>
+    </div>
+  </section>
+
+  <!-- PAYMENTS STRIP WITH QR CODES -->
+  <section class="payments-strip">
+    <div class="container payments-grid">
+      <div>
+        <span class="badge badge-green" style="background: rgba(22, 163, 74, 0.2); color: #4ADE80;">Instant Verification</span>
+        <h2 style="color: #FFFFFF; margin-top: 0.5rem;">Accepted Payment Methods</h2>
+        <p style="color: #94A3B8; margin-top: 0.5rem;">Send payments quickly via your favorite mobile wallet, direct bank transfer, or Cash on Delivery.</p>
+        
+        <div class="payment-badges">
+          <span class="pay-pill">bKash Personal / Merchant</span>
+          <span class="pay-pill">Nagad Wallet</span>
+          <span class="pay-pill">Rocket</span>
+          <span class="pay-pill">City / Brac / DBBL Bank</span>
+          <span class="pay-pill">Cash on Delivery</span>
+        </div>
+      </div>
+
+      <div class="qr-preview-box">
+        <div class="qr-item">
+          <img src="assets/images/qr-bkash.svg" alt="bKash QR">
+          <span>Scan bKash</span>
+        </div>
+        <div class="qr-item">
+          <img src="assets/images/qr-nagad.svg" alt="Nagad QR">
+          <span>Scan Nagad</span>
+        </div>
+        <div style="font-size: 0.85rem; color: #64748B;">
+          <strong style="color: #0F172A; display: block; font-size: 0.95rem;">Quick Pay Info:</strong>
+          bKash / Nagad: <strong>01XXXXXXXXX</strong><br>
+          Reference: <em>Order ID</em>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CUSTOMER REVIEWS SECTION -->
+  <section class="reviews-section">
+    <div class="container">
+      <div class="section-header">
+        <span class="badge badge-green">Testimonials</span>
+        <h2>What Our Clients Say About Us</h2>
+        <p>Trusted by tech startups, ecommerce retailers, and service agencies.</p>
+      </div>
+
+      <div class="reviews-grid">
+        <div class="review-card">
+          <div class="stars">★★★★★</div>
+          <p class="review-text">"PTENit built our complete corporate website and set it up on our cPanel hosting within 48 hours. Fast, responsive, and zero headache."</p>
+          <div class="reviewer">
+            <div class="reviewer-avatar">S</div>
+            <div class="reviewer-info">
+              <h5>Saiful Islam</h5>
+              <p>CEO, Apex Logistics</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="review-card">
+          <div class="stars">★★★★★</div>
+          <p class="review-text">"The WhatsApp checkout feature increased our conversion rate by over 40%. Clients love being able to message and finalize orders immediately."</p>
+          <div class="reviewer">
+            <div class="reviewer-avatar">T</div>
+            <div class="reviewer-info">
+              <h5>Tahmina Akter</h5>
+              <p>Founder, Glow Lifestyle</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="review-card">
+          <div class="stars">★★★★★</div>
+          <p class="review-text">"Their cPanel cloud hosting is rock solid. 100% uptime and our server response times dropped dramatically. Highly recommended!"</p>
+          <div class="reviewer">
+            <div class="reviewer-avatar">A</div>
+            <div class="reviewer-info">
+              <h5>Asif Mahmud</h5>
+              <p>Tech Lead, DigitalCraft</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ SECTION -->
+  <section class="faq-section">
+    <div class="container">
+      <div class="section-header">
+        <span class="badge badge-green">Frequently Asked Questions</span>
+        <h2>Got Questions? We Have Answers</h2>
+        <p>Everything you need to know about PTENit, cPanel hosting, and orders.</p>
+      </div>
+
+      <div class="faq-list">
+        <div class="faq-item active">
+          <button type="button" class="faq-question">
+            <span>How do I upload and deploy this website to cPanel?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>Simply compress the <code>public_html</code> contents into a ZIP file, open your cPanel File Manager, navigate to <code>public_html</code>, upload the ZIP, and click "Extract". That is it! No Node.js, npm, or terminal build commands needed.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button type="button" class="faq-question">
+            <span>How do I connect my own Firebase project?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>Open <code>firebase.js</code> and replace the placeholder keys in <code>firebaseConfig</code> with your values from the Firebase Console (Project Settings &gt; General &gt; Your apps &gt; Web). Authentication and Firestore sync automatically.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button type="button" class="faq-question">
+            <span>Can I customize the WhatsApp number for orders?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>Yes! In <code>script.js</code>, update <code>defaultWhatsApp</code> with your phone number with country code (e.g. <code>+88017XXXXXXXX</code>). You can also update it directly via the Admin Dashboard settings.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button type="button" class="faq-question">
+            <span>Which payment methods are supported?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>We support bKash, Nagad, Rocket, Bank Transfer, and Cash on Delivery out of the box with Transaction ID verification and QR code display.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLOATING WHATSAPP BUTTON -->
+  <a href="https://wa.me/+8801XXXXXXXXX" target="_blank" class="floating-whatsapp" title="Chat on WhatsApp" id="floatingWaBtn">
+    <div class="whatsapp-pulse"></div>
+    💬
+  </a>
+
+  <!-- SITE FOOTER -->
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <img src="assets/logo/logo.svg" alt="PTENit Logo" style="filter: brightness(0) invert(1); height: 38px;">
+        <p>PTENit is a premier IT solutions &amp; technology service marketplace providing enterprise web development, hosting, and software solutions.</p>
+        <div style="display: flex; gap: 1rem; color: #FFFFFF; font-size: 1.25rem;">
+          <a href="#" title="Facebook">📘</a>
+          <a href="#" title="LinkedIn">💼</a>
+          <a href="#" title="GitHub">🐙</a>
+          <a href="#" title="WhatsApp">💬</a>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h4>Navigation</h4>
+        <div class="footer-links">
+          <a href="index.html">Home</a>
+          <a href="products.html">Products &amp; Services</a>
+          <a href="about.html">About Us</a>
+          <a href="contact.html">Contact Us</a>
+          <a href="cart.html">Shopping Cart</a>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h4>Management</h4>
+        <div class="footer-links">
+          <a href="admin.html">Admin Dashboard</a>
+          <a href="login.html">Client Login</a>
+          <a href="signup.html">Create Account</a>
+          <a href="products.html?category=Cloud & Hosting">cPanel Hosting</a>
+          <a href="contact.html">Support Desk</a>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h4>Stay Updated</h4>
+        <p style="font-size: 0.85rem; margin-bottom: 1rem;">Subscribe to our tech newsletter for deals and updates.</p>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="email" placeholder="Your email address" class="form-control" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: #FFFFFF; padding: 0.5rem 0.8rem; font-size: 0.85rem;">
+          <button type="button" class="btn btn-primary btn-sm" onclick="showToast('Thank you for subscribing!', 'success')">Join</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <p>&copy; 2026 PTENit. All Rights Reserved. Designed for 100% cPanel Upload Compatibility.</p>
+      <div style="display: flex; gap: 1.5rem;">
+        <a href="about.html">Privacy Policy</a>
+        <a href="about.html">Terms of Service</a>
+        <a href="contact.html">Support</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="firebase.js"></script>
+  <script src="script.js"></script>
+  <script>
+    // Home Products Renderer
+    async function loadHomeProducts() {
+      const container = document.getElementById("homeProductsContainer");
+      if (!container) return;
+
+      container.innerHTML = '<div style="text-align:center; padding:2rem; grid-column:1/-1;">Loading products...</div>';
+      
+      const allProducts = await window.PTENitFirebase.getProducts();
+      let currentFilter = "all";
+      let searchKeyword = "";
+
+      function render(products) {
+        if (!products.length) {
+          container.innerHTML = `
+            <div style="text-align:center; padding:3rem; grid-column:1/-1; background:var(--card-bg); border-radius:var(--radius); border:1px solid var(--border);">
+              <h3>No products found</h3>
+              <p style="color:var(--text-muted); margin-top:0.5rem;">Try adjusting your search or category filter.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = products.map(product => `
+          <div class="product-card">
+            <div class="product-thumb">
+              <img src="${product.image}" alt="${product.name}" onerror="this.src='assets/images/service-web.svg'">
+              ${product.badge ? `<span class="badge badge-green product-badge">${product.badge}</span>` : ''}
+            </div>
+            <div class="product-info">
+              <span class="product-cat">${product.category}</span>
+              <h3 class="product-title">
+                <a href="product.html?id=${product.id}">${product.name}</a>
+              </h3>
+              <p class="product-desc">${product.description}</p>
+              
+              <div class="product-price-row">
+                <span class="price">${formatPrice(product.price)}</span>
+                ${product.oldPrice ? `<span class="old-price">${formatPrice(product.oldPrice)}</span>` : ''}
+              </div>
+
+              <div class="product-actions">
+                <button type="button" class="btn btn-outline btn-sm" onclick="addToCart(${JSON.stringify(product).replace(/"/g, '&quot;')})">
+                  🛒 Add to Cart
+                </button>
+                <button type="button" class="btn btn-whatsapp btn-sm" onclick="orderSingleViaWhatsApp(${JSON.stringify(product).replace(/"/g, '&quot;')})">
+                  💬 WhatsApp
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function filterAndRender() {
+        let filtered = allProducts;
+        if (currentFilter !== "all") {
+          filtered = filtered.filter(p => p.category === currentFilter);
+        }
+        if (searchKeyword.trim()) {
+          const q = searchKeyword.toLowerCase();
+          filtered = filtered.filter(p => 
+            p.name.toLowerCase().includes(q) || 
+            p.description.toLowerCase().includes(q) || 
+            p.category.toLowerCase().includes(q)
+          );
+        }
+        render(filtered);
+      }
+
+      // Filter tabs event
+      document.querySelectorAll("#homeFilterTabs .filter-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("#homeFilterTabs .filter-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          currentFilter = btn.getAttribute("data-cat");
+          filterAndRender();
+        });
+      });
+
+      // Search input event
+      const searchInput = document.getElementById("homeSearchInput");
+      if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+          searchKeyword = e.target.value;
+          filterAndRender();
+        });
+      }
+
+      // Initial render
+      filterAndRender();
+    }
+
+    document.addEventListener("DOMContentLoaded", loadHomeProducts);
+  </script>
+</body>
+</html>

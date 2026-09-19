@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopping Cart &amp; Checkout - PTENit</title>
+  <meta name="description" content="Review your selected IT services, apply discounts, and complete checkout via bKash, Nagad, Bank, or direct WhatsApp.">
+  <link rel="icon" type="image/svg+xml" href="assets/logo/favicon.svg">
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="container navbar">
+      <a href="index.html" class="nav-brand">
+        <img src="assets/logo/logo.svg" alt="PTENit Logo">
+      </a>
+
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="products.html" class="nav-link">Products &amp; Services</a>
+        <a href="about.html" class="nav-link">About Us</a>
+        <a href="contact.html" class="nav-link">Contact</a>
+        <a href="admin.html" class="nav-link">Admin</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="icon-btn theme-toggle-btn" title="Toggle Theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+
+        <a href="cart.html" class="icon-btn" title="Cart">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+          <span class="cart-badge" style="display: none;">0</span>
+        </a>
+
+        <a href="login.html" class="icon-btn nav-user-link" title="Account">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </a>
+
+        <button type="button" class="icon-btn mobile-toggle" aria-label="Toggle Menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- PAGE HEADER -->
+  <section style="background: var(--bg-alt); padding: 2.5rem 0; border-bottom: 1px solid var(--border);">
+    <div class="container" style="text-align: center;">
+      <span class="badge badge-green">Review &amp; Checkout</span>
+      <h1 style="margin-top: 0.5rem;">Your Shopping Cart</h1>
+    </div>
+  </section>
+
+  <!-- CART & CHECKOUT SECTION -->
+  <section class="cart-section">
+    <div class="container">
+      <div id="cartContentWrapper" class="cart-grid">
+        <!-- Injected via JavaScript -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ORDER SUCCESS MODAL -->
+  <div id="orderSuccessModal" class="modal-backdrop">
+    <div class="modal-box" style="text-align: center;">
+      <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--accent-light); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 1.25rem;">
+        ✓
+      </div>
+      <h3 style="font-size: 1.5rem;">Order Placed Successfully!</h3>
+      <p style="color: var(--text-muted); margin: 0.75rem 0 1.5rem;" id="orderSuccessMessage">
+        Your order has been recorded in our system.
+      </p>
+
+      <div style="background: var(--bg-alt); border-radius: var(--radius); padding: 1.25rem; text-align: left; margin-bottom: 1.5rem; font-size: 0.9rem;" id="orderSuccessDetails">
+        <!-- Details injected via script -->
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <button type="button" id="modalWhatsAppBtn" class="btn btn-whatsapp btn-lg">
+          💬 Confirm Instantly on WhatsApp
+        </button>
+        <a href="products.html" class="btn btn-outline">Continue Shopping</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING WHATSAPP -->
+  <a href="https://wa.me/+8801XXXXXXXXX" target="_blank" class="floating-whatsapp" title="WhatsApp">
+    <div class="whatsapp-pulse"></div>
+    💬
+  </a>
+
+  <!-- FOOTER -->
+  <footer class="site-footer">
+    <div class="container footer-bottom" style="border: none; padding: 0;">
+      <p>&copy; 2026 PTENit. 100% cPanel Ready.</p>
+    </div>
+  </footer>
+
+  <script src="firebase.js"></script>
+  <script src="script.js"></script>
+  <script>
+    let appliedDiscount = 0; // percentage
+    let currentVoucherCode = "";
+
+    function renderCart() {
+      const wrapper = document.getElementById("cartContentWrapper");
+      const cart = getCart();
+
+      if (cart.length === 0) {
+        wrapper.style.display = "block";
+        wrapper.innerHTML = `
+          <div style="text-align:center; padding:5rem 2rem; background:var(--card-bg); border-radius:var(--radius-lg); border:1px solid var(--border); max-width:600px; margin:0 auto;">
+            <div style="font-size:3.5rem; margin-bottom:1rem;">🛒</div>
+            <h2>Your cart is currently empty</h2>
+            <p style="color:var(--text-muted); margin:0.5rem 0 2rem;">Explore our high-performance IT solutions, hosting, and software packages.</p>
+            <a href="products.html" class="btn btn-primary btn-lg">Browse Solutions &rarr;</a>
+          </div>
+        `;
+        return;
+      }
+
+      wrapper.style.display = "grid";
+
+      let subtotal = 0;
+      const itemsHtml = cart.map(item => {
+        const itemTotal = item.price * item.qty;
+        subtotal += itemTotal;
+        return `
+          <div class="cart-item">
+            <img src="${item.image}" alt="${item.name}" class="cart-item-img" onerror="this.src='assets/images/service-web.svg'">
+            <div>
+              <span style="font-size:0.75rem; color:var(--accent); font-weight:700;">${item.category}</span>
+              <h4 style="font-size:1rem; margin:0.2rem 0;">${item.name}</h4>
+              <span style="font-size:0.85rem; color:var(--text-muted);">${formatPrice(item.price)} each</span>
+            </div>
+            <div class="cart-qty-ctrl">
+              <button type="button" class="qty-btn" onclick="modifyQty('${item.id}', -1)">-</button>
+              <input type="text" class="qty-input" value="${item.qty}" readonly>
+              <button type="button" class="qty-btn" onclick="modifyQty('${item.id}', 1)">+</button>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:900; font-size:1.05rem; color:var(--accent);">${formatPrice(itemTotal)}</div>
+              <button type="button" onclick="removeItem('${item.id}')" style="color:var(--danger); font-size:0.75rem; font-weight:700; margin-top:0.4rem; cursor:pointer;">
+                Remove ✕
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      const discountAmount = Math.round((subtotal * appliedDiscount) / 100);
+      const grandTotal = Math.max(0, subtotal - discountAmount);
+
+      wrapper.innerHTML = `
+        <!-- Left: Cart Items List -->
+        <div class="cart-table-wrap">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:1px solid var(--border);">
+            <h3>Cart Items (${cart.length})</h3>
+            <button type="button" onclick="handleClearCart()" class="btn btn-sm btn-outline" style="color:var(--danger); border-color:var(--border);">
+              Clear Cart
+            </button>
+          </div>
+
+          <div style="display:flex; flex-direction:column;">
+            ${itemsHtml}
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--border);">
+            <a href="products.html" class="btn btn-outline btn-sm">&larr; Continue Shopping</a>
+            <button type="button" onclick="checkoutViaWhatsAppDirect()" class="btn btn-whatsapp btn-sm">
+              💬 Quick WhatsApp Order
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Checkout & Details Form -->
+        <div class="checkout-card">
+          <h3 style="border-bottom:1px solid var(--border); padding-bottom:0.75rem;">Order &amp; Checkout</h3>
+
+          <!-- Promo Code Box -->
+          <div style="display:flex; gap:0.5rem;">
+            <input type="text" id="promoInput" class="form-control" placeholder="Promo code (try PTENIT10)" value="${currentVoucherCode}" style="font-size:0.85rem;">
+            <button type="button" class="btn btn-navy btn-sm" onclick="applyPromo()">Apply</button>
+          </div>
+          ${appliedDiscount > 0 ? `<div style="color:var(--accent); font-size:0.8rem; font-weight:700;">✓ ${appliedDiscount}% Discount Applied!</div>` : ''}
+
+          <!-- Price Summary -->
+          <div style="display:flex; flex-direction:column; gap:0.5rem; padding:1rem 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+            <div class="summary-row">
+              <span>Subtotal</span>
+              <span>${formatPrice(subtotal)}</span>
+            </div>
+            ${discountAmount > 0 ? `
+              <div class="summary-row" style="color:var(--accent); font-weight:700;">
+                <span>Discount (${appliedDiscount}%)</span>
+                <span>-${formatPrice(discountAmount)}</span>
+              </div>
+            ` : ''}
+            <div class="summary-row">
+              <span>Setup &amp; Deployment</span>
+              <span style="color:var(--accent); font-weight:bold;">Free / Included</span>
+            </div>
+            <div class="summary-row total">
+              <span>Total Payable</span>
+              <span class="price">${formatPrice(grandTotal)}</span>
+            </div>
+          </div>
+
+          <!-- Direct Order Customer Form -->
+          <form id="orderForm" onsubmit="handlePlaceOrder(event)" style="display:flex; flex-direction:column; gap:0.85rem;">
+            <div class="form-group">
+              <label>Full Name *</label>
+              <input type="text" id="custName" required class="form-control" placeholder="e.g. Asif Mahmud">
+            </div>
+
+            <div class="form-group">
+              <label>Phone / WhatsApp Number *</label>
+              <input type="tel" id="custPhone" required class="form-control" placeholder="e.g. +88017XXXXXXXX">
+            </div>
+
+            <div class="form-group">
+              <label>Email Address</label>
+              <input type="email" id="custEmail" class="form-control" placeholder="e.g. asif@example.com">
+            </div>
+
+            <div class="form-group">
+              <label>Company / Address</label>
+              <input type="text" id="custAddress" class="form-control" placeholder="City, Country">
+            </div>
+
+            <!-- Payment Method Selector -->
+            <div class="form-group">
+              <label>Select Payment Method *</label>
+              <select id="custPaymentMethod" class="form-control" onchange="togglePaymentInstructions(this.value)">
+                <option value="bKash">bKash (Send Money / Merchant)</option>
+                <option value="Nagad">Nagad (Send Money / Wallet)</option>
+                <option value="Rocket">Rocket</option>
+                <option value="Bank Transfer">Bank Transfer (Brac / City / DBBL)</option>
+                <option value="Cash on Delivery">Cash on Delivery / Direct Meeting</option>
+              </select>
+            </div>
+
+            <!-- Dynamic Payment Instructions Box -->
+            <div id="paymentInstructionsBox" style="background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; font-size:0.85rem; line-height:1.6;">
+              <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
+                <img src="assets/images/qr-bkash.svg" alt="bKash" style="width:45px; height:45px; border-radius:6px; background:#fff;">
+                <div>
+                  <strong>bKash Personal: 01XXXXXXXXX</strong><br>
+                  <span style="color:var(--text-muted); font-size:0.75rem;">Send Money &amp; paste Transaction ID below</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group" id="trxIdGroup">
+              <label>Transaction ID (TrxID) / Reference</label>
+              <input type="text" id="custTrxId" class="form-control" placeholder="e.g. BK9X2810A">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg" style="margin-top:0.5rem;">
+              Place Order &amp; Confirm
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
+    function modifyQty(id, delta) {
+      const cart = getCart();
+      const item = cart.find(i => String(i.id) === String(id));
+      if (item) {
+        item.qty = Math.max(1, item.qty + delta);
+        saveCart(cart);
+        renderCart();
+      }
+    }
+
+    function removeItem(id) {
+      removeFromCart(id);
+      renderCart();
+    }
+
+    function handleClearCart() {
+      if (confirm("Are you sure you want to clear your cart?")) {
+        clearCart();
+        renderCart();
+      }
+    }
+
+    function applyPromo() {
+      const code = document.getElementById("promoInput").value.trim().toUpperCase();
+      if (code === "PTENIT10") {
+        appliedDiscount = 10;
+        currentVoucherCode = code;
+        showToast("Voucher applied: 10% OFF!", "success");
+      } else if (code === "SAVE20") {
+        appliedDiscount = 20;
+        currentVoucherCode = code;
+        showToast("Voucher applied: 20% OFF!", "success");
+      } else {
+        appliedDiscount = 0;
+        currentVoucherCode = "";
+        showToast("Invalid promo code", "error");
+      }
+      renderCart();
+    }
+
+    function togglePaymentInstructions(method) {
+      const box = document.getElementById("paymentInstructionsBox");
+      const trxGroup = document.getElementById("trxIdGroup");
+      if (!box) return;
+
+      if (method === "bKash") {
+        trxGroup.style.display = "flex";
+        box.innerHTML = `
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <img src="assets/images/qr-bkash.svg" alt="bKash" style="width:45px; height:45px; border-radius:6px; background:#fff;">
+            <div>
+              <strong>bKash: 01XXXXXXXXX</strong><br>
+              <span style="color:var(--text-muted); font-size:0.75rem;">Send Money &amp; enter the Transaction ID</span>
+            </div>
+          </div>
+        `;
+      } else if (method === "Nagad") {
+        trxGroup.style.display = "flex";
+        box.innerHTML = `
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <img src="assets/images/qr-nagad.svg" alt="Nagad" style="width:45px; height:45px; border-radius:6px; background:#fff;">
+            <div>
+              <strong>Nagad: 01XXXXXXXXX</strong><br>
+              <span style="color:var(--text-muted); font-size:0.75rem;">Send Money &amp; enter the Transaction ID</span>
+            </div>
+          </div>
+        `;
+      } else if (method === "Rocket") {
+        trxGroup.style.display = "flex";
+        box.innerHTML = `
+          <div>
+            <strong>Rocket: 01XXXXXXXXX-X</strong><br>
+            <span style="color:var(--text-muted); font-size:0.75rem;">Send Money / Bill Pay &amp; enter Transaction ID</span>
+          </div>
+        `;
+      } else if (method === "Bank Transfer") {
+        trxGroup.style.display = "flex";
+        box.innerHTML = `
+          <div style="font-size:0.8rem;">
+            <strong>Bank: City Bank / DBBL / Brac Bank</strong><br>
+            A/C Name: <strong>PTENit Solutions</strong><br>
+            A/C No: <strong>1102983746190</strong><br>
+            Branch: Principal Branch, Dhaka
+          </div>
+        `;
+      } else {
+        trxGroup.style.display = "none";
+        box.innerHTML = `
+          <div style="color:var(--accent); font-weight:700;">
+            ✓ Cash on Delivery selected. Our team will verify and contact you before dispatch.
+          </div>
+        `;
+      }
+    }
+
+    function checkoutViaWhatsAppDirect() {
+      const cart = getCart();
+      if (!cart.length) return;
+      const waUrl = createWhatsAppOrderMessage(cart, {
+        name: "Direct Buyer",
+        phone: "Via Cart"
+      });
+      window.open(waUrl, "_blank");
+    }
+
+    async function handlePlaceOrder(e) {
+      e.preventDefault();
+      const cart = getCart();
+      if (!cart.length) {
+        showToast("Your cart is empty", "error");
+        return;
+      }
+
+      const name = document.getElementById("custName").value.trim();
+      const phone = document.getElementById("custPhone").value.trim();
+      const email = document.getElementById("custEmail").value.trim();
+      const address = document.getElementById("custAddress").value.trim();
+      const paymentMethod = document.getElementById("custPaymentMethod").value;
+      const trxId = document.getElementById("custTrxId") ? document.getElementById("custTrxId").value.trim() : "";
+
+      let subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      let discountAmount = Math.round((subtotal * appliedDiscount) / 100);
+      let grandTotal = subtotal - discountAmount;
+
+      const orderData = {
+        customerName: name,
+        phone: phone,
+        email: email,
+        address: address,
+        items: cart,
+        subtotal: subtotal,
+        discount: discountAmount,
+        total: grandTotal,
+        paymentMethod: paymentMethod,
+        trxId: trxId,
+        status: "Pending"
+      };
+
+      // Save order to Firebase / LocalStorage
+      const savedOrder = await window.PTENitFirebase.saveOrder(orderData);
+
+      // Clear cart
+      clearCart();
+
+      // Show confirmation modal
+      const modal = document.getElementById("orderSuccessModal");
+      const details = document.getElementById("orderSuccessDetails");
+      const waBtn = document.getElementById("modalWhatsAppBtn");
+
+      details.innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+          <strong>Order ID:</strong> <span style="color:var(--accent); font-weight:800;">${savedOrder.id}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+          <strong>Customer:</strong> <span>${name}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem;">
+          <strong>Total Amount:</strong> <span style="font-weight:900; color:var(--accent);">${formatPrice(grandTotal)}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <strong>Payment Method:</strong> <span>${paymentMethod} ${trxId ? `(${trxId})` : ''}</span>
+        </div>
+      `;
+
+      // Set up WhatsApp Confirmation Button
+      const waLink = createWhatsAppOrderMessage(cart, {
+        name: name,
+        phone: phone,
+        address: address,
+        paymentMethod: paymentMethod,
+        trxId: trxId
+      });
+      waBtn.onclick = () => window.open(waLink, "_blank");
+
+      modal.classList.add("open");
+    }
+
+    document.addEventListener("DOMContentLoaded", renderCart);
+  </script>
+</body>
+</html>

@@ -541,8 +541,8 @@ const MainAppContent: React.FC = () => {
         </React.Suspense>
       </main>
 
-      {/* Main Footer (Only on public website pages) */}
-      {!isDashboardView && (
+      {/* Main Footer (Only on public website pages, hidden in dashboard & marketplace) */}
+      {!isDashboardView && activeTab !== 'marketplace' && (
         <Footer setActiveTab={handleSetActiveTab} />
       )}
 
@@ -578,7 +578,7 @@ const MainAppContent: React.FC = () => {
         <FloatingMessengerWindows onNavigateTab={handleSetActiveTab} />
 
         {/* Central Mobile & Desktop Notification Center Modal */}
-        <NotificationCenterModal onNavigateTab={handleSetActiveTab} />
+        <NotificationCenterModal isEmbedded={false} onNavigateTab={handleSetActiveTab} />
       </React.Suspense>
 
     </div>

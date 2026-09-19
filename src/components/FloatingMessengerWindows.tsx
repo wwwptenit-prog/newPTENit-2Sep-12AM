@@ -564,16 +564,6 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
     }
   };
 
-  // Auto-select first conversation on PC desktop view if none is selected
-  useEffect(() => {
-    if (isOpen && activeTopTab === 'messages' && !selectedConversationId && conversationList && conversationList.length > 0) {
-      const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
-      if (isDesktop) {
-        handleSelectConversation(conversationList[0].id);
-      }
-    }
-  }, [isOpen, activeTopTab, selectedConversationId, conversationList]);
-
   // Top seller/client stories
   const sellerStories = [
     {
@@ -2091,15 +2081,7 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
                   currentUserName={currentUser?.name || 'আমি'}
                 />
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3 text-slate-400 relative">
-                  <button
-                    type="button"
-                    onClick={handleCloseAll}
-                    className="absolute top-4 right-4 p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition cursor-pointer"
-                    title="মেসেঞ্জার বন্ধ করুন (Close)"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3 text-slate-400">
                   <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center text-[#0084FF]">
                     <MessageCircle className="w-8 h-8" />
                   </div>
@@ -2881,18 +2863,6 @@ const FullScreenChatThread: React.FC<FullScreenChatThreadProps> = ({
           >
             <Phone className="w-5 h-5" />
           </button>
-
-          {/* Close Messenger Button */}
-          {onCloseFullScreen && (
-            <button
-              type="button"
-              onClick={onCloseFullScreen}
-              className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition cursor-pointer ml-1"
-              title="মেসেঞ্জার বন্ধ করুন (Close)"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
         </div>
       </div>
 

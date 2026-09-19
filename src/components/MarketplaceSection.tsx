@@ -2570,23 +2570,29 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
       openAuthModal();
       return;
     }
-    const isCurrentlyOpen = (isMessengerInboxOpen && initialMessengerTab === 'messages');
+    const isPcView = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    const isCurrentlyOpen = rightColumnView === 'messages' || (isMessengerInboxOpen && initialMessengerTab === 'messages');
     if (isCurrentlyOpen) {
       if (closeMessengerInbox) closeMessengerInbox();
       setRightColumnView('default');
     } else {
-      setRightColumnView('messages');
-      if (openMessengerInbox) {
-        openMessengerInbox(undefined, 'messages');
-      }
-      setTimeout(() => {
-        const col3 = document.getElementById('marketplace-column-3-seller')
-          || document.getElementById('marketplace-column-3-agency')
-          || document.getElementById('marketplace-column-3');
-        if (col3) {
-          col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (isPcView) {
+        if (closeMessengerInbox) closeMessengerInbox();
+        setRightColumnView('messages');
+        setTimeout(() => {
+          const col3 = document.getElementById('marketplace-column-3-seller')
+            || document.getElementById('marketplace-column-3-agency')
+            || document.getElementById('marketplace-column-3');
+          if (col3) {
+            col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      } else {
+        setRightColumnView('messages');
+        if (openMessengerInbox) {
+          openMessengerInbox(undefined, 'messages');
         }
-      }, 100);
+      }
     }
   };
 
@@ -2595,26 +2601,33 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
       openAuthModal();
       return;
     }
-    const isCurrentlyOpen = (isMessengerInboxOpen && initialMessengerTab === 'notifications') || isNotificationCenterOpen;
+    const isPcView = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    const isCurrentlyOpen = rightColumnView === 'notifications' || (isMessengerInboxOpen && initialMessengerTab === 'notifications') || isNotificationCenterOpen;
     if (isCurrentlyOpen) {
       if (closeNotificationCenter) closeNotificationCenter();
       if (closeMessengerInbox) closeMessengerInbox();
       setRightColumnView('default');
     } else {
-      setRightColumnView('notifications');
-      if (openNotificationCenter) {
-        openNotificationCenter();
-      } else if (openMessengerInbox) {
-        openMessengerInbox(undefined, 'notifications');
-      }
-      setTimeout(() => {
-        const col3 = document.getElementById('marketplace-column-3-seller')
-          || document.getElementById('marketplace-column-3-agency')
-          || document.getElementById('marketplace-column-3');
-        if (col3) {
-          col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (isPcView) {
+        if (closeNotificationCenter) closeNotificationCenter();
+        if (closeMessengerInbox) closeMessengerInbox();
+        setRightColumnView('notifications');
+        setTimeout(() => {
+          const col3 = document.getElementById('marketplace-column-3-seller')
+            || document.getElementById('marketplace-column-3-agency')
+            || document.getElementById('marketplace-column-3');
+          if (col3) {
+            col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      } else {
+        setRightColumnView('notifications');
+        if (openNotificationCenter) {
+          openNotificationCenter();
+        } else if (openMessengerInbox) {
+          openMessengerInbox(undefined, 'notifications');
         }
-      }, 100);
+      }
     }
   };
 

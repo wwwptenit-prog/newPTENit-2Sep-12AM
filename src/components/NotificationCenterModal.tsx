@@ -17,10 +17,14 @@ import { NotificationItem } from "../types";
 
 interface NotificationCenterModalProps {
   onNavigateTab?: (tab: string, subCategory?: string, isExplicit?: boolean) => void;
+  isEmbedded?: boolean;
+  onClose?: () => void;
 }
 
 export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = ({
   onNavigateTab,
+  isEmbedded = false,
+  onClose,
 }) => {
   const {
     currentUser,
@@ -51,9 +55,14 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
     promoAlerts: false,
   });
 
+  const handleClose = () => {
+    closeNotificationCenter();
+    if (onClose) onClose();
+  };
+
   useEffect(() => {
-    if (isNotificationCenterOpen) {
-      if (!currentUser) {
+    if (isNotificationCenterOpen || isEmbedded) {
+      if (!currentUser && !isEmbedded) {
         closeNotificationCenter();
         return;
       }
@@ -62,9 +71,11 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
       setActiveFilter("all");
       setIsNotifSettingsOpen(false);
     }
-  }, [isNotificationCenterOpen, currentUser]);
+  }, [isNotificationCenterOpen, isEmbedded, currentUser]);
 
-  if (!isNotificationCenterOpen || isMessengerInboxOpen || !currentUser) return null;
+  if (!isNotificationCenterOpen && !isEmbedded) return null;
+  if (!currentUser) return null;
+  if (isMessengerInboxOpen) return null;
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -199,76 +210,78 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
     );
   };
 
-  return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200">
-      {/* PHONE VIEW (100% Full Screen Mobile & Centered Desktop Modal) */}
-      <div className="w-full h-[100dvh] sm:h-[650px] sm:max-w-lg sm:rounded-3xl bg-white text-slate-900 flex flex-col overflow-hidden shadow-2xl border-0 sm:border sm:border-slate-200 font-bengali">
-        {/* HEADER BAR */}
-        <div className="p-3.5 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col gap-2 shrink-0">
-          <div className="flex items-center justify-between">
-            {selectedNotification ? (
+  const content = (
+    <div className={`w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white flex flex-col overflow-hidden font-bengali ${
+      isEmbedded
+        ? "border border-slate-200/90 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-xs min-h-[580px] sm:min-h-[660px] animate-fadeIn"
+        : "h-[100dvh] sm:h-[650px] sm:max-w-lg sm:rounded-3xl shadow-2xl border-0 sm:border sm:border-slate-200"
+    }`}>
+      {/* HEADER BAR */}
+      <div className="p-3.5 sm:p-4 bg-slate-50/90 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-2 shrink-0">
+        <div className="flex items-center justify-between">
+          {selectedNotification ? (
+            <button
+              type="button"
+              onClick={() => setSelectedNotification(null)}
+              className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white transition cursor-pointer active:scale-95 py-1 px-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+            >
+              <ChevronLeft className="w-5 h-5 text-[#006A4E] dark:text-emerald-400 stroke-[2.5]" />
+              <span className="text-xs sm:text-sm font-black">তালিকায় ফিরে যান</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
-                onClick={() => setSelectedNotification(null)}
-                className="flex items-center gap-1.5 text-slate-700 hover:text-slate-900 transition cursor-pointer active:scale-95 py-1 px-2.5 rounded-xl bg-white border border-slate-200 hover:bg-slate-100"
+                onClick={handleClose}
+                className="p-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-750 transition cursor-pointer active:scale-95"
+                title="ফিডে ফিরে যান"
               >
-                <ChevronLeft className="w-5 h-5 text-[#006A4E] stroke-[2.5]" />
-                <span className="text-xs sm:text-sm font-black">তালিকায় ফিরে যান</span>
+                <ChevronLeft className="w-6 h-6 stroke-[2.5] text-slate-600 dark:text-slate-300" />
               </button>
-            ) : (
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={closeNotificationCenter}
-                  className="p-1.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition cursor-pointer active:scale-95"
-                  title="বন্ধ করুন"
-                >
-                  <ChevronLeft className="w-6 h-6 stroke-[2.5] text-slate-600" />
-                </button>
 
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-emerald-100 border border-emerald-200 text-[#006A4E]">
-                    <Bell className="w-5 h-5" />
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-850 text-[#006A4E] dark:text-emerald-400">
+                  <Bell className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight leading-none flex items-center gap-1.5">
+                      <span>নোটিফিকেশন সেন্টার</span>
+                      <span className="w-2 h-2 rounded-full bg-[#006A4E] dark:bg-emerald-400" />
+                      {notifications.length > 0 && (
+                        <span className="min-w-5 h-5 px-1.5 bg-[#E11D48] text-white text-[10px] font-black rounded-full flex items-center justify-center shrink-0 shadow-xs">
+                          {unreadCount > 0 ? unreadCount : notifications.length}
+                        </span>
+                      )}
+                    </h2>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight leading-none flex items-center gap-1.5">
-                        <span>নোটিফিকেশন সেন্টার</span>
-                        <span className="w-2 h-2 rounded-full bg-[#006A4E]" />
-                        {notifications.length > 0 && (
-                          <span className="min-w-5 h-5 px-1.5 bg-[#E11D48] text-white text-[10px] font-black rounded-full flex items-center justify-center shrink-0 shadow-xs">
-                            {unreadCount > 0 ? unreadCount : notifications.length}
-                          </span>
-                        )}
-                      </h2>
-                    </div>
-                    <p className="text-[10px] font-semibold text-slate-500 tracking-wide leading-tight mt-0.5 font-sans">
-                      PTENit Notifications & Updates
-                    </p>
-                  </div>
+                  <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 tracking-wide leading-tight mt-0.5 font-sans">
+                    PTENit Notifications & Updates
+                  </p>
                 </div>
               </div>
-            )}
-
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsNotifSettingsOpen(true)}
-                className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition cursor-pointer active:scale-95 border border-slate-200"
-                title="নোটিফিকেশন সেটিংস"
-              >
-                <Settings className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={closeNotificationCenter}
-                className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-[#E11D48] transition cursor-pointer active:scale-95 border border-rose-200"
-                title="বন্ধ করুন (X)"
-              >
-                <X className="w-5 h-5 stroke-[2.5]" />
-              </button>
             </div>
+          )}
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsNotifSettingsOpen(true)}
+              className="p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition cursor-pointer active:scale-95 border border-slate-200 dark:border-slate-700"
+              title="নোটিফিকেশন সেটিংস"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-[#E11D48] transition cursor-pointer active:scale-95 border border-rose-200 dark:border-rose-850"
+              title="বন্ধ করে ফিডে ফিরে যান"
+            >
+              <X className="w-5 h-5 stroke-[2.5]" />
+            </button>
           </div>
+        </div>
 
           {/* QUICK TOP ACTION BUTTONS */}
           <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
@@ -300,8 +313,8 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
           </div>
         </div>
 
-        {/* SEARCH BAR (CLEAN WHITE TEXT FIELD, CENTERED / BALANCED FOR PHONE VIEW) & FILTER TABS */}
-        <div className="p-3 bg-white border-b border-slate-200 space-y-2.5 shrink-0">
+        {/* SEARCH BAR & FILTER TABS */}
+        <div className="p-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 space-y-2.5 shrink-0">
           <div className="w-full max-w-md mx-auto">
             <div className="relative flex items-center">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -310,13 +323,13 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="নোটিফিকেশন বা বার্তা খুঁজুন..."
-                className="w-full pl-10 pr-9 py-2.5 bg-slate-50 text-slate-900 placeholder-slate-400 font-medium text-xs sm:text-sm rounded-xl shadow-xs border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#006A4E] focus:border-transparent transition-all"
+                className="w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 font-medium text-xs sm:text-sm rounded-xl shadow-xs border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#006A4E] focus:border-transparent transition-all"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center text-xs transition cursor-pointer"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs transition cursor-pointer"
                   title="মুছে ফেলুন"
                 >
                   <X className="w-3 h-3" />
@@ -333,7 +346,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
               className={`px-3 py-1.5 rounded-full transition cursor-pointer whitespace-nowrap ${
                 activeFilter === "all"
                   ? "bg-[#006A4E] text-white font-black shadow-xs"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               }`}
             >
               সকল ({notifications.length})
@@ -344,7 +357,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
               className={`px-3 py-1.5 rounded-full transition cursor-pointer whitespace-nowrap flex items-center gap-1 ${
                 activeFilter === "unread"
                   ? "bg-[#006A4E] text-white font-black shadow-xs"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-[#E11D48]" />
@@ -356,7 +369,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
               className={`px-3 py-1.5 rounded-full transition cursor-pointer whitespace-nowrap ${
                 activeFilter === "orders"
                   ? "bg-[#006A4E] text-white font-black shadow-xs"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               }`}
             >
               অর্ডার ও পেমেন্ট
@@ -367,7 +380,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
               className={`px-3 py-1.5 rounded-full transition cursor-pointer whitespace-nowrap ${
                 activeFilter === "updates"
                   ? "bg-[#006A4E] text-white font-black shadow-xs"
-                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               }`}
             >
               সিস্টেম ও সাপোর্ট
@@ -376,38 +389,38 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
         </div>
 
         {/* NOTIFICATION LIST (SCROLLABLE BODY) */}
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 w-full bg-white">
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80 w-full bg-white dark:bg-slate-900 min-h-[380px]">
           {filteredNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center p-6 space-y-3">
-              <div className="w-16 h-16 rounded-3xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
-                <Bell className="w-8 h-8 text-slate-400" />
+              <div className="w-16 h-16 rounded-3xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500">
+                <Bell className="w-8 h-8 text-slate-400 dark:text-slate-500" />
               </div>
               <div>
-                <p className="text-sm font-black text-slate-800">
+                <p className="text-sm font-black text-slate-800 dark:text-slate-200">
                   কোনো নোটিফিকেশন পাওয়া যায়নি
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   আপনার সকল নতুন নোটিশ ও পেমেন্ট আপডেট এখানে জমা হবে।
                 </p>
               </div>
             </div>
           ) : selectedNotification ? (
             /* NOTIFICATION DETAIL VIEW */
-            <div className="p-4 sm:p-5 flex flex-col h-full bg-white animate-in fade-in duration-200 overflow-y-auto">
+            <div className="p-4 sm:p-5 flex flex-col h-full bg-white dark:bg-slate-900 animate-in fade-in duration-200 overflow-y-auto">
               <div className="space-y-4 max-w-lg mx-auto w-full">
-                <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-750">
                   {getNotifIcon(selectedNotification)}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-black text-slate-900 leading-tight">
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white leading-tight">
                       {selectedNotification.title}
                     </h3>
-                    <p className="text-[11px] font-bold text-slate-500 mt-1 font-sans">
+                    <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-1 font-sans">
                       {selectedNotification.time}
                     </p>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-700 leading-relaxed font-sans whitespace-pre-wrap">
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-750 text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-wrap">
                   {selectedNotification.message}
                 </div>
 
@@ -428,7 +441,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                       deleteNotification(selectedNotification.id);
                       setSelectedNotification(null);
                     }}
-                    className="p-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-[#E11D48] font-bold text-xs transition cursor-pointer border border-rose-200"
+                    className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-[#E11D48] font-bold text-xs transition cursor-pointer border border-rose-200 dark:border-rose-800"
                     title="মুছে ফেলুন"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -446,8 +459,8 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                 }}
                 className={`p-3.5 sm:px-4 sm:py-3.5 flex items-start gap-3 cursor-pointer transition-colors w-full ${
                   !notif.read
-                    ? "bg-emerald-50/50 hover:bg-emerald-50"
-                    : "hover:bg-slate-50 opacity-90"
+                    ? "bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800/50 opacity-90"
                 }`}
               >
                 {getNotifIcon(notif)}
@@ -455,26 +468,26 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                   <div className="flex items-center justify-between gap-1">
                     <h4
                       className={`text-xs sm:text-sm font-black truncate ${
-                        !notif.read ? "text-[#006A4E]" : "text-slate-800"
+                        !notif.read ? "text-[#006A4E] dark:text-emerald-400" : "text-slate-800 dark:text-slate-200"
                       }`}
                     >
                       {notif.title}
                     </h4>
-                    <span className="text-[10px] text-slate-500 shrink-0 font-bold ml-1 font-sans">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 shrink-0 font-bold ml-1 font-sans">
                       {notif.time}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2 font-sans">
                     {notif.message}
                   </p>
                   {/* Action button & Delete */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-1">
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80 mt-1">
                     <div className="flex items-center gap-2">
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
                           !notif.read
-                            ? "bg-emerald-100 text-[#006A4E]"
-                            : "bg-slate-100 text-slate-500"
+                            ? "bg-emerald-100 dark:bg-emerald-950/60 text-[#006A4E] dark:text-emerald-400"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
                         }`}
                       >
                         {!notif.read ? "নতুন নোটিশ" : "পড়া হয়েছে"}
@@ -485,7 +498,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                           e.stopPropagation();
                           handleActionClick(notif);
                         }}
-                        className="text-[11px] font-black text-[#006A4E] hover:underline flex items-center gap-0.5 cursor-pointer"
+                        className="text-[11px] font-black text-[#006A4E] dark:text-emerald-400 hover:underline flex items-center gap-0.5 cursor-pointer"
                       >
                         <span>ওপেন</span>
                         <ArrowRight className="w-3 h-3" />
@@ -497,7 +510,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                         e.stopPropagation();
                         deleteNotification(notif.id);
                       }}
-                      className="p-1.5 text-slate-400 hover:text-[#E11D48] hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                      className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-[#E11D48] hover:bg-rose-50 dark:hover:bg-slate-800 rounded-lg transition cursor-pointer"
                       title="মুছে ফেলুন"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -509,6 +522,17 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
           )}
         </div>
       </div>
+  );
+
+  return (
+    <>
+      {isEmbedded ? (
+        content
+      ) : (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200">
+          {content}
+        </div>
+      )}
 
       {/* NOTIFICATION SETTINGS MODAL */}
       {isNotifSettingsOpen && (
@@ -518,27 +542,27 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-white border border-slate-200 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
-                <Settings className="w-5 h-5 text-[#006A4E]" />
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <Settings className="w-5 h-5 text-[#006A4E] dark:text-emerald-400" />
                 <span>নোটিফিকেশন পছন্দসমূহ</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setIsNotifSettingsOpen(false)}
-                className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition cursor-pointer"
+                className="p-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
                 title="বন্ধ করুন"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-5 space-y-3.5 text-xs font-semibold text-slate-700">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="p-5 space-y-3.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
                 <div>
-                  <div className="font-bold text-slate-900 text-sm">অর্ডার ও ডেলিভারি আপডেট</div>
-                  <div className="text-[11px] text-slate-500">নতুন ডেলিভারি ও কাজের অগ্রগতি অ্যালার্ট</div>
+                  <div className="font-bold text-slate-900 dark:text-white text-sm">অর্ডার ও ডেলিভারি আপডেট</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">নতুন ডেলিভারি ও কাজের অগ্রগতি অ্যালার্ট</div>
                 </div>
                 <input
                   type="checkbox"
@@ -548,10 +572,10 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
                 <div>
-                  <div className="font-bold text-slate-900 text-sm">নতুন মেসেজ নোটিফিকেশন</div>
-                  <div className="text-[11px] text-slate-500">সেলার ও বায়ার থেকে নতুন বার্তার নোটিশ</div>
+                  <div className="font-bold text-slate-900 dark:text-white text-sm">নতুন মেসেজ নোটিফিকেশন</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">সেলার ও বায়ার থেকে নতুন বার্তার নোটিশ</div>
                 </div>
                 <input
                   type="checkbox"
@@ -561,10 +585,10 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
                 <div>
-                  <div className="font-bold text-slate-900 text-sm">কোর্স ও লাইভ ক্লাস আপডেট</div>
-                  <div className="text-[11px] text-slate-500">নতুন লেকচার, লাইভ ক্লাস ও অ্যাসাইনমেন্ট অ্যালার্ট</div>
+                  <div className="font-bold text-slate-900 dark:text-white text-sm">কোর্স ও লাইভ ক্লাস আপডেট</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">নতুন লেকচার, লাইভ ক্লাস ও অ্যাসাইনমেন্ট অ্যালার্ট</div>
                 </div>
                 <input
                   type="checkbox"
@@ -574,10 +598,10 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700">
                 <div>
-                  <div className="font-bold text-slate-900 text-sm">সাউন্ড ও অডিও অ্যালার্ট</div>
-                  <div className="text-[11px] text-slate-500">নোটিফিকেশন এলে নোটিফিকেশন সাউন্ড বাজবে</div>
+                  <div className="font-bold text-slate-900 dark:text-white text-sm">সাউন্ড ও অডিও অ্যালার্ট</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">নোটিফিকেশন এলে নোটিফিকেশন সাউন্ড বাজবে</div>
                 </div>
                 <input
                   type="checkbox"
@@ -600,6 +624,6 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
