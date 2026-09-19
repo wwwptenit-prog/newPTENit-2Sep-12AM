@@ -23,6 +23,8 @@ import {
   User,
   LogOut,
   MessageSquare,
+  Mail,
+  Bell,
   Zap,
   PlusCircle,
   Wallet,
@@ -55,9 +57,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     currentUser,
     marketplaceOrders,
     openMessengerInbox,
+    openNotificationCenter,
+    notifications,
+    directMessages,
     logout,
     logoutMarketplace
   } = useData();
+
+  const unreadMsgCount = (directMessages || []).filter(m => !m.read).length;
+  const unreadNotifCount = (notifications || []).filter(n => !n.read).length;
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -441,50 +449,95 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>কোর্সে জয়েন</span>
             </button>
 
-            {/* AUTH CONTROLS: LOGIN WHEN LOGGED OUT, DASHBOARD & LOGOUT WHEN LOGGED IN */}
-            {currentUser ? (
-              <div className="flex items-center gap-1.5 pl-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (currentUser.role === 'admin') setActiveTab('admin');
-                    else if (currentUser.role === 'instructor') setActiveTab('teacher-dashboard');
-                    else setActiveTab('customer-dashboard');
-                  }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 border border-white/25 text-xs font-bold text-white transition cursor-pointer"
-                  title="আমার ড্যাশবোর্ড"
-                >
-                  <div className="w-6 h-6 rounded-full bg-white text-[#006A4E] overflow-hidden flex items-center justify-center font-bold text-xs shrink-0">
-                    {currentUser.avatar ? (
-                      <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
-                    ) : (
-                      currentUser.name?.charAt(0).toUpperCase() || 'U'
-                    )}
-                  </div>
-                  <span className="max-w-[100px] truncate text-xs">{currentUser.name}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (logout) logout();
-                    else if (logoutMarketplace) logoutMarketplace();
-                  }}
-                  className="p-2 rounded-lg bg-white/15 hover:bg-white/25 text-white border border-white/25 transition cursor-pointer"
-                  title="লগআউট"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
+            {/* AUTH CONTROLS: MESSENGER & NOTIFICATIONS + LOGIN/DASHBOARD */}
+            <div className="flex items-center gap-1.5 pl-1">
+              {/* MESSENGER BUTTON (VISIBLE ON PC FOR ALL USERS) */}
               <button
                 type="button"
-                onClick={openAuthModal}
-                className="px-3.5 py-2 rounded-lg text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/25 transition cursor-pointer flex items-center gap-1.5 font-bengali active:scale-95"
+                onClick={() => {
+                  if (!currentUser) {
+                    if (openAuthModal) openAuthModal();
+                    return;
+                  }
+                  if (openMessengerInbox) openMessengerInbox(undefined, 'messages');
+                }}
+                className="p-2 rounded-lg bg-white/15 hover:bg-white/25 text-white border border-white/25 transition cursor-pointer relative active:scale-95"
+                title="মেসেঞ্জার ও চ্যাট"
               >
-                <User className="w-3.5 h-3.5 text-white" />
-                <span>লগইন</span>
+                <Mail className="w-4 h-4" />
+                {unreadMsgCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#E11D48] text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                    {unreadMsgCount}
+                  </span>
+                )}
               </button>
-            )}
+
+              {/* NOTIFICATION BUTTON (VISIBLE ON PC FOR ALL USERS) */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!currentUser) {
+                    if (openAuthModal) openAuthModal();
+                    return;
+                  }
+                  if (openNotificationCenter) openNotificationCenter();
+                  else if (openMessengerInbox) openMessengerInbox(undefined, 'notifications');
+                }}
+                className="p-2 rounded-lg bg-white/15 hover:bg-white/25 text-white border border-white/25 transition cursor-pointer relative active:scale-95"
+                title="নোটিফিকেশন সেন্টার"
+              >
+                <Bell className="w-4 h-4" />
+                {notifications && notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#E11D48] text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                    {notifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+
+              {currentUser ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (currentUser.role === 'admin') setActiveTab('admin');
+                      else if (currentUser.role === 'instructor') setActiveTab('teacher-dashboard');
+                      else setActiveTab('customer-dashboard');
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 border border-white/25 text-xs font-bold text-white transition cursor-pointer"
+                    title="আমার ড্যাশবোর্ড"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-white text-[#006A4E] overflow-hidden flex items-center justify-center font-bold text-xs shrink-0">
+                      {currentUser.avatar ? (
+                        <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                      ) : (
+                        currentUser.name?.charAt(0).toUpperCase() || 'U'
+                      )}
+                    </div>
+                    <span className="max-w-[100px] truncate text-xs">{currentUser.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (logout) logout();
+                      else if (logoutMarketplace) logoutMarketplace();
+                    }}
+                    className="p-2 rounded-lg bg-white/15 hover:bg-white/25 text-white border border-white/25 transition cursor-pointer"
+                    title="লগআউট"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openAuthModal}
+                  className="px-3.5 py-2 rounded-lg text-xs font-bold text-white bg-white/15 hover:bg-white/25 border border-white/25 transition cursor-pointer flex items-center gap-1.5 font-bengali active:scale-95"
+                >
+                  <User className="w-3.5 h-3.5 text-white" />
+                  <span>লগইন</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Mobile Actions: Login/Profile + Menu Drawer Button */}

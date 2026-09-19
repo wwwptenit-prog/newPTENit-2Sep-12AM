@@ -2254,7 +2254,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
   const openNotificationCenter = () => {
-    openMessengerInbox(undefined, 'notifications');
+    setIsMessengerInboxOpen(false);
+    setIsNotificationCenterOpen(true);
   };
 
   const closeNotificationCenter = () => {

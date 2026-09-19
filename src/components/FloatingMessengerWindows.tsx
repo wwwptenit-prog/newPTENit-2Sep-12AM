@@ -564,6 +564,16 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
     }
   };
 
+  // Auto-select first conversation on PC desktop view if none is selected
+  useEffect(() => {
+    if (isOpen && activeTopTab === 'messages' && !selectedConversationId && conversationList && conversationList.length > 0) {
+      const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
+      if (isDesktop) {
+        handleSelectConversation(conversationList[0].id);
+      }
+    }
+  }, [isOpen, activeTopTab, selectedConversationId, conversationList]);
+
   // Top seller/client stories
   const sellerStories = [
     {
@@ -1302,14 +1312,43 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
                   >
                     <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
                   </button>
-                  <div>
-                    <h1 className="text-lg sm:text-xl font-black text-slate-950 dark:text-white tracking-tight flex items-center gap-1.5">
-                      <span>{activeTopTab === 'notifications' ? 'Notifications' : 'Messages'}</span>
-                      <span className="w-2 h-2 rounded-full bg-[#006A4E]" />
-                    </h1>
-                    <p className="text-[10px] font-semibold text-slate-400/90 tracking-wide leading-tight mt-0.5 font-sans">
-                      {activeTopTab === 'notifications' ? 'PTENit Marketplace Updates' : 'PTENit Marketplace Inbox'}
-                    </p>
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTopTab('messages');
+                        setSelectedNotification(null);
+                      }}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        activeTopTab === 'messages'
+                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>মেসেজ</span>
+                      {conversationList.filter(c => (c.unreadCount || 0) > 0).length > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-[#E11D48]" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTopTab('notifications');
+                        setSelectedConversationId(null);
+                      }}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                        activeTopTab === 'notifications'
+                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <Bell className="w-3.5 h-3.5" />
+                      <span>নোটিফিকেশন</span>
+                      {roleScopedNotifications.filter(n => !n.read).length > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-[#E11D48]" />
+                      )}
+                    </button>
                   </div>
                 </div>
 
@@ -1342,7 +1381,8 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
               {/* SCROLLABLE BODY: SEARCH BAR, FILTER TABS, SELLERS CAROUSEL & CONVERSATION LIST ALL SCROLL TOGETHER */}
               <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-slate-100/80 dark:divide-slate-800/40">
                 
-                {/* SEARCH BAR & FILTER TABS (HIDDEN ON PHONE VIEW) */}
+                {/* SEARCH BAR & FILTER TABS (HIDDEN ON PHONE VIEW, AND ONLY FOR MESSAGES TAB) */}
+                {activeTopTab === 'messages' && (
                 <div className="hidden md:block p-3 space-y-2.5">
                   <div className="relative">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1429,6 +1469,7 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
                     )}
                   </div>
                 </div>
+                )}
 
 
 
@@ -2050,7 +2091,15 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
                   currentUserName={currentUser?.name || 'আমি'}
                 />
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3 text-slate-400">
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-3 text-slate-400 relative">
+                  <button
+                    type="button"
+                    onClick={handleCloseAll}
+                    className="absolute top-4 right-4 p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition cursor-pointer"
+                    title="মেসেঞ্জার বন্ধ করুন (Close)"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                   <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-slate-800 flex items-center justify-center text-[#0084FF]">
                     <MessageCircle className="w-8 h-8" />
                   </div>
@@ -2832,6 +2881,18 @@ const FullScreenChatThread: React.FC<FullScreenChatThreadProps> = ({
           >
             <Phone className="w-5 h-5" />
           </button>
+
+          {/* Close Messenger Button */}
+          {onCloseFullScreen && (
+            <button
+              type="button"
+              onClick={onCloseFullScreen}
+              className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition cursor-pointer ml-1"
+              title="মেসেঞ্জার বন্ধ করুন (Close)"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
