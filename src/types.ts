@@ -419,6 +419,15 @@ export interface SiteSettings {
   containerMaxWidth?: string; // '100%', '1536px', '1280px'
   customScalePercent?: number; // 100, 95, 90, 105
   mobileResponsiveMode?: 'fluid_100' | 'adaptive' | 'compact';
+  // Typography & Font Customization
+  primaryBengaliFont?: 'hind_siliguri' | 'noto_sans' | 'anek_bangla' | 'tiro_bangla' | 'facebook_system' | 'custom';
+  customFontFamily?: string;
+  mobileFontSize?: number; // e.g. 14, 15, 16, 17, 18
+  desktopFontSize?: number; // e.g. 15, 16, 17, 18, 19, 20
+  mobileLineHeight?: number; // e.g. 1.35, 1.4, 1.48, 1.55, 1.6
+  desktopLineHeight?: number; // e.g. 1.45, 1.5, 1.55, 1.65
+  bengaliFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
+  headingScale?: 'compact' | 'normal' | 'large' | 'extra_large';
   // SEO & Search Engine Optimization Setup
   seoTitle?: string;
   metaDescription?: string;

@@ -14,20 +14,21 @@ import { AboutSection } from './components/AboutSection';
 import { GallerySection } from './components/GallerySection';
 import { OfficeLocation } from './components/OfficeLocation';
 import { Course } from './types';
+import { getUrlParams, updateUrlState } from './utils/urlRouter';
 
-// Performance optimization: Lazy load heavy sub-systems and dashboards on-demand
-const CourseDetailModal = React.lazy(() => import('./components/CourseDetailModal').then(m => ({ default: m.CourseDetailModal })));
-const StudentDashboard = React.lazy(() => import('./components/StudentDashboard').then(m => ({ default: m.StudentDashboard })));
-const CourseLearningPage = React.lazy(() => import('./components/CourseLearningPage').then(m => ({ default: m.CourseLearningPage })));
-const CertificateModal = React.lazy(() => import('./components/CertificateModal').then(m => ({ default: m.CertificateModal })));
-const CertificateVerifyPage = React.lazy(() => import('./components/CertificateVerifyPage').then(m => ({ default: m.CertificateVerifyPage })));
-const AuthModal = React.lazy(() => import('./components/AuthModal').then(m => ({ default: m.AuthModal })));
-const AdminPanel = React.lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
-const TeacherDashboard = React.lazy(() => import('./components/TeacherDashboard').then(m => ({ default: m.TeacherDashboard })));
-const CustomerDashboard = React.lazy(() => import('./components/CustomerDashboard').then(m => ({ default: m.CustomerDashboard })));
-const MarketplaceSection = React.lazy(() => import('./components/MarketplaceSection').then(m => ({ default: m.MarketplaceSection })));
-const FloatingMessengerWindows = React.lazy(() => import('./components/FloatingMessengerWindows').then(m => ({ default: m.FloatingMessengerWindows })));
-const NotificationCenterModal = React.lazy(() => import('./components/NotificationCenterModal').then(m => ({ default: m.NotificationCenterModal })));
+// Direct static imports for robust single-bundle cPanel hosting without dynamic fetch failures
+import { CourseDetailModal } from './components/CourseDetailModal';
+import { StudentDashboard } from './components/StudentDashboard';
+import { CourseLearningPage } from './components/CourseLearningPage';
+import { CertificateModal } from './components/CertificateModal';
+import { CertificateVerifyPage } from './components/CertificateVerifyPage';
+import { AuthModal } from './components/AuthModal';
+import { AdminPanel } from './components/AdminPanel';
+import { TeacherDashboard } from './components/TeacherDashboard';
+import { CustomerDashboard } from './components/CustomerDashboard';
+import { MarketplaceSection } from './components/MarketplaceSection';
+import { FloatingMessengerWindows } from './components/FloatingMessengerWindows';
+import { NotificationCenterModal } from './components/NotificationCenterModal';
 
 const LazyFallback: React.FC = () => (
   <div className="min-h-[50vh] flex flex-col items-center justify-center p-8">
@@ -39,9 +40,85 @@ const LazyFallback: React.FC = () => (
 const MainAppContent: React.FC = () => {
   const { currentUser, courses, siteSettings, closeMessengerInbox, marketplaceMode } = useData();
 
-  const [activeTab, setActiveTab] = useState<string>('home');
-  const [marketplaceCategory, setMarketplaceCategory] = useState<string>('All');
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  // Apply Dynamic Typography & Responsive Font Settings to DOM root
+  useEffect(() => {
+    if (!siteSettings) return;
+    const root = document.documentElement;
+
+    // 1. Font Family mapping
+    let fontFamily = '"Hind Siliguri", "Noto Sans Bengali", system-ui, sans-serif';
+    switch (siteSettings.primaryBengaliFont) {
+      case 'noto_sans':
+        fontFamily = '"Noto Sans Bengali", "Hind Siliguri", system-ui, sans-serif';
+        break;
+      case 'anek_bangla':
+        fontFamily = '"Anek Bangla", "Hind Siliguri", system-ui, sans-serif';
+        break;
+      case 'tiro_bangla':
+        fontFamily = '"Tiro Bangla", "Hind Siliguri", serif';
+        break;
+      case 'facebook_system':
+        fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hind Siliguri", sans-serif';
+        break;
+      case 'custom':
+        if (siteSettings.customFontFamily?.trim()) {
+          fontFamily = `${siteSettings.customFontFamily.trim()}, "Hind Siliguri", sans-serif`;
+        }
+        break;
+      case 'hind_siliguri':
+      default:
+        fontFamily = '"Hind Siliguri", "Noto Sans Bengali", "Anek Bangla", system-ui, sans-serif';
+        break;
+    }
+    root.style.setProperty('--font-bengali-family', fontFamily);
+
+    // 2. Mobile & Desktop Base Font Size
+    const mobileSize = siteSettings.mobileFontSize || 15;
+    const desktopSize = siteSettings.desktopFontSize || 16;
+    root.style.setProperty('--font-size-mobile', `${mobileSize}px`);
+    root.style.setProperty('--font-size-desktop', `${desktopSize}px`);
+
+    // 3. Line Heights
+    const mobileLineHeight = siteSettings.mobileLineHeight || 1.48;
+    const desktopLineHeight = siteSettings.desktopLineHeight || 1.55;
+    root.style.setProperty('--line-height-mobile', `${mobileLineHeight}`);
+    root.style.setProperty('--line-height-desktop', `${desktopLineHeight}`);
+
+    // 4. Font Weight
+    const weightMap: Record<string, string> = {
+      normal: '400',
+      medium: '500',
+      semibold: '600',
+      bold: '700'
+    };
+    root.style.setProperty('--bengali-font-weight', weightMap[siteSettings.bengaliFontWeight || 'medium'] || '500');
+  }, [siteSettings]);
+
+  // Remove HTML Preloader once React is mounted
+  useEffect(() => {
+    const preloader = document.getElementById('app-preloader');
+    if (preloader) {
+      preloader.style.transition = 'opacity 0.25s ease-out';
+      preloader.style.opacity = '0';
+      setTimeout(() => {
+        preloader.remove();
+      }, 260);
+    }
+  }, []);
+
+  const initialUrlParams = useRef(getUrlParams()).current;
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (initialUrlParams.gigId) return 'marketplace';
+    if (initialUrlParams.courseId) return 'courses';
+    if (initialUrlParams.certId) return 'verify-certificate';
+    return initialUrlParams.tab || 'home';
+  });
+  const [marketplaceCategory, setMarketplaceCategory] = useState<string>(() => {
+    return initialUrlParams.category || 'All';
+  });
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(() => {
+    return initialUrlParams.courseId || null;
+  });
   const savedCourseScrollRef = useRef<number>(0);
 
   const handleOpenCourseDetail = (id: string) => {
@@ -271,9 +348,32 @@ const MainAppContent: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [navHistory, activeTab, learningCourseId, selectedCourseId, activeCertificateCode, previousNavState]);
 
+  // Listen for global tab navigation events (e.g. from messages button on PC)
+  useEffect(() => {
+    const handleNavigateTab = (e: any) => {
+      if (e.detail?.tab) {
+        setActiveTab(e.detail.tab);
+        if (e.detail.category) {
+          setMarketplaceCategory(e.detail.category);
+        }
+      }
+    };
+    window.addEventListener('app:navigate-tab', handleNavigateTab);
+    return () => window.removeEventListener('app:navigate-tab', handleNavigateTab);
+  }, []);
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [activeTab]);
+    // Keep URL parameter cleanly synced with current tab & category
+    const params = getUrlParams();
+    updateUrlState({
+      tab: activeTab,
+      category: marketplaceCategory,
+      gigId: params.gigId,
+      courseId: selectedCourseId || params.courseId,
+      certId: activeCertificateCode || params.certId,
+    }, false);
+  }, [activeTab, marketplaceCategory, selectedCourseId, activeCertificateCode]);
 
   // Dynamic SEO & Meta Tags Manager Effect
   useEffect(() => {
@@ -541,8 +641,8 @@ const MainAppContent: React.FC = () => {
         </React.Suspense>
       </main>
 
-      {/* Main Footer (Only on public website pages, hidden in dashboard & marketplace) */}
-      {!isDashboardView && activeTab !== 'marketplace' && (
+      {/* Main Footer (Only on public website pages) */}
+      {!isDashboardView && (
         <Footer setActiveTab={handleSetActiveTab} />
       )}
 
@@ -578,7 +678,7 @@ const MainAppContent: React.FC = () => {
         <FloatingMessengerWindows onNavigateTab={handleSetActiveTab} />
 
         {/* Central Mobile & Desktop Notification Center Modal */}
-        <NotificationCenterModal isEmbedded={false} onNavigateTab={handleSetActiveTab} />
+        <NotificationCenterModal onNavigateTab={handleSetActiveTab} />
       </React.Suspense>
 
     </div>

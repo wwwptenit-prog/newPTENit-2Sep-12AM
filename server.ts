@@ -479,13 +479,24 @@ app.post('/api/payment/verify-gateway', async (req, res) => {
   }
 });
 
-// Serve cPanel Ready pure HTML/CSS/JS site
-app.use('/public_html', express.static(path.join(process.cwd(), 'public_html')));
-app.use('/cpanel', express.static(path.join(process.cwd(), 'public_html')));
-app.get('/download-cpanel-zip', (req, res) => {
-  const zipPath = path.join(process.cwd(), 'public_html', 'ptenit-cpanel-ready.zip');
-  res.download(zipPath, 'ptenit-cpanel-ready.zip');
-});
+// Dedicated Direct ZIP Download Endpoints for cPanel Deployment
+const serveZipDownload = (req: express.Request, res: express.Response) => {
+  const zipPath = path.join(process.cwd(), 'PTENit_public_html_root.zip');
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename="PTENit_public_html_root.zip"');
+  return res.download(zipPath, 'PTENit_public_html_root.zip', (err) => {
+    if (err) {
+      console.error('Download error:', err);
+      if (!res.headersSent) {
+        res.status(404).send('ZIP file not found. Please try again.');
+      }
+    }
+  });
+};
+
+app.get('/PTENit_public_html_root.zip', serveZipDownload);
+app.get('/api/download-zip', serveZipDownload);
+app.get('/download/cpanel-zip', serveZipDownload);
 
 // Vite middleware or production static files
 async function startServer() {

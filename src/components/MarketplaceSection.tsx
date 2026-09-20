@@ -111,6 +111,7 @@ import { CustomerDashboard } from './CustomerDashboard';
 import { TeacherDashboard } from './TeacherDashboard';
 import { MarketplaceMessengerView } from './MarketplaceMessengerView';
 import { MarketplaceLastColumn } from './MarketplaceLastColumn';
+import { getUrlParams } from '../utils/urlRouter';
 
 const CATEGORY_PROJECT_TAGS: Record<string, string[]> = {
   "Web Development": ["React", "WordPress", "Node.js", "Laravel", "Tailwind", "Next.js", "PHP", "HTML/CSS"],
@@ -1258,7 +1259,9 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
     requestTeacherPayout,
     notifications,
     isNotificationCenterOpen,
+    setIsNotificationCenterOpen,
     isMessengerInboxOpen,
+    setIsMessengerInboxOpen,
     initialMessengerTab,
     openNotificationCenter,
     closeNotificationCenter,
@@ -2458,20 +2461,20 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
         setViewModeState('selling');
       } else {
         setViewModeState('buying');
-        if (setMarketplaceMode) setMarketplaceMode('buying');
+        if (setMarketplaceMode && marketplaceMode !== 'buying') setMarketplaceMode('buying');
       }
     } else if (marketplaceMode === 'buying') {
       setViewModeState('buying');
     }
-  }, [marketplaceMode, currentUser, hasSellerAccount, setMarketplaceMode]);
+  }, [marketplaceMode, currentUser?.id, hasSellerAccount, setMarketplaceMode]);
 
   // Guard: If user logs out or does not have a seller account, ensure viewMode is never 'selling'
   useEffect(() => {
     if ((!currentUser || !hasSellerAccount) && viewMode === 'selling') {
       setViewModeState('buying');
-      if (setMarketplaceMode) setMarketplaceMode('buying');
+      if (setMarketplaceMode && marketplaceMode !== 'buying') setMarketplaceMode('buying');
     }
-  }, [currentUser, hasSellerAccount, viewMode, setMarketplaceMode]);
+  }, [currentUser?.id, hasSellerAccount, viewMode, marketplaceMode, setMarketplaceMode]);
 
   const isSellerMode = (viewMode === 'selling' || marketplaceMode === 'selling');
 
@@ -2566,27 +2569,44 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
   }, [roleScopedDirectMessages, readConversationIds]);
 
   const handleOpenMessagesInColumn3 = () => {
-    if (!currentUser && openAuthModal) {
-      openAuthModal();
-      return;
-    }
-    const isPcView = typeof window !== 'undefined' && window.innerWidth >= 1024;
-    const isCurrentlyOpen = rightColumnView === 'messages' || (isMessengerInboxOpen && initialMessengerTab === 'messages');
-    if (isCurrentlyOpen) {
-      if (closeMessengerInbox) closeMessengerInbox();
-      setRightColumnView('default');
-    } else {
-      if (isPcView) {
-        if (closeMessengerInbox) closeMessengerInbox();
+    setSelectedGig(null);
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    
+    if (isDesktop) {
+      // Ensure the 3-column layout is visible in both buyer & seller modes
+      if (viewMode === 'selling') {
+        if (specialistMainTab !== 'marketplace') setSpecialistMainTab('marketplace');
+        if (sellerSubTab !== 'gigs' && sellerSubTab !== 'overview' && sellerSubTab !== 'my_gigs') {
+          setSellerSubTab('gigs');
+        }
+      } else {
+        if (activeSubTab !== 'gigs' && activeSubTab !== 'ptenit-services') {
+          setActiveSubTab('gigs');
+        }
+      }
+
+      // Close any modal overlays so they don't block the desktop view
+      setIsMessengerInboxOpen(false);
+      setIsNotificationCenterOpen(false);
+
+      if (rightColumnView === 'messages') {
+        setRightColumnView('default');
+      } else {
         setRightColumnView('messages');
         setTimeout(() => {
           const col3 = document.getElementById('marketplace-column-3-seller')
             || document.getElementById('marketplace-column-3-agency')
             || document.getElementById('marketplace-column-3');
           if (col3) {
-            col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            col3.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
-        }, 100);
+        }, 120);
+      }
+    } else {
+      // Mobile responsive view
+      if (rightColumnView === 'messages' || (isMessengerInboxOpen && initialMessengerTab === 'messages')) {
+        if (closeMessengerInbox) closeMessengerInbox();
+        setRightColumnView('default');
       } else {
         setRightColumnView('messages');
         if (openMessengerInbox) {
@@ -2597,29 +2617,45 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
   };
 
   const handleOpenNotificationsInColumn3 = () => {
-    if (!currentUser && openAuthModal) {
-      openAuthModal();
-      return;
-    }
-    const isPcView = typeof window !== 'undefined' && window.innerWidth >= 1024;
-    const isCurrentlyOpen = rightColumnView === 'notifications' || (isMessengerInboxOpen && initialMessengerTab === 'notifications') || isNotificationCenterOpen;
-    if (isCurrentlyOpen) {
-      if (closeNotificationCenter) closeNotificationCenter();
-      if (closeMessengerInbox) closeMessengerInbox();
-      setRightColumnView('default');
-    } else {
-      if (isPcView) {
-        if (closeNotificationCenter) closeNotificationCenter();
-        if (closeMessengerInbox) closeMessengerInbox();
+    setSelectedGig(null);
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    
+    if (isDesktop) {
+      // Ensure the 3-column layout is visible in both buyer & seller modes
+      if (viewMode === 'selling') {
+        if (specialistMainTab !== 'marketplace') setSpecialistMainTab('marketplace');
+        if (sellerSubTab !== 'gigs' && sellerSubTab !== 'overview' && sellerSubTab !== 'my_gigs') {
+          setSellerSubTab('gigs');
+        }
+      } else {
+        if (activeSubTab !== 'gigs' && activeSubTab !== 'ptenit-services') {
+          setActiveSubTab('gigs');
+        }
+      }
+
+      // Close any modal overlays so they don't block the desktop view
+      setIsMessengerInboxOpen(false);
+      setIsNotificationCenterOpen(false);
+
+      if (rightColumnView === 'notifications') {
+        setRightColumnView('default');
+      } else {
         setRightColumnView('notifications');
         setTimeout(() => {
           const col3 = document.getElementById('marketplace-column-3-seller')
             || document.getElementById('marketplace-column-3-agency')
             || document.getElementById('marketplace-column-3');
           if (col3) {
-            col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            col3.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           }
-        }, 100);
+        }, 120);
+      }
+    } else {
+      // Mobile responsive view
+      if (rightColumnView === 'notifications' || (isMessengerInboxOpen && initialMessengerTab === 'notifications') || isNotificationCenterOpen) {
+        if (closeNotificationCenter) closeNotificationCenter();
+        if (closeMessengerInbox) closeMessengerInbox();
+        setRightColumnView('default');
       } else {
         setRightColumnView('notifications');
         if (openNotificationCenter) {
@@ -3072,16 +3108,6 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
     };
   }, []);
 
-  // Automatically reset rightColumnView if notifications or messenger modals are closed in mobile view
-  useEffect(() => {
-    if (!isNotificationCenterOpen && !isMessengerInboxOpen) {
-      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-        if (rightColumnView === 'notifications' || rightColumnView === 'messages') {
-          setRightColumnView('default');
-        }
-      }
-    }
-  }, [isNotificationCenterOpen, isMessengerInboxOpen, rightColumnView, setRightColumnView]);
 
   // Freelancer Free Tech Toolkit States
   const [activeToolkit, setActiveToolkit] = useState<'proposal' | 'invoice' | 'calculator' | 'contract'>('proposal');
@@ -4044,6 +4070,18 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
 
   useEffect(() => {
     try {
+      // 1. Check URL search params for direct gig link / deep-linking
+      const urlParams = getUrlParams();
+      if (urlParams.gigId) {
+        const found = gigs.find(g => g.id === urlParams.gigId || g.title === urlParams.gigId);
+        if (found) {
+          setSelectedGig(found);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+      }
+
+      // 2. Check local storage if passed across tabs
       const savedGigData = localStorage.getItem('ptenit_selected_gig_data');
       if (savedGigData) {
         localStorage.removeItem('ptenit_selected_gig_data');
@@ -4845,12 +4883,15 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                   <button
                     type="button"
                     onClick={() => {
-                      if (!currentUser && openAuthModal) {
-                        openAuthModal();
-                        return;
-                      }
                       setSelectedGig(null);
                       setIsNotificationsOpen(false);
+
+                      const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+                      if (isDesktop) {
+                        handleOpenMessagesInColumn3();
+                        return;
+                      }
+
                       if (isMessengerActive) {
                         if (viewMode === 'selling') {
                           setSellerSubTab('gigs');
@@ -4890,12 +4931,15 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                   <button
                     type="button"
                     onClick={() => {
-                      if (!currentUser && openAuthModal) {
-                        openAuthModal();
-                        return;
-                      }
                       setSelectedGig(null);
                       setIsNotificationsOpen(false);
+
+                      const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+                      if (isDesktop) {
+                        handleOpenNotificationsInColumn3();
+                        return;
+                      }
+
                       if (isNotificationsActive) {
                         if (viewMode === 'selling') {
                           setSellerSubTab('gigs');
@@ -10654,8 +10698,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                 )}
               </div>
 
-              {/* 3. RIGHT SIDEBAR (PC ONLY - SHOWN ON GIGS/OVERVIEW/MY_GIGS) */}
-              {specialistMainTab === 'marketplace' && (sellerSubTab === 'gigs' || sellerSubTab === 'overview' || sellerSubTab === 'my_gigs') && (
+              {/* 3. RIGHT SIDEBAR (PC ONLY - SHOWN ON GIGS/OVERVIEW/MY_GIGS OR WHEN MESSAGES/NOTIFS ACTIVE) */}
+              {((specialistMainTab === 'marketplace' && (sellerSubTab === 'gigs' || sellerSubTab === 'overview' || sellerSubTab === 'my_gigs')) || rightColumnView === 'messages' || rightColumnView === 'notifications') && (
                 <div className="hidden lg:block lg:col-span-3 sticky top-20 space-y-4 max-h-[calc(100vh-5.5rem)] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 hover:scrollbar-thumb-slate-400 overscroll-contain" id="marketplace-column-3-seller">
                   <MarketplaceLastColumn
                     isSellerMode={true}
@@ -16210,78 +16254,6 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
             </div>
           </div>
         )}
-
-          {/* FIVERR-STYLE MODERN FOOTER */}
-          <div className="pt-12 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-8 font-english">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-              
-              <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 dark:text-white text-xs">Categories</h4>
-                <ul className="space-y-1.5 text-[11px]">
-                  <li>Graphics & Design</li>
-                  <li>Digital Marketing</li>
-                  <li>Writing & Translation</li>
-                  <li>Video & Animation</li>
-                  <li>Music & Audio</li>
-                  <li>Programming & Tech</li>
-                  <li>AI Services</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 dark:text-white text-xs">For Clients</h4>
-                <ul className="space-y-1.5 text-[11px]">
-                  <li>How PTENit Works</li>
-                  <li>Customer Stories</li>
-                  <li>Quality Guide</li>
-                  <li>PTENit Answers</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 dark:text-white text-xs">For Freelancers</h4>
-                <ul className="space-y-1.5 text-[11px]">
-                  <li>Become a PTENit Freelancer</li>
-                  <li>Become an Agency</li>
-                  <li>Community Hub</li>
-                  <li>Forum</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 dark:text-white text-xs">Business Solutions</h4>
-                <ul className="space-y-1.5 text-[11px]">
-                  <li>PTENit Pro</li>
-                  <li>Project Management Service</li>
-                  <li>Expert Sourcing Service</li>
-                  <li>Contact Sales</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-bold text-slate-900 dark:text-white text-xs">Company</h4>
-                <ul className="space-y-1.5 text-[11px]">
-                  <li>About PTENit</li>
-                  <li>Help & Support</li>
-                  <li>Trust & Safety</li>
-                  <li>Privacy Policy</li>
-                  <li>Terms of Service</li>
-                </ul>
-              </div>
-
-            </div>
-
-            <div className="pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px]">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-900 dark:text-white">PTENit</span>
-                <span>© PTENit Marketplace Ltd. 2026</span>
-              </div>
-              <div className="flex items-center gap-4 font-bold">
-                <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" /> English</span>
-                <span>৳ BDT</span>
-              </div>
-            </div>
-          </div>
 
         </div>
       )}

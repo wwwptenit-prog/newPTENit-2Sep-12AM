@@ -44,6 +44,7 @@ import {
   initialDigitalProducts,
   initialLiveSessions
 } from '../data/initialData';
+import { syncCollectionToFirestore, loadCollectionFromFirestore } from '../services/firestoreSync';
 
 interface DataContextType {
   lang: 'bn' | 'en';
@@ -1235,67 +1236,127 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => clearInterval(checkOverdueInterval);
   }, []);
 
-  // Sync Marketplace to localStorage
+  // Initial cloud Firestore data pull on startup (hydrate any updates made from other devices/sessions)
+  useEffect(() => {
+    const hydrateFromFirestore = async () => {
+      try {
+        const [cloudCourses, cloudServices, cloudGigs, cloudJobs, cloudSettings] = await Promise.all([
+          loadCollectionFromFirestore<Course>('courses'),
+          loadCollectionFromFirestore<Service>('services'),
+          loadCollectionFromFirestore<MarketplaceGig>('gigs'),
+          loadCollectionFromFirestore<MarketplaceJob>('jobs'),
+          loadCollectionFromFirestore<SiteSettings>('settings'),
+        ]);
+
+        if (cloudCourses && cloudCourses.length > 0) {
+          setCourses(prev => {
+            const map = new Map<string, Course>();
+            prev.forEach(c => map.set(c.id, c));
+            cloudCourses.forEach(c => map.set(c.id, { ...map.get(c.id), ...c }));
+            return Array.from(map.values());
+          });
+        }
+        if (cloudServices && cloudServices.length > 0) {
+          setServices(prev => {
+            const map = new Map<string, Service>();
+            prev.forEach(s => map.set(s.id, s));
+            cloudServices.forEach(s => map.set(s.id, { ...map.get(s.id), ...s }));
+            return Array.from(map.values());
+          });
+        }
+        if (cloudGigs && cloudGigs.length > 0) {
+          setGigs(cloudGigs);
+        }
+        if (cloudJobs && cloudJobs.length > 0) {
+          setJobs(cloudJobs);
+        }
+        if (cloudSettings && cloudSettings.length > 0 && cloudSettings[0]) {
+          setSiteSettings(prev => ({ ...prev, ...cloudSettings[0] }));
+        }
+      } catch (err) {
+        console.warn('[Firestore] Initial hydration notice:', err);
+      }
+    };
+
+    hydrateFromFirestore();
+  }, []);
+
+  // Sync Marketplace to localStorage and Firestore
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_gigs`, JSON.stringify(gigs));
+    syncCollectionToFirestore('gigs', gigs);
   }, [gigs]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_jobs`, JSON.stringify(jobs));
+    syncCollectionToFirestore('jobs', jobs);
   }, [jobs]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_proposals`, JSON.stringify(proposals));
+    syncCollectionToFirestore('proposals', proposals);
   }, [proposals]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_digital_products`, JSON.stringify(digitalProducts));
+    syncCollectionToFirestore('digital_products', digitalProducts);
   }, [digitalProducts]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_live_sessions`, JSON.stringify(liveSessions));
+    syncCollectionToFirestore('live_sessions', liveSessions);
   }, [liveSessions]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(marketplaceOrders));
+    syncCollectionToFirestore('marketplace_orders', marketplaceOrders);
   }, [marketplaceOrders]);
 
-  // Sync to localStorage
+  // Sync to localStorage and Firestore
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_payouts`, JSON.stringify(payouts));
+    syncCollectionToFirestore('payouts', payouts);
   }, [payouts]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_teacher_notices`, JSON.stringify(teacherNotices));
+    syncCollectionToFirestore('teacher_notices', teacherNotices);
   }, [teacherNotices]);
 
   // Sync to localStorage
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(siteSettings));
+    syncCollectionToFirestore('settings', [{ id: 'main_settings', ...siteSettings }]);
   }, [siteSettings]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_courses`, JSON.stringify(courses));
+    syncCollectionToFirestore('courses', courses);
   }, [courses]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_services`, JSON.stringify(services));
+    syncCollectionToFirestore('services', services);
   }, [services]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_gallery`, JSON.stringify(gallery));
+    syncCollectionToFirestore('gallery', gallery);
   }, [gallery]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_testimonials`, JSON.stringify(testimonials));
+    syncCollectionToFirestore('testimonials', testimonials);
   }, [testimonials]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_offers`, JSON.stringify(offers));
+    syncCollectionToFirestore('offers', offers);
   }, [offers]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(users));
+    syncCollectionToFirestore('users', users);
   }, [users]);
 
   useEffect(() => {
@@ -1318,38 +1379,47 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_enrollments`, JSON.stringify(enrollments));
+    syncCollectionToFirestore('enrollments', enrollments);
   }, [enrollments]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_certificates`, JSON.stringify(certificates));
+    syncCollectionToFirestore('certificates', certificates);
   }, [certificates]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(orders));
+    syncCollectionToFirestore('orders', orders);
   }, [orders]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_messages`, JSON.stringify(contactMessages));
+    syncCollectionToFirestore('contact_messages', contactMessages);
   }, [contactMessages]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(notifications));
+    syncCollectionToFirestore('notifications', notifications);
   }, [notifications]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_direct_messages`, JSON.stringify(directMessages));
+    syncCollectionToFirestore('direct_messages', directMessages);
   }, [directMessages]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_assignments`, JSON.stringify(assignments));
+    syncCollectionToFirestore('assignments', assignments);
   }, [assignments]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_submissions`, JSON.stringify(submissions));
+    syncCollectionToFirestore('submissions', submissions);
   }, [submissions]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(customerProjects));
+    syncCollectionToFirestore('customer_projects', customerProjects);
   }, [customerProjects]);
 
   // Auth Functions
@@ -1390,6 +1460,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: 'ফারহানা ইয়াসমিন',
           email: 'farhana.ops@ptenit.com',
           phone: '01711223344',
+          password: '123456',
           designation: 'অপারেশনস ডিরেক্টর ও টিম কো-অর্ডিনেটর',
           department: 'Operations',
           status: 'active',
@@ -1410,6 +1481,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: 'শফিকুল ইসলাম চৌধুরী',
           email: 'shafiq.finance@ptenit.com',
           phone: '01912334455',
+          password: '123456',
           designation: 'হেড অব একাউন্টস ও ফাইন্যান্স',
           department: 'Finance',
           status: 'active',
@@ -1430,6 +1502,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: 'তানভীর হাসান',
           email: 'tanvir.market@ptenit.com',
           phone: '01688997766',
+          password: '123456',
           designation: 'মার্কেটপ্লেস লিড মডারেটর',
           department: 'Marketplace',
           status: 'active',
@@ -1450,6 +1523,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: 'রাফিয়া সুলতানা',
           email: 'rafia.academy@ptenit.com',
           phone: '01555443322',
+          password: '123456',
           designation: 'একাডেমিক কোর্স কো-অর্ডিনেটর',
           department: 'Academy',
           status: 'active',
@@ -1480,6 +1554,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (matchedStaff) {
         if (matchedStaff.status === 'inactive') {
           alert(`দুঃখিত! স্টাফ সদস্য "${matchedStaff.name}"-এর অ্যাকাউন্ট বর্তমানে নিষ্ক্রিয় রয়েছে। অনুগ্রহ করে সুপার এডমিনের সাথে যোগাযোগ করুন।`);
+          return false;
+        }
+
+        const expectedPassword = matchedStaff.password || '123456';
+        if (pass && pass.trim() !== expectedPassword.trim()) {
+          alert(`ভুল পাসওয়ার্ড! সাব-এডমিন "${matchedStaff.name}"-এর জন্য সঠিক পাসওয়ার্ড প্রদান করুন।`);
           return false;
         }
 
@@ -1901,14 +1981,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setContactMessages(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
   };
 
-  const markNotificationRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  };
+  const markNotificationRead = useCallback((id: string) => {
+    setNotifications(prev => {
+      const hasUnread = prev.some(n => n.id === id && !n.read);
+      if (!hasUnread) return prev;
+      return prev.map(n => n.id === id ? { ...n, read: true } : n);
+    });
+  }, []);
 
-  const markAllNotificationsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    setDirectMessages(prev => prev.map(m => ({ ...m, read: true })));
-  };
+  const markAllNotificationsRead = useCallback(() => {
+    setNotifications(prev => {
+      const hasUnread = prev.some(n => !n.read);
+      if (!hasUnread) return prev;
+      return prev.map(n => ({ ...n, read: true }));
+    });
+    setDirectMessages(prev => {
+      const hasUnread = prev.some(m => !m.read);
+      if (!hasUnread) return prev;
+      return prev.map(m => ({ ...m, read: true }));
+    });
+  }, []);
 
   const sendCentralNotification = (notif: Omit<NotificationItem, 'id' | 'time' | 'read'>) => {
     const newNotif: NotificationItem = {
@@ -2107,43 +2199,62 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const markDirectMessageRead = (id: string) => {
-    setDirectMessages(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
+  const markDirectMessageRead = useCallback((id: string) => {
+    setDirectMessages(prev => {
+      const hasUnread = prev.some(m => m.id === id && !m.read);
+      if (!hasUnread) return prev;
+      return prev.map(m => m.id === id ? { ...m, read: true } : m);
+    });
     setReadConversationIds(prev => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
       localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(next));
       return next;
     });
-  };
+  }, []);
 
-  const markConversationRead = (convoId: string) => {
+  const markConversationRead = useCallback((convoId: string) => {
     setReadConversationIds(prev => {
       if (prev.includes(convoId)) return prev;
       const next = [...prev, convoId];
       localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(next));
       return next;
     });
-    setDirectMessages(prev => prev.map(m => {
-      const isMatch =
-        m.id === convoId ||
-        m.senderId === convoId ||
-        convoId.includes(m.id) ||
-        (m.senderName && convoId.toLowerCase().includes(m.senderName.toLowerCase())) ||
-        (m.senderName && m.senderName.toLowerCase().includes(convoId.toLowerCase()));
-      if (isMatch) {
-        return { ...m, read: true, unreadCount: 0 };
-      }
-      return m;
-    }));
-  };
+    setDirectMessages(prev => {
+      const isAnyMatchingUnread = prev.some(m => {
+        const isMatch =
+          m.id === convoId ||
+          m.senderId === convoId ||
+          convoId.includes(m.id) ||
+          (m.senderName && convoId.toLowerCase().includes(m.senderName.toLowerCase())) ||
+          (m.senderName && m.senderName.toLowerCase().includes(convoId.toLowerCase()));
+        return isMatch && (!m.read || (m.unreadCount && m.unreadCount > 0));
+      });
+      if (!isAnyMatchingUnread) return prev;
+      return prev.map(m => {
+        const isMatch =
+          m.id === convoId ||
+          m.senderId === convoId ||
+          convoId.includes(m.id) ||
+          (m.senderName && convoId.toLowerCase().includes(m.senderName.toLowerCase())) ||
+          (m.senderName && m.senderName.toLowerCase().includes(convoId.toLowerCase()));
+        if (isMatch) {
+          return { ...m, read: true, unreadCount: 0 };
+        }
+        return m;
+      });
+    });
+  }, []);
 
-  const markAllConversationsRead = () => {
-    setDirectMessages(prev => prev.map(m => ({ ...m, read: true, unreadCount: 0 })));
+  const markAllConversationsRead = useCallback(() => {
+    setDirectMessages(prev => {
+      const hasUnread = prev.some(m => !m.read || (m.unreadCount && m.unreadCount > 0));
+      if (!hasUnread) return prev;
+      return prev.map(m => ({ ...m, read: true, unreadCount: 0 }));
+    });
     setReadConversationIds(prev => {
       const allIds = Array.from(new Set([
         ...prev,
-        ...directMessages.map(m => m.id),
         'chat-client-sohag',
         'chat-client-tanjim',
         'chat-client-sumaiya',
@@ -2154,11 +2265,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(allIds));
       return allIds;
     });
-  };
+  }, []);
 
-  const markAllDirectMessagesRead = () => {
-    setDirectMessages(prev => prev.map(m => ({ ...m, read: true })));
-  };
+  const markAllDirectMessagesRead = useCallback(() => {
+    setDirectMessages(prev => {
+      const hasUnread = prev.some(m => !m.read);
+      if (!hasUnread) return prev;
+      return prev.map(m => ({ ...m, read: true }));
+    });
+  }, []);
 
   const sendDirectMessage = (msg: Omit<DirectMessageItem, 'id' | 'read'>) => {
     const newMsg: DirectMessageItem = {
@@ -2173,6 +2288,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const openChatWindow = (contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string }) => {
     const windowId = contact.id || `chat-${contact.senderName.replace(/\s+/g, '-').toLowerCase()}`;
     setActiveMessengerConversationId(windowId);
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     
     setActiveChatWindows(prev => {
       const existing = prev.find(w => w.id === windowId || w.senderName === contact.senderName);
@@ -2210,19 +2326,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [...prev, newWin];
     });
 
-    // Floating mini chat popup window opens on screen directly over the current view
-    // (User can view their orders and close popup with 'X' button)
+    // On mobile view, directly open full screen messenger instead of separate floating mini popup window
+    if (isMobile) {
+      openMessengerInbox(windowId, 'messages', contact.orderId);
+    }
   };
 
   const closeChatWindow = (id: string) => {
     setActiveChatWindows(prev => prev.filter(w => w.id !== id));
   };
 
-  const openMessengerInbox = (conversationId?: string, initialTab: 'messages' | 'notifications' | 'courses' = 'messages', orderId?: string) => {
-    setInitialMessengerTab(initialTab);
+  const openMessengerInbox = useCallback((conversationId?: string, initialTab: 'messages' | 'notifications' | 'courses' = 'messages', orderId?: string) => {
+    const tabName = (typeof initialTab === 'string' && ['messages', 'notifications', 'courses'].includes(initialTab)) ? initialTab : 'messages';
+    setInitialMessengerTab(tabName);
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+
+    // On PC view (Desktop), clicking the general message/notification button toggles the last column
+    if (isDesktop && !conversationId) {
+      if (tabName === 'messages') {
+        setRightColumnView(prev => prev === 'messages' ? 'default' : 'messages');
+      } else if (tabName === 'notifications') {
+        setRightColumnView(prev => prev === 'notifications' ? 'default' : 'notifications');
+      }
+      setIsMessengerInboxOpen(false);
+      setIsNotificationCenterOpen(false);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('app:navigate-tab', { detail: { tab: 'marketplace' } }));
+        setTimeout(() => {
+          const col3 = document.getElementById('marketplace-column-3-seller')
+            || document.getElementById('marketplace-column-3-agency')
+            || document.getElementById('marketplace-column-3');
+          if (col3) {
+            col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 150);
+      }
+      return;
+    }
+
     if (conversationId) {
       setActiveMessengerConversationId(conversationId);
       setActiveMessengerOrderId(orderId || null);
+
+      if (isDesktop) {
+        // On desktop, opening a specific conversation opens the bottom-right floating chat window
+        openChatWindow({
+          id: conversationId,
+          orderId: orderId,
+          senderName: 'User',
+          initialMessage: ''
+        });
+        setIsMessengerInboxOpen(false);
+        return;
+      }
+
       // If an orderId or active chat needs to be registered, sync it
       if (orderId) {
         setActiveChatWindows(prev => {
@@ -2237,32 +2395,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setActiveMessengerConversationId(null);
       setActiveMessengerOrderId(null);
     }
-    // Clear floating popup windows so full messenger is focused
+    // Clear floating popup windows so full messenger is focused on mobile
     setActiveChatWindows([]);
     setIsNotificationCenterOpen(false);
     setIsMessengerInboxOpen(true);
-  };
+  }, []);
 
-  const closeMessengerInbox = () => {
+  const closeMessengerInbox = useCallback(() => {
     setActiveMessengerConversationId(null);
     setActiveMessengerOrderId(null);
     setIsMessengerInboxOpen(false);
     setIsNotificationCenterOpen(false);
     setRightColumnView('default');
-  };
+  }, []);
 
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
-  const openNotificationCenter = () => {
-    setIsMessengerInboxOpen(false);
-    setIsNotificationCenterOpen(true);
-  };
+  const openNotificationCenter = useCallback(() => {
+    openMessengerInbox(undefined, 'notifications');
+  }, [openMessengerInbox]);
 
-  const closeNotificationCenter = () => {
+  const closeNotificationCenter = useCallback(() => {
     setIsNotificationCenterOpen(false);
     setIsMessengerInboxOpen(false);
     setRightColumnView('default');
-  };
+  }, []);
 
   const [marketplaceMode, setMarketplaceModeState] = useState<'buying' | 'selling'>(() => {
     try {
@@ -2272,12 +2429,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return 'buying';
   });
 
-  const setMarketplaceMode = (mode: 'buying' | 'selling') => {
-    setMarketplaceModeState(mode);
-    try {
-      localStorage.setItem('marketplace_mode', mode);
-    } catch {}
-  };
+  const setMarketplaceMode = useCallback((mode: 'buying' | 'selling') => {
+    setMarketplaceModeState(prev => {
+      if (prev === mode) return prev;
+      try {
+        localStorage.setItem('marketplace_mode', mode);
+      } catch {}
+      return mode;
+    });
+  }, []);
 
   const clearAllNotifications = () => {
     setNotifications([]);
@@ -2332,36 +2492,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return w;
     }));
     playAppSound('message');
-
-    // Auto response for ongoing active messaging thread
-    if (!meetLink) {
-      setTimeout(() => {
-        setActiveChatWindows(prev => prev.map(w => {
-          if (w.id === windowId) {
-            const autoReplies = [
-              "ধন্যবাদ ভাইয়া! আপনার মেসেজটি পেয়েছি, কাজ দ্রুত এগিয়ে নিচ্ছি।",
-              "জি অবশ্যই! আমি বিষয়টি ড্যাশবোর্ডে ফাইলসহ আপডেট করে দেবো।",
-              "কোনো সংশোধনী থাকলে বলুন, আমরা এখনই গুগল মিটে লাইভ ডিসকাশন করতে পারি!"
-            ];
-            const randomReply = autoReplies[Math.floor(Math.random() * autoReplies.length)];
-            const autoReply: ChatMessage = {
-              id: `msg-reply-${Date.now()}`,
-              senderName: w.senderName,
-              senderAvatar: w.senderAvatar,
-              isSelf: false,
-              text: randomReply,
-              time: 'এখন'
-            };
-            return {
-              ...w,
-              messages: [...w.messages, autoReply]
-            };
-          }
-          return w;
-        }));
-        playAppSound('message');
-      }, 1200);
-    }
   };
 
   const createGoogleMeetCall = (windowId: string) => {

@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "courses": {
+      "title": "Course",
+      "description": "IT Courses & Training",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "status": { "type": "string" }
+      }
+    },
+    "services": {
+      "title": "Service",
+      "description": "Professional IT Services",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" }
+      }
+    },
+    "gigs": {
+      "title": "Gig",
+      "description": "Freelance Marketplace Gigs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "price": { "type": "number" }
+      }
+    },
+    "jobs": {
+      "title": "Job",
+      "description": "Freelance Job Postings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "budget": { "type": "number" }
+      }
+    },
+    "users": {
+      "title": "User",
+      "description": "Platform Users and Profiles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" }
+      }
+    },
+    "orders": {
+      "title": "Order",
+      "description": "Course & Service Orders",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string" }
+      }
+    },
+    "marketplace_orders": {
+      "title": "MarketplaceOrder",
+      "description": "Marketplace Escrow Orders",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string" }
+      }
+    },
+    "settings": {
+      "title": "Setting",
+      "description": "Site Settings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "siteName": { "type": "string" }
+      }
+    }
+  }
+}

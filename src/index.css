@@ -1,1 +1,47 @@
 @import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-bengali-family: "Hind Siliguri", "Noto Sans Bengali", "Anek Bangla", system-ui, -apple-system, sans-serif;
+    --font-size-mobile: 15px;
+    --font-size-desktop: 16px;
+    --line-height-mobile: 1.48;
+    --line-height-desktop: 1.55;
+    --bengali-font-weight: 500;
+  }
+
+  html {
+    font-family: var(--font-bengali-family);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-bengali-family);
+    font-weight: var(--bengali-font-weight, 500);
+    letter-spacing: -0.01em;
+  }
+
+  /* Responsive dynamic base font scaling */
+  @media (max-width: 640px) {
+    body {
+      font-size: var(--font-size-mobile, 15px);
+      line-height: var(--line-height-mobile, 1.48);
+    }
+  }
+  @media (min-width: 641px) {
+    body {
+      font-size: var(--font-size-desktop, 16px);
+      line-height: var(--line-height-desktop, 1.55);
+    }
+  }
+}
+
+.font-bengali {
+  font-family: var(--font-bengali-family) !important;
+}
+
+.font-heading {
+  font-family: var(--font-bengali-family) !important;
+}

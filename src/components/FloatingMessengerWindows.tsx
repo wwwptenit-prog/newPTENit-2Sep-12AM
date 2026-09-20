@@ -163,37 +163,22 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
     readReceipts: true
   });
 
-  const isOpen = (isMessengerInboxOpen || isFullScreenOpen) && !!currentUser;
+  const isOpen = isMessengerInboxOpen || isFullScreenOpen;
 
   useEffect(() => {
-    if (!currentUser && isMessengerInboxOpen && closeMessengerInbox) {
-      closeMessengerInbox();
-    }
-  }, [currentUser, isMessengerInboxOpen, closeMessengerInbox]);
-
-  useEffect(() => {
-    if (isMessengerInboxOpen && currentUser) {
+    if (isMessengerInboxOpen) {
       setActiveTopTab(initialMessengerTab || 'messages');
     }
-  }, [isMessengerInboxOpen, initialMessengerTab, currentUser]);
+  }, [isMessengerInboxOpen, initialMessengerTab]);
 
   // Synchronize selected conversation ID whenever messenger opens or activeMessengerConversationId changes
   useEffect(() => {
     if (activeMessengerConversationId) {
       setSelectedConversationId(activeMessengerConversationId);
-      setReadConvoIds(prev => {
-        if (prev.has(activeMessengerConversationId)) return prev;
-        const next = new Set(prev);
-        next.add(activeMessengerConversationId);
-        return next;
-      });
-      if (markDirectMessageRead) {
-        markDirectMessageRead(activeMessengerConversationId);
-      }
     } else if (!isMessengerInboxOpen) {
       setSelectedConversationId(null);
     }
-  }, [activeMessengerConversationId, isMessengerInboxOpen, markDirectMessageRead]);
+  }, [activeMessengerConversationId, isMessengerInboxOpen]);
 
   useEffect(() => {
     if (selectedConversationId) {
@@ -203,7 +188,7 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
         next.add(selectedConversationId);
         return next;
       });
-      if (markDirectMessageRead) {
+      if (typeof markDirectMessageRead === 'function') {
         markDirectMessageRead(selectedConversationId);
       }
     }
@@ -816,7 +801,7 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
   return (
     <>
       {/* 1. FLOATING MINI CHAT POPUP WINDOWS (VISIBLE ON BOTH DESKTOP & MOBILE OVER ORDERS) */}
-      {!isOpen && activeChatWindows && activeChatWindows.length > 0 && (
+      {(!isOpen || !isFullScreenOpen) && activeChatWindows && activeChatWindows.length > 0 && (
         <div className="fixed bottom-0 sm:bottom-0 right-0 sm:right-6 left-0 sm:left-auto z-[9990] flex items-end justify-center sm:justify-end gap-3 p-2 sm:p-0 pointer-events-none font-bengali">
           {activeChatWindows.map(win => (
             <SingleChatWindow
@@ -838,7 +823,7 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
 
       {/* 2. FULL SCREEN MESSENGER MODAL / SCREEN (RESPONSIVE PC & PHONE) */}
       {isOpen && (
-        <div className="fixed inset-0 z-[9999] bg-white dark:bg-[#18222D] flex flex-col font-bengali animate-in fade-in zoom-in-95 duration-200">
+        <div className={`fixed inset-0 z-[9999] bg-white dark:bg-[#18222D] flex flex-col font-bengali animate-in fade-in zoom-in-95 duration-200 ${!isFullScreenOpen ? 'lg:hidden' : ''}`}>
           
           {/* MOBILE VIEW TOPBAR (MATCHES MARKETPLACE THEME EXACTLY IN BUYER / SELLER MODE) */}
           <div className={`md:hidden ${
@@ -1302,43 +1287,14 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
                   >
                     <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
                   </button>
-                  <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTopTab('messages');
-                        setSelectedNotification(null);
-                      }}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                        activeTopTab === 'messages'
-                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                          : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <Mail className="w-3.5 h-3.5" />
-                      <span>মেসেজ</span>
-                      {conversationList.filter(c => (c.unreadCount || 0) > 0).length > 0 && (
-                        <span className="w-2 h-2 rounded-full bg-[#E11D48]" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveTopTab('notifications');
-                        setSelectedConversationId(null);
-                      }}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                        activeTopTab === 'notifications'
-                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                          : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <Bell className="w-3.5 h-3.5" />
-                      <span>নোটিফিকেশন</span>
-                      {roleScopedNotifications.filter(n => !n.read).length > 0 && (
-                        <span className="w-2 h-2 rounded-full bg-[#E11D48]" />
-                      )}
-                    </button>
+                  <div>
+                    <h1 className="text-lg sm:text-xl font-black text-slate-950 dark:text-white tracking-tight flex items-center gap-1.5">
+                      <span>{activeTopTab === 'notifications' ? 'Notifications' : 'Messages'}</span>
+                      <span className="w-2 h-2 rounded-full bg-[#006A4E]" />
+                    </h1>
+                    <p className="text-[10px] font-semibold text-slate-400/90 tracking-wide leading-tight mt-0.5 font-sans">
+                      {activeTopTab === 'notifications' ? 'PTENit Marketplace Updates' : 'PTENit Marketplace Inbox'}
+                    </p>
                   </div>
                 </div>
 
@@ -1371,8 +1327,7 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
               {/* SCROLLABLE BODY: SEARCH BAR, FILTER TABS, SELLERS CAROUSEL & CONVERSATION LIST ALL SCROLL TOGETHER */}
               <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-slate-100/80 dark:divide-slate-800/40">
                 
-                {/* SEARCH BAR & FILTER TABS (HIDDEN ON PHONE VIEW, AND ONLY FOR MESSAGES TAB) */}
-                {activeTopTab === 'messages' && (
+                {/* SEARCH BAR & FILTER TABS (HIDDEN ON PHONE VIEW) */}
                 <div className="hidden md:block p-3 space-y-2.5">
                   <div className="relative">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1459,7 +1414,6 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
                     )}
                   </div>
                 </div>
-                )}
 
 
 
