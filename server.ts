@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import compression from 'compression';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
@@ -479,24 +480,23 @@ app.post('/api/payment/verify-gateway', async (req, res) => {
   }
 });
 
-// Dedicated Direct ZIP Download Endpoints for cPanel Deployment
-const serveZipDownload = (req: express.Request, res: express.Response) => {
-  const zipPath = path.join(process.cwd(), 'PTENit_public_html_root.zip');
-  res.setHeader('Content-Type', 'application/zip');
-  res.setHeader('Content-Disposition', 'attachment; filename="PTENit_public_html_root.zip"');
-  return res.download(zipPath, 'PTENit_public_html_root.zip', (err) => {
-    if (err) {
-      console.error('Download error:', err);
-      if (!res.headersSent) {
-        res.status(404).send('ZIP file not found. Please try again.');
-      }
-    }
-  });
-};
+// Direct Download Routes for PTENit.zip & cPanel zip archives
+app.get(['/PTENit.zip', '/ptenit.zip', '/ptenit_cpanel_upload.zip', '/api/download/PTENit.zip'], (req, res) => {
+  const publicPath = path.join(process.cwd(), 'public', 'PTENit.zip');
+  const rootPath = path.join(process.cwd(), 'PTENit.zip');
+  const distPath = path.join(process.cwd(), 'dist', 'PTENit.zip');
+  const cpanelPath = path.join(process.cwd(), 'ptenit_cpanel_upload.zip');
 
-app.get('/PTENit_public_html_root.zip', serveZipDownload);
-app.get('/api/download-zip', serveZipDownload);
-app.get('/download/cpanel-zip', serveZipDownload);
+  const fileToServe = [publicPath, rootPath, distPath, cpanelPath].find(p => fs.existsSync(p));
+  if (fileToServe) {
+    return res.download(fileToServe, 'PTENit.zip', (err) => {
+      if (err && !res.headersSent) {
+        res.status(500).send('Error downloading file');
+      }
+    });
+  }
+  return res.status(404).send('ZIP file is generating. Please wait a moment and refresh.');
+});
 
 // Vite middleware or production static files
 async function startServer() {

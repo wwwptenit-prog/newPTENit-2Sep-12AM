@@ -506,8 +506,8 @@ export const UserManagementHub: React.FC<UserManagementHubProps> = ({
             const isSelected = selectedUserIds.includes(user.id);
             
             // Related stats
-            const userCoursesCount = (courses || []).filter(c => c && (c.instructor?.id === user.id || c.instructor?.name === user.name)).length;
-            const userGigsCount = (gigs || []).filter(g => g && (g.seller?.id === user.id || g.seller?.name === user.name)).length;
+            const userCoursesCount = (courses || []).filter(c => c && ((c as any).instructor?.id === user.id || (c as any).instructor?.name === user.name || (c as any).instructor === user.name || (c as any).instructorName === user.name)).length;
+            const userGigsCount = (gigs || []).filter(g => g && ((g as any).seller?.id === user.id || (g as any).seller?.name === user.name || (g as any).seller === user.name || (g as any).sellerName === user.name || (g as any).sellerId === user.id)).length;
 
             return (
               <div

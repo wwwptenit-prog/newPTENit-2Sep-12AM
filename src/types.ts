@@ -1,10 +1,11 @@
-export type UserRole = 'student' | 'instructor' | 'specialist' | 'customer' | 'admin' | 'both';
+export type UserRole = 'student' | 'instructor' | 'specialist' | 'customer' | 'admin' | 'both' | 'teacher';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   mobile: string;
+  phone?: string;
   role: UserRole;
   roles?: ('customer' | 'specialist' | 'instructor' | 'admin' | 'student')[];
   activeRole?: 'customer' | 'specialist' | 'instructor' | 'admin' | 'student';
@@ -54,23 +55,24 @@ export interface User {
 
 export interface Lesson {
   id: string;
-  courseId: string;
-  moduleId: string;
+  courseId?: string;
+  moduleId?: string;
   title: string;
   duration: string;
   videoUrl: string;
   pdfResourceUrl?: string;
   content?: string;
+  isFree?: boolean;
   isFreePreview?: boolean;
-  order: number;
+  order?: number;
 }
 
 export interface CourseModule {
   id: string;
-  courseId: string;
+  courseId?: string;
   title: string;
   lessons: Lesson[];
-  order: number;
+  order?: number;
 }
 
 export interface QuizQuestion {
@@ -99,6 +101,7 @@ export interface Assignment {
 export interface AssignmentSubmission {
   id: string;
   assignmentId: string;
+  courseId?: string;
   studentId: string;
   studentName: string;
   studentEmail: string;
@@ -130,6 +133,8 @@ export interface CustomerProject {
   status: 'Pending Review' | 'In Progress' | 'Under Testing' | 'Completed' | 'Cancelled';
   priceEstimate?: number;
   assignedStaff?: string;
+  offerType?: string;
+  isWorkFirst?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -138,6 +143,7 @@ export interface Course {
   id: string;
   title: string;
   instructor: string;
+  instructorName?: string;
   instructorRole?: string;
   category: string;
   duration: string;
@@ -158,6 +164,8 @@ export interface Course {
   quiz?: QuizQuestion[];
   published: boolean;
   createdAt: string;
+  students?: number;
+  studentsCount?: number;
   targetModules?: number;
   targetLessons?: number;
   targetAssignments?: number;
@@ -188,11 +196,15 @@ export interface Course {
 export interface Service {
   id: string;
   title: string;
+  sellerId?: string;
+  sellerName?: string;
   category: string;
   shortDescription: string;
   fullDescription: string;
   iconName: string;
+  price?: number;
   priceText?: string;
+  tags?: string[];
   features: string[];
   published: boolean;
   order?: number;
@@ -214,6 +226,7 @@ export interface Service {
 export interface Enrollment {
   id: string;
   userId: string;
+  studentId?: string;
   courseId: string;
   progress: number; // 0 to 100
   completedLessons: string[]; // lessonIds
@@ -228,9 +241,11 @@ export interface Certificate {
   id: string;
   certificateCode: string;
   studentId: string;
+  studentEmail?: string;
   studentName: string;
   courseId: string;
   courseName: string;
+  courseTitle?: string;
   issueDate: string;
   instructorName: string;
   qrCodeUrl?: string;
@@ -260,7 +275,8 @@ export interface ContactMessage {
   name: string;
   phone: string;
   email: string;
-  serviceOrCourse: string;
+  subject?: string;
+  serviceOrCourse?: string;
   message: string;
   createdAt: string;
   read: boolean;
@@ -293,6 +309,20 @@ export interface PaymentOrder {
   createdAt: string;
 }
 
+export interface CompanyBillItem {
+  id: string;
+  payerName: string;
+  payerPhone: string;
+  gateway: 'bKash' | 'Nagad' | 'Rocket' | 'Bank' | 'Card';
+  transactionId: string;
+  amount: number;
+  category: string;
+  status: 'pending' | 'verified' | 'rejected';
+  verifiedAt?: string;
+  date: string;
+  note?: string;
+}
+
 export interface SubAdminMember {
   id: string;
   name: string;
@@ -308,13 +338,16 @@ export interface PaymentMethodItem {
   id: string;
   name: string;
   logoUrl: string;
-  type?: 'mobile' | 'bank' | 'card' | 'other';
+  type?: 'mobile' | 'bank' | 'card' | 'mfs' | 'other' | string;
   isActive?: boolean;
 }
 
 export interface SiteSettings {
+  siteName?: string;
   heroHeading: string;
   heroSubtext: string;
+  supportPhone?: string;
+  officeHours?: string;
   statsStudents: string;
   statsProjects: string;
   statsCourses: string;
@@ -369,6 +402,7 @@ export interface SiteSettings {
   bankAccountName?: string;
   bankAccountNumber?: string;
   bankBranch?: string;
+  bankLogoUrl?: string;
   paymentLogos?: PaymentMethodItem[];
   // Payment Automation Gateway Settings
   paymentAutomationMode?: 'manual' | 'automated'; // 'manual' = Admin TrxID verification, 'automated' = Instant Gateway API
@@ -405,6 +439,7 @@ export interface SiteSettings {
   defaultTrainerRevShare?: number;
   defaultClientFee?: number;
   defaultWithdrawalFee?: number;
+  marketplaceCategories?: string[];
   // Sub-Admins & Support Team Access
   subAdminMembers?: SubAdminMember[];
   // Written Content Configuration
@@ -419,15 +454,6 @@ export interface SiteSettings {
   containerMaxWidth?: string; // '100%', '1536px', '1280px'
   customScalePercent?: number; // 100, 95, 90, 105
   mobileResponsiveMode?: 'fluid_100' | 'adaptive' | 'compact';
-  // Typography & Font Customization
-  primaryBengaliFont?: 'hind_siliguri' | 'noto_sans' | 'anek_bangla' | 'tiro_bangla' | 'facebook_system' | 'custom';
-  customFontFamily?: string;
-  mobileFontSize?: number; // e.g. 14, 15, 16, 17, 18
-  desktopFontSize?: number; // e.g. 15, 16, 17, 18, 19, 20
-  mobileLineHeight?: number; // e.g. 1.35, 1.4, 1.48, 1.55, 1.6
-  desktopLineHeight?: number; // e.g. 1.45, 1.5, 1.55, 1.65
-  bengaliFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
-  headingScale?: 'compact' | 'normal' | 'large' | 'extra_large';
   // SEO & Search Engine Optimization Setup
   seoTitle?: string;
   metaDescription?: string;
@@ -451,8 +477,9 @@ export interface NotificationItem {
   time: string;
   read: boolean;
   type: 'info' | 'success' | 'warning' | 'error';
-  category?: 'seller' | 'mentor' | 'message' | 'payout' | 'system' | 'buyer' | 'course';
+  category?: 'seller' | 'mentor' | 'message' | 'payout' | 'system' | 'buyer' | 'course' | 'enrollment' | string;
   recipientRole?: 'seller' | 'buyer' | 'all';
+  mode?: 'buying' | 'selling' | 'all' | string;
   targetTab?: string;
   targetId?: string;
   senderName?: string;
@@ -471,12 +498,15 @@ export interface NotificationItem {
 
 export interface DirectMessageItem {
   id: string;
+  senderId?: string;
   senderName: string;
   senderRole?: string;
   senderAvatar?: string;
   recipientRole?: 'customer' | 'instructor' | 'admin' | 'all' | 'seller' | 'buyer';
+  mode?: 'buying' | 'selling' | 'all' | string;
+  category?: string;
   text: string;
-  time: string;
+  time?: string;
   read: boolean;
   unreadCount?: number;
   orderId?: string;
@@ -510,7 +540,7 @@ export interface TeacherPayout {
   teacherName: string;
   teacherEmail: string;
   amount: number;
-  paymentMethod: 'bKash' | 'Nagad' | 'Rocket' | 'Bank';
+  paymentMethod: 'bKash' | 'Nagad' | 'Rocket' | 'Bank' | 'Bank Transfer';
   accountNumber: string;
   note?: string;
   status: 'Pending' | 'Approved' | 'Rejected' | 'Paid';
@@ -532,7 +562,9 @@ export interface TeacherNotice {
 
 // Marketplace & Agency Project Dispatch Types
 export interface MarketplaceGigPackage {
-  name: string;
+  name?: string;
+  title?: string;
+  description?: string;
   price: number;
   deliveryDays: number;
   revisions: number | string;
@@ -543,14 +575,25 @@ export interface MarketplaceGig {
   id: string;
   sellerId: string;
   sellerName: string;
+  sellerPhone?: string;
+  seller?: string;
+  badge?: string;
+  deliveryDays?: number;
+  images?: string[];
+  fullDescription?: string;
+  shortDescription?: string;
   sellerAvatar?: string;
   sellerTitle?: string;
   sellerLevel?: string;
   sellerRating?: number;
+  price?: number;
+  priceText?: string;
+  deliveryTime?: string;
   isAgencyStaff?: boolean; // internal PTENit office staff/instructor
   title: string;
   category: string;
   description: string;
+  features?: string[];
   thumbnail: string;
   galleryImages?: string[];
   videoUrl?: string;
@@ -633,14 +676,22 @@ export interface MarketplaceOrder {
   sellerId: string;
   sellerName: string;
   sellerAvatar?: string;
+  sellerEmail?: string;
+  sellerPhone?: string;
   isInternalStaff?: boolean;
   packageType?: 'Basic' | 'Standard' | 'Premium' | 'Custom';
   amount: number;
   adminCommission: number;
   sellerPayout: number;
+  gigTitle?: string;
+  serviceTitle?: string;
+  clientName?: string;
+  clientPhone?: string;
+  selectedPackageName?: string;
+  statusNote?: string;
   paymentMethod?: string;
   transactionId?: string;
-  status: 'pending' | 'pending_approval' | 'in_progress' | 'in_review' | 'revision_requested' | 'completed' | 'disputed' | 'cancelled';
+  status: 'pending' | 'pending_approval' | 'in_progress' | 'in_review' | 'revision_requested' | 'completed' | 'disputed' | 'cancelled' | 'delivered';
   deliveryNote?: string;
   deliveryFileUrl?: string;
   deliveryFileName?: string;
@@ -707,11 +758,15 @@ export interface DigitalProduct {
   deliveryType: DigitalProductDeliveryType;
   fileFormat: string;
   fileSize: string;
+  version?: string;
+  requirements?: string | string[];
   rating: number;
   reviewsCount: number;
   salesCount: number;
   features: string[];
   downloadUrl: string;
+  demoImages?: string[];
+  galleryImages?: string[];
   licenseKey?: string;
   demoUrl?: string;
   canvaInviteLink?: string;
@@ -730,12 +785,12 @@ export interface LiveClassSession {
   moduleTitle?: string;
   lessonNo: string;
   lessonTitle?: string;
-  serialNo: string;
+  serialNo?: string;
   classSerialNo?: string;
   date: string; // "YYYY-MM-DD"
   time: string; // "HH:mm"
   durationMinutes?: number; // default 90 minutes
-  meetLink: string;
+  meetLink?: string;
   meetingLink?: string;
   platform?: 'google_meet' | 'zoom' | 'youtube' | 'custom';
   note?: string;

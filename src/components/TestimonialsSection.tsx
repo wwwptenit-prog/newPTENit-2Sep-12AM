@@ -79,7 +79,7 @@ export const TestimonialsSection: React.FC = () => {
                         <div className="min-w-0 flex-1">
                           <h4 className="font-bold text-sm text-slate-900 dark:text-white font-bengali truncate flex items-center gap-1">
                             <span className="truncate">{loc.name}</span>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#0084FF] fill-[#0084FF] text-white shrink-0" title="ভেরিফাইড প্রোফাইল" />
+                            <span title="ভেরিফাইড প্রোফাইল"><CheckCircle2 className="w-3.5 h-3.5 text-[#0084FF] fill-[#0084FF] text-white shrink-0" /></span>
                           </h4>
                           <p className="text-[11px] text-slate-500 font-bengali truncate">
                             {loc.role} • <span className="text-[#38BDF8] font-semibold">{loc.courseOrService}</span>
@@ -164,7 +164,7 @@ export const TestimonialsSection: React.FC = () => {
                   <div>
                     <h4 className="font-bold text-base text-slate-900 dark:text-white font-bengali flex items-center gap-1">
                       <span>{loc.name}</span>
-                      <CheckCircle2 className="w-4 h-4 text-[#0084FF] fill-[#0084FF] text-white shrink-0" title="ভেরিফাইড প্রোফাইল" />
+                      <span title="ভেরিফাইড প্রোফাইল"><CheckCircle2 className="w-4 h-4 text-[#0084FF] fill-[#0084FF] text-white shrink-0" /></span>
                     </h4>
                     <p className="text-xs text-slate-500 font-bengali">
                       {loc.role} • <span className="text-[#38BDF8] font-semibold">{loc.courseOrService}</span>

@@ -13,7 +13,7 @@ export const QuickRoleSwitcher: React.FC<QuickRoleSwitcherProps> = ({ activeTab,
   const [isOpen, setIsOpen] = useState(false);
 
   const handleRoleSwitch = (role: UserRole, targetTab: string) => {
-    demoLogin(role);
+    demoLogin(role as any);
     setActiveTab(targetTab);
   };
 

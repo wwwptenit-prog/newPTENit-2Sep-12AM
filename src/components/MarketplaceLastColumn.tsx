@@ -19,13 +19,15 @@ import {
   Trash2,
   Maximize2,
   ShieldCheck,
-  MessageSquare
+  MessageSquare,
+  Eye
 } from 'lucide-react';
 
 interface MarketplaceLastColumnProps {
   children?: React.ReactNode;
   isSellerMode?: boolean;
   onOpenOrder?: (orderId: string) => void;
+  onOpenGig?: (gigId: string) => void;
   onNavigateTab?: (tab: string, subTab?: string) => void;
 }
 
@@ -50,6 +52,7 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
   children,
   isSellerMode = false,
   onOpenOrder,
+  onOpenGig,
   onNavigateTab
 }) => {
   const {
@@ -298,8 +301,30 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
     });
   }, [mergedConversations, msgSearchQuery, msgFilter]);
 
-  // Notifications
-  const effectiveNotifications = roleScopedNotifications || notifications || [];
+  // Notifications strictly scoped to isSellerMode
+  const effectiveNotifications = useMemo(() => {
+    const list = roleScopedNotifications || notifications || [];
+    return list.filter(n => {
+      if (n.mode === 'selling') return isSellerMode;
+      if (n.mode === 'buying') return !isSellerMode;
+      if (n.recipientRole) {
+        if (n.recipientRole === 'all') return true;
+        return isSellerMode ? n.recipientRole === 'seller' : n.recipientRole === 'buyer';
+      }
+      const cat = (n.category || '').toLowerCase();
+      const title = (n.title || '').toLowerCase();
+      const isSellerSpecific = cat === 'seller' || cat === 'payout' || title.includes('সেলার') || title.includes('উইথড্র') || title.includes('ক্লাইন্ট') || title.includes('ক্লায়েন্ট');
+      const isBuyerSpecific = cat === 'buyer' || cat === 'course' || title.includes('বায়ার') || title.includes('কোর্স') || title.includes('অ্যাসাইনমেন্ট');
+      if (isSellerMode) {
+        if (isBuyerSpecific && !isSellerSpecific) return false;
+        return true;
+      } else {
+        if (isSellerSpecific && !isBuyerSpecific) return false;
+        return true;
+      }
+    });
+  }, [roleScopedNotifications, notifications, isSellerMode]);
+
   const unreadNotifCount = effectiveNotifications.filter(n => !n.read).length;
 
   const filteredNotifications = useMemo(() => {
@@ -311,7 +336,7 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
         return n.category === 'payout' || titleLower.includes('অর্ডার') || titleLower.includes('order') || msgLower.includes('অর্ডার');
       }
       if (notifFilter === 'system') {
-        return n.category === 'system' || n.category === 'enrollment';
+        return (n.category as any) === 'system' || (n.category as any) === 'enrollment';
       }
       return true;
     });
@@ -378,34 +403,49 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
       return;
     }
 
-    // 2. Order notification -> open order
+    // 2. Order notification -> open order in 2nd column
     if (
       notif.targetTab === 'marketplace' ||
       notif.category === 'payout' ||
       titleLower.includes('অর্ডার') ||
       msgLower.includes('অর্ডার') ||
+      titleLower.includes('পেমেন্ট') ||
+      msgLower.includes('পেমেন্ট') ||
+      titleLower.includes('এস্ক্রো') ||
       notif.targetId?.includes('ORD') ||
-      notif.targetId?.includes('PT-')
+      notif.targetId?.includes('PT-') ||
+      notif.targetId?.includes('ord-')
     ) {
-      if (onOpenOrder && notif.targetId) {
-        onOpenOrder(notif.targetId);
+      if (onOpenOrder) {
+        onOpenOrder(notif.targetId || '');
       } else if (onNavigateTab) {
-        onNavigateTab('marketplace', 'my-orders');
+        onNavigateTab('marketplace', isSellerMode ? 'orders' : 'my-orders');
       }
       return;
     }
 
-    // 3. Course notification -> navigate to course
-    if (notif.targetTab === 'courses' || notif.category === 'enrollment' || titleLower.includes('কোর্স')) {
+    // 3. Gig notification -> open gig details in 2nd column
+    if (
+      notif.targetId &&
+      (notif.targetId.startsWith('gig-') || notif.targetId.startsWith('srv-') || titleLower.includes('গিগ') || msgLower.includes('গিগ'))
+    ) {
+      if (onOpenGig) {
+        onOpenGig(notif.targetId);
+        return;
+      }
+    }
+
+    // 4. Course notification -> show courses in 2nd column
+    if (notif.targetTab === 'courses' || notif.category === 'enrollment' || titleLower.includes('কোর্স') || msgLower.includes('কোর্স')) {
       if (onNavigateTab) {
-        onNavigateTab('courses');
+        onNavigateTab('marketplace', 'courses');
       }
       return;
     }
 
-    // 4. Default: fallback to target tab if provided
-    if (notif.targetTab && onNavigateTab) {
-      onNavigateTab(notif.targetTab);
+    // 5. Default -> show target subtab in 2nd column
+    if (onNavigateTab) {
+      onNavigateTab('marketplace', notif.targetTab || (isSellerMode ? 'orders' : 'my-orders'));
     }
   };
 
@@ -746,7 +786,7 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
               } else if (notif.category === 'system') {
                 IconComponent = Sparkles;
                 iconColor = 'text-purple-500 bg-purple-50 dark:bg-purple-950/30';
-              } else if (notif.category === 'enrollment') {
+              } else if ((notif.category as any) === 'enrollment') {
                 IconComponent = CheckCircle2;
                 iconColor = 'text-sky-500 bg-sky-50 dark:bg-sky-950/30';
               }
@@ -755,12 +795,12 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
                 <div
                   key={notif.id}
                   onClick={() => handleOpenNotification(notif)}
-                  className={`p-2.5 rounded-xl transition cursor-pointer group border flex items-start gap-2.5 relative ${
+                  className={`p-3 rounded-xl transition cursor-pointer group border flex items-start gap-2.5 relative ${
                     isUnread
-                      ? 'bg-slate-50/90 dark:bg-slate-800/80 border-[#006A4E]/30 shadow-2xs'
+                      ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-[#006A4E]/30 shadow-2xs'
                       : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                   }`}
-                  title="ওপেন করতে ক্লিক করুন"
+                  title="২য় কলামে দেখতে ক্লিক করুন"
                 >
                   {/* Category Icon */}
                   <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${iconColor}`}>
@@ -784,17 +824,13 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
                       {notif.message}
                     </p>
 
-                    <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-slate-100/80 dark:border-slate-800/60">
+                    <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
                       <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
                         <Clock className="w-2.5 h-2.5" />
                         {notif.time || 'কিছুক্ষণ আগে'}
                       </span>
 
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-[#006A4E] dark:text-emerald-400 group-hover:underline flex items-center gap-0.5">
-                          ওপেন করুন <ArrowRight className="w-2.5 h-2.5" />
-                        </span>
-
+                      <div className="flex items-center gap-1.5">
                         {deleteNotification && (
                           <button
                             type="button"
@@ -802,12 +838,24 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
                               e.stopPropagation();
                               deleteNotification(notif.id);
                             }}
-                            className="text-slate-400 hover:text-rose-500 p-0.5 rounded transition"
+                            className="text-slate-400 hover:text-rose-500 p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                             title="মুছে ফেলুন"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenNotification(notif);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-[#006A4E] hover:bg-[#00543e] text-white text-[11px] font-bold flex items-center gap-1 shadow-2xs transition active:scale-95 cursor-pointer"
+                          title="২য় কলামে দেখুন"
+                        >
+                          <Eye className="w-3 h-3 text-white" />
+                          <span>দেখুন</span>
+                        </button>
                       </div>
                     </div>
                   </div>

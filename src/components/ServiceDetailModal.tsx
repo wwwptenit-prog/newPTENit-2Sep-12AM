@@ -88,7 +88,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
     service.packages?.basic?.deliveryDays || (service as any).deadlineDays || 5
   );
 
-  const isSellerViewing = isBuyerOffer || viewerMode === 'seller' || (currentUser && currentUser.role === 'seller' && service.sellerId !== currentUser.id && viewerMode !== 'buyer');
+  const isSellerViewing = isBuyerOffer || viewerMode === 'seller' || (currentUser && (currentUser.role as any) === 'seller' && service.sellerId !== currentUser.id && viewerMode !== 'buyer');
   const [isOrderReceived, setIsOrderReceived] = useState(false);
   const [orderReceivedSuccessMsg, setOrderReceivedSuccessMsg] = useState('');
 
@@ -126,7 +126,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
       sellerId: currentUser.id,
       sellerName: currentUser.name || 'সেলার',
       sellerAvatar: currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      packageType: isBuyerOffer ? 'Public Offer' : selectedTier.toUpperCase(),
+      packageType: (isBuyerOffer ? 'Custom' : selectedTier.toUpperCase()) as any,
       amount: pkgPrice,
       adminCommission: Math.round(pkgPrice * 0.1),
       sellerPayout: Math.round(pkgPrice * 0.9),
@@ -384,7 +384,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
       gigId: service.id,
       title: `${service.title} (${currentPackage.name})`,
       category: service.category,
-      packageType: selectedTier,
+      packageType: (selectedTier === 'basic' ? 'Basic' : selectedTier === 'standard' ? 'Standard' : 'Premium') as any,
       buyerId: activeBuyerId,
       buyerName: customerName.trim(),
       buyerEmail: customerEmail.trim(),
@@ -1669,7 +1669,7 @@ export const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({
                           <h4 className="text-xs sm:text-base font-bold text-slate-900 dark:text-white truncate">
                             {isSellerViewing ? (service.sellerName || "বায়ার / ক্লায়েন্ট") : ((service as any).sellerName || "PTENit Certified Team")}
                           </h4>
-                          <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 fill-emerald-500 text-white shrink-0" title="ভেরিফাইড প্রোফাইল" />
+                          <span title="ভেরিফাইড প্রোফাইল"><BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 fill-emerald-500 text-white shrink-0" /></span>
                         </div>
                         <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex-wrap">
                           {isSellerViewing ? (

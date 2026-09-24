@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   User,
   Course,
@@ -25,7 +25,8 @@ import {
   MarketplaceProposal,
   MarketplaceOrder,
   DigitalProduct,
-  LiveClassSession
+  LiveClassSession,
+  CompanyBillItem
 } from '../types';
 import {
   initialSiteSettings,
@@ -44,7 +45,22 @@ import {
   initialDigitalProducts,
   initialLiveSessions
 } from '../data/initialData';
-import { syncCollectionToFirestore, loadCollectionFromFirestore } from '../services/firestoreSync';
+import { auth, db } from '../services/firebase';
+import { 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  sendPasswordResetEmail,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { 
+  syncDocToFirestore, 
+  deleteDocFromFirestore, 
+  subscribeToCollection, 
+  syncCollectionToFirestore 
+} from '../services/firestoreSync';
 
 interface DataContextType {
   lang: 'bn' | 'en';
@@ -83,7 +99,7 @@ interface DataContextType {
   isMessengerInboxOpen: boolean;
   setIsMessengerInboxOpen: (open: boolean) => void;
   initialMessengerTab: 'messages' | 'notifications' | 'courses';
-  openMessengerInbox: (conversationId?: string, initialTab?: 'messages' | 'notifications' | 'courses', orderId?: string) => void;
+  openMessengerInbox: (conversationId?: string, initialTab?: 'messages' | 'notifications' | 'courses' | string, orderId?: string) => void;
   closeMessengerInbox: () => void;
   marketplaceMode: 'buying' | 'selling';
   setMarketplaceMode: (mode: 'buying' | 'selling') => void;
@@ -149,6 +165,7 @@ interface DataContextType {
   switchRole: (newRole: 'customer' | 'specialist' | 'instructor' | 'admin' | 'student') => void;
   updateProfile: (data: Partial<User>) => void;
   addUser: (userData: Omit<User, 'id' | 'createdAt'>) => void;
+  updateUser: (id: string, updates: Partial<User>) => void;
   
   // Teacher Payouts & Notices
   requestTeacherPayout: (payout: Omit<TeacherPayout, 'id' | 'requestedAt' | 'status'>) => void;
@@ -176,7 +193,7 @@ interface DataContextType {
   declineCourseOffer: (courseId: string) => void;
   
   // Enrollments & Learning
-  enrollCourse: (courseId: string, paymentDetails?: { method: PaymentOrder['paymentMethod']; phone: string; txId: string; amount: number }) => Promise<boolean>;
+  enrollCourse: (courseId: string, paymentDetails?: { method: PaymentOrder['paymentMethod']; phone: string; txId: string; amount: number; studentName?: string; studentEmail?: string; studentPhone?: string; isAutomated?: boolean }) => Promise<boolean>;
   updateLessonProgress: (courseId: string, lessonId: string) => void;
   
   // Services
@@ -231,17 +248,47 @@ interface DataContextType {
   // Direct Messages & Popovers
   rightColumnView: 'default' | 'messages' | 'notifications';
   setRightColumnView: React.Dispatch<React.SetStateAction<'default' | 'messages' | 'notifications'>>;
+  unreadMarketplaceMsgCount: number;
+  roleScopedNotifications: NotificationItem[];
   readConversationIds: string[];
   markConversationRead: (id: string) => void;
-  markAllConversationsRead: () => void;
+  markAllConversationsRead: (role?: string) => void;
   markDirectMessageRead: (id: string) => void;
-  markAllDirectMessagesRead: () => void;
+  markAllDirectMessagesRead: (role?: string) => void;
   sendDirectMessage: (msg: Omit<DirectMessageItem, 'id' | 'read'>) => void;
-  openChatWindow: (contact: { id?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string }) => void;
+  openChatWindow: (contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; isClosed?: boolean; isReadOnly?: boolean; initialMessage?: string }) => void;
   closeChatWindow: (id: string) => void;
   toggleMinimizeChatWindow: (id: string) => void;
   sendChatMessage: (windowId: string, text: string, meetLink?: string) => void;
-  createGoogleMeetCall: (windowId: string) => void;
+  createGoogleMeetCall: (windowId: string, customMeetLink?: string) => void;
+  inAppMeetState: {
+    isOpen: boolean;
+    roomTitle?: string;
+    targetName?: string;
+    targetAvatar?: string;
+    targetRole?: string;
+    courseTitle?: string;
+    windowId?: string;
+    initialType?: 'video' | 'audio' | 'screen';
+  };
+  openInAppMeet: (params?: {
+    roomTitle?: string;
+    targetName?: string;
+    targetAvatar?: string;
+    targetRole?: string;
+    courseTitle?: string;
+    windowId?: string;
+    initialType?: 'video' | 'audio' | 'screen';
+  }) => void;
+  closeInAppMeet: () => void;
+  googleMeetModalState: {
+    isOpen: boolean;
+    windowId?: string;
+    targetName?: string;
+    existingLink?: string;
+  };
+  openGoogleMeetModal: (windowId: string, targetName?: string, existingLink?: string) => void;
+  closeGoogleMeetModal: () => void;
   
   // Delete Operations
   deleteUser: (id: string) => void;
@@ -256,6 +303,14 @@ interface DataContextType {
   toggleUserBlock: (userId: string, reason?: string) => void;
   restrictUser: (userId: string, reason?: string) => void;
   unrestrictUser: (userId: string) => void;
+
+  // Company Billing & Ledger
+  companyBills: CompanyBillItem[];
+  addCompanyBill: (bill: CompanyBillItem) => void;
+  verifyCompanyBill: (billId: string, verifiedBy?: string) => void;
+  rejectCompanyBill: (billId: string, reason?: string) => void;
+  deleteCompanyBill: (billId: string) => void;
+  clearSampleVouchers: () => void;
 }
 
 export const checkAndAutoCancelOverdueOrders = (orders: MarketplaceOrder[]): { updatedOrders: MarketplaceOrder[]; hasChanges: boolean } => {
@@ -585,7 +640,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return JSON.parse(saved);
       } catch {}
     }
-    return null;
+    return initialUsers[5] || null;
   });
 
   // Marketplace Freelancing Platform User Account (Buyer or Seller) - Unified with ptenitUser
@@ -598,7 +653,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return JSON.parse(saved);
       } catch {}
     }
-    return null;
+    return initialUsers[5] || null;
   });
 
   // Unified currentUser across PTENit and Marketplace
@@ -659,6 +714,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ];
   });
 
+  const [companyBills, setCompanyBills] = useState<CompanyBillItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('ptenit_company_bills');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [
+      {
+        id: 'BILL-1001',
+        payerName: 'মোঃ শফিকুল ইসলাম',
+        payerPhone: '01712345678',
+        gateway: 'bKash',
+        transactionId: '8N7X9K2P',
+        amount: 4750,
+        category: 'এডভান্স পেমেন্ট - React App',
+        status: 'pending',
+        date: '2026-08-05 10:30 AM',
+        note: '5% ছাড় অফার অর্ডারের বিল'
+      },
+      {
+        id: 'BILL-1002',
+        payerName: 'আরিফ উল্লাহ',
+        payerPhone: '01898765432',
+        gateway: 'Nagad',
+        transactionId: 'NGD982310',
+        amount: 999,
+        category: 'কোর্স পেমেন্ট - Digital Marketing',
+        status: 'verified',
+        verifiedAt: '2026-08-05 09:15 AM',
+        date: '2026-08-05 09:00 AM',
+        note: 'অটো-রিড ও ইনস্ট্যান্ট ভেরিফাইড'
+      }
+    ];
+  });
+
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_messages`);
     return saved ? JSON.parse(saved) : [
@@ -692,7 +784,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         time: "১০ মিনিট আগে",
         read: false,
         type: "success",
-        targetTab: "marketplace"
+        targetTab: "marketplace",
+        mode: "selling",
+        recipientRole: "seller",
+        targetId: "ord-mkt-1"
+      },
+      {
+        id: "notif-buyer-1",
+        title: "সার্ভিস অর্ডার #ORD-8821 আপডেট",
+        message: "আপনার 'ই-কমার্স ওয়েবসাইট' প্রজেক্টের কাজ সফলভাবে চলমান রয়েছে। অগ্রগতি দেখতে ক্লিক করুন।",
+        time: "৫ মিনিট আগে",
+        read: false,
+        type: "success",
+        targetTab: "marketplace",
+        mode: "buying",
+        recipientRole: "buyer",
+        targetId: "ord-mkt-1"
+      },
+      {
+        id: "notif-buyer-2",
+        title: "আপনার সার্ভিস অর্ডার গৃহীত হয়েছে",
+        message: "সোহাগ কাজী আপনার সার্ভিস অর্ডারটি গ্রহণ করেছেন এবং কাজ শুরু করেছেন।",
+        time: "২০ মিনিট আগে",
+        read: false,
+        type: "success",
+        targetTab: "marketplace",
+        mode: "buying",
+        recipientRole: "buyer",
+        targetId: "ord-mkt-4"
       },
       {
         id: "notif-2",
@@ -701,7 +820,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         time: "৪৫ মিনিট আগে",
         read: false,
         type: "info",
-        targetTab: "student-dashboard"
+        targetTab: "student-dashboard",
+        mode: "buying",
+        recipientRole: "buyer"
       },
       {
         id: "notif-3",
@@ -710,7 +831,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         time: "২ ঘন্টা আগে",
         read: false,
         type: "info",
-        targetTab: "courses"
+        targetTab: "courses",
+        mode: "buying",
+        recipientRole: "buyer"
       },
       {
         id: "notif-4",
@@ -719,7 +842,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         time: "৩ ঘন্টা আগে",
         read: false,
         type: "success",
-        targetTab: "marketplace"
+        targetTab: "marketplace",
+        mode: "selling",
+        recipientRole: "seller"
       },
       {
         id: "notif-5",
@@ -728,7 +853,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         time: "৪ ঘন্টা আগে",
         read: false,
         type: "success",
-        targetTab: "financials"
+        targetTab: "financials",
+        mode: "both",
+        recipientRole: "all"
       }
     ];
   });
@@ -1236,195 +1363,284 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => clearInterval(checkOverdueInterval);
   }, []);
 
-  // Initial cloud Firestore data pull on startup (hydrate any updates made from other devices/sessions)
+  // Real-time Firestore synchronization with onSnapshot and Session Persistence
   useEffect(() => {
-    const hydrateFromFirestore = async () => {
-      try {
-        const [cloudCourses, cloudServices, cloudGigs, cloudJobs, cloudSettings] = await Promise.all([
-          loadCollectionFromFirestore<Course>('courses'),
-          loadCollectionFromFirestore<Service>('services'),
-          loadCollectionFromFirestore<MarketplaceGig>('gigs'),
-          loadCollectionFromFirestore<MarketplaceJob>('jobs'),
-          loadCollectionFromFirestore<SiteSettings>('settings'),
-        ]);
+    const unsubs: (() => void)[] = [];
 
-        if (cloudCourses && cloudCourses.length > 0) {
-          setCourses(prev => {
-            const map = new Map<string, Course>();
-            prev.forEach(c => map.set(c.id, c));
-            cloudCourses.forEach(c => map.set(c.id, { ...map.get(c.id), ...c }));
-            return Array.from(map.values());
-          });
+    // Real-time Auth State Persistence
+    try {
+      const unsubAuth = onAuthStateChanged(auth, async (fbUser) => {
+        if (fbUser) {
+          try {
+            const userDocRef = doc(db, 'users', fbUser.uid);
+            const snap = await getDoc(userDocRef);
+            const isSuperAdminEmail = fbUser.email === 'mdskazisohag@gmail.com' || fbUser.email === 'admin@ptenit.com';
+            
+            if (snap.exists()) {
+              const existingUser = snap.data() as User;
+              if (isSuperAdminEmail) {
+                existingUser.role = 'admin';
+                existingUser.activeRole = 'admin';
+                existingUser.roles = ['admin'];
+              }
+              setCurrentUser(existingUser);
+              setPtenitUser(existingUser);
+              setMarketplaceUser(existingUser);
+            } else {
+              const newUser: User = {
+                id: fbUser.uid,
+                name: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+                email: fbUser.email || '',
+                mobile: fbUser.phoneNumber || '',
+                role: isSuperAdminEmail ? 'admin' : 'customer',
+                roles: isSuperAdminEmail ? ['admin'] : ['customer'],
+                activeRole: isSuperAdminEmail ? 'admin' : 'customer',
+                avatar: fbUser.photoURL || undefined,
+                createdAt: new Date().toISOString().split('T')[0]
+              };
+              await syncDocToFirestore('users', fbUser.uid, newUser);
+              setCurrentUser(newUser);
+              setPtenitUser(newUser);
+              setMarketplaceUser(newUser);
+            }
+          } catch (authDocErr) {
+            console.warn('[Firestore Auth Profile]', authDocErr);
+          }
         }
-        if (cloudServices && cloudServices.length > 0) {
-          setServices(prev => {
-            const map = new Map<string, Service>();
-            prev.forEach(s => map.set(s.id, s));
-            cloudServices.forEach(s => map.set(s.id, { ...map.get(s.id), ...s }));
-            return Array.from(map.values());
-          });
+      });
+      unsubs.push(unsubAuth);
+    } catch (e) {
+      console.warn('[Firebase Auth listener]', e);
+    }
+
+    // Real-time Collection Listeners
+    unsubs.push(subscribeToCollection<PaymentOrder>('orders', (items) => {
+      if (items && items.length > 0) {
+        setOrders(prev => {
+          const map = new Map<string, PaymentOrder>();
+          prev.forEach(p => map.set(p.id, p));
+          items.forEach(i => map.set(i.id, i));
+          const merged = Array.from(map.values());
+          localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(merged));
+          return merged;
+        });
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<MarketplaceOrder>('marketplaceOrders', (items) => {
+      if (items && items.length > 0) {
+        setMarketplaceOrders(prev => {
+          const map = new Map<string, MarketplaceOrder>();
+          prev.forEach(m => map.set(m.id, m));
+          items.forEach(i => map.set(i.id, i));
+          const merged = Array.from(map.values());
+          localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(merged));
+          return merged;
+        });
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<CompanyBillItem>('companyBills', (items) => {
+      if (items && items.length > 0) {
+        setCompanyBills(prev => {
+          const map = new Map<string, CompanyBillItem>();
+          prev.forEach(b => map.set(b.id, b));
+          items.forEach(i => map.set(i.id, i));
+          const merged = Array.from(map.values());
+          localStorage.setItem('ptenit_company_bills', JSON.stringify(merged));
+          return merged;
+        });
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<Course>('courses', (items) => {
+      if (items && items.length > 0) {
+        setCourses(items);
+        localStorage.setItem(`${STORAGE_KEY}_courses`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<Service>('services', (items) => {
+      if (items && items.length > 0) {
+        setServices(items);
+        localStorage.setItem(`${STORAGE_KEY}_services`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<GalleryItem>('gallery', (items) => {
+      if (items && items.length > 0) {
+        setGallery(items);
+        localStorage.setItem(`${STORAGE_KEY}_gallery`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<Testimonial>('testimonials', (items) => {
+      if (items && items.length > 0) {
+        setTestimonials(items);
+        localStorage.setItem(`${STORAGE_KEY}_testimonials`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<MarketplaceGig>('gigs', (items) => {
+      if (items && items.length > 0) {
+        setGigs(prev => {
+          const map = new Map<string, MarketplaceGig>();
+          prev.forEach(g => map.set(g.id, g));
+          items.forEach(i => map.set(i.id, i));
+          const merged = Array.from(map.values());
+          localStorage.setItem(`${STORAGE_KEY}_gigs`, JSON.stringify(merged));
+          return merged;
+        });
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<MarketplaceJob>('jobs', (items) => {
+      if (items && items.length > 0) {
+        setJobs(prev => {
+          const map = new Map<string, MarketplaceJob>();
+          prev.forEach(j => map.set(j.id, j));
+          items.forEach(i => map.set(i.id, i));
+          const merged = Array.from(map.values());
+          localStorage.setItem(`${STORAGE_KEY}_jobs`, JSON.stringify(merged));
+          return merged;
+        });
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<MarketplaceProposal>('proposals', (items) => {
+      if (items && items.length > 0) {
+        setProposals(items);
+        localStorage.setItem(`${STORAGE_KEY}_proposals`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<DigitalProduct>('digitalProducts', (items) => {
+      if (items && items.length > 0) {
+        setDigitalProducts(items);
+        localStorage.setItem(`${STORAGE_KEY}_digital_products`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<ContactMessage>('contactMessages', (items) => {
+      if (items && items.length > 0) {
+        setContactMessages(items);
+        localStorage.setItem(`${STORAGE_KEY}_messages`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<NotificationItem>('notifications', (items) => {
+      if (items && items.length > 0) {
+        setNotifications(items);
+        localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<DirectMessageItem>('directMessages', (items) => {
+      if (items && items.length > 0) {
+        setDirectMessages(items);
+        localStorage.setItem(`${STORAGE_KEY}_direct_messages`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<User>('users', (items) => {
+      if (items && items.length > 0) {
+        setUsers(items);
+        localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<CustomerProject>('customerProjects', (items) => {
+      if (items && items.length > 0) {
+        setCustomerProjects(items);
+        localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<Assignment>('assignments', (items) => {
+      if (items && items.length > 0) {
+        setAssignments(items);
+        localStorage.setItem(`${STORAGE_KEY}_assignments`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<AssignmentSubmission>('submissions', (items) => {
+      if (items && items.length > 0) {
+        setSubmissions(items);
+        localStorage.setItem(`${STORAGE_KEY}_submissions`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<TeacherPayout>('payouts', (items) => {
+      if (items && items.length > 0) {
+        setPayouts(items);
+        localStorage.setItem(`${STORAGE_KEY}_payouts`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<TeacherNotice>('teacherNotices', (items) => {
+      if (items && items.length > 0) {
+        setTeacherNotices(items);
+        localStorage.setItem(`${STORAGE_KEY}_teacher_notices`, JSON.stringify(items));
+      }
+    }));
+
+    // Site settings real-time listener
+    try {
+      const settingsDocRef = doc(db, 'siteSettings', 'default');
+      const unsubSettings = onSnapshot(settingsDocRef, (snap) => {
+        if (snap.exists()) {
+          const remoteSettings = snap.data() as SiteSettings;
+          setSiteSettings(remoteSettings);
+          localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(remoteSettings));
         }
-        if (cloudGigs && cloudGigs.length > 0) {
-          setGigs(cloudGigs);
+      }, () => {});
+      unsubs.push(unsubSettings);
+    } catch {}
+
+    // First-run database initialization (seeds Firestore if newly created)
+    const seedDatabaseIfNeeded = async () => {
+      try {
+        const settingsSnap = await getDoc(doc(db, 'siteSettings', 'default'));
+        if (!settingsSnap.exists()) {
+          console.log('[Firestore] Seeding initial database collections...');
+          await syncDocToFirestore('siteSettings', 'default', initialSiteSettings);
+          await syncCollectionToFirestore('courses', initialCourses);
+          await syncCollectionToFirestore('services', initialServices);
+          await syncCollectionToFirestore('gallery', initialGallery);
+          await syncCollectionToFirestore('testimonials', initialTestimonials);
+          await syncCollectionToFirestore('gigs', initialGigs);
+          await syncCollectionToFirestore('jobs', initialJobs);
+          await syncCollectionToFirestore('digitalProducts', initialDigitalProducts);
+          await syncCollectionToFirestore('users', initialUsers);
         }
-        if (cloudJobs && cloudJobs.length > 0) {
-          setJobs(cloudJobs);
-        }
-        if (cloudSettings && cloudSettings.length > 0 && cloudSettings[0]) {
-          setSiteSettings(prev => ({ ...prev, ...cloudSettings[0] }));
-        }
-      } catch (err) {
-        console.warn('[Firestore] Initial hydration notice:', err);
+      } catch (e) {
+        console.warn('[Firestore] Seed skipped or already initialized:', e);
       }
     };
+    seedDatabaseIfNeeded();
 
-    hydrateFromFirestore();
+    return () => {
+      unsubs.forEach(unsub => {
+        try { unsub(); } catch {}
+      });
+    };
   }, []);
 
-  // Sync Marketplace to localStorage and Firestore
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_gigs`, JSON.stringify(gigs));
-    syncCollectionToFirestore('gigs', gigs);
-  }, [gigs]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_jobs`, JSON.stringify(jobs));
-    syncCollectionToFirestore('jobs', jobs);
-  }, [jobs]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_proposals`, JSON.stringify(proposals));
-    syncCollectionToFirestore('proposals', proposals);
-  }, [proposals]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_digital_products`, JSON.stringify(digitalProducts));
-    syncCollectionToFirestore('digital_products', digitalProducts);
-  }, [digitalProducts]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_live_sessions`, JSON.stringify(liveSessions));
-    syncCollectionToFirestore('live_sessions', liveSessions);
-  }, [liveSessions]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(marketplaceOrders));
-    syncCollectionToFirestore('marketplace_orders', marketplaceOrders);
-  }, [marketplaceOrders]);
-
-  // Sync to localStorage and Firestore
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_payouts`, JSON.stringify(payouts));
-    syncCollectionToFirestore('payouts', payouts);
-  }, [payouts]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_teacher_notices`, JSON.stringify(teacherNotices));
-    syncCollectionToFirestore('teacher_notices', teacherNotices);
-  }, [teacherNotices]);
-
-  // Sync to localStorage
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(siteSettings));
-    syncCollectionToFirestore('settings', [{ id: 'main_settings', ...siteSettings }]);
-  }, [siteSettings]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_courses`, JSON.stringify(courses));
-    syncCollectionToFirestore('courses', courses);
-  }, [courses]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_services`, JSON.stringify(services));
-    syncCollectionToFirestore('services', services);
-  }, [services]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_gallery`, JSON.stringify(gallery));
-    syncCollectionToFirestore('gallery', gallery);
-  }, [gallery]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_testimonials`, JSON.stringify(testimonials));
-    syncCollectionToFirestore('testimonials', testimonials);
-  }, [testimonials]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_offers`, JSON.stringify(offers));
-    syncCollectionToFirestore('offers', offers);
-  }, [offers]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(users));
-    syncCollectionToFirestore('users', users);
-  }, [users]);
-
-  useEffect(() => {
-    if (ptenitUser) {
-      localStorage.setItem(`${STORAGE_KEY}_ptenit_user`, JSON.stringify(ptenitUser));
-      localStorage.setItem(`${STORAGE_KEY}_current_user`, JSON.stringify(ptenitUser));
-    } else {
-      localStorage.removeItem(`${STORAGE_KEY}_ptenit_user`);
-      localStorage.removeItem(`${STORAGE_KEY}_current_user`);
-    }
-  }, [ptenitUser]);
-
-  useEffect(() => {
-    if (marketplaceUser) {
-      localStorage.setItem(`${STORAGE_KEY}_marketplace_user`, JSON.stringify(marketplaceUser));
-    } else {
-      localStorage.removeItem(`${STORAGE_KEY}_marketplace_user`);
-    }
-  }, [marketplaceUser]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_enrollments`, JSON.stringify(enrollments));
-    syncCollectionToFirestore('enrollments', enrollments);
-  }, [enrollments]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_certificates`, JSON.stringify(certificates));
-    syncCollectionToFirestore('certificates', certificates);
-  }, [certificates]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(orders));
-    syncCollectionToFirestore('orders', orders);
-  }, [orders]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_messages`, JSON.stringify(contactMessages));
-    syncCollectionToFirestore('contact_messages', contactMessages);
-  }, [contactMessages]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(notifications));
-    syncCollectionToFirestore('notifications', notifications);
-  }, [notifications]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_direct_messages`, JSON.stringify(directMessages));
-    syncCollectionToFirestore('direct_messages', directMessages);
-  }, [directMessages]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_assignments`, JSON.stringify(assignments));
-    syncCollectionToFirestore('assignments', assignments);
-  }, [assignments]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_submissions`, JSON.stringify(submissions));
-    syncCollectionToFirestore('submissions', submissions);
-  }, [submissions]);
-
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(customerProjects));
-    syncCollectionToFirestore('customer_projects', customerProjects);
-  }, [customerProjects]);
-
-  // Auth Functions
+  // Auth Functions with Firebase Integration
   const login = (emailOrPhone: string, pass: string): boolean => {
     const cleanInput = emailOrPhone.trim().toLowerCase();
+    
+    // If email provided, attempt real Firebase Auth sign in
+    if (cleanInput.includes('@')) {
+      signInWithEmailAndPassword(auth, cleanInput, pass)
+        .then((cred) => {
+          console.log('[Firebase Auth] User signed in:', cred.user.email);
+        })
+        .catch((err) => {
+          console.warn('[Firebase Auth] Email sign-in check:', err.code);
+        });
+    }
+
     let user = users.find(
       u => u.email.toLowerCase() === cleanInput || u.mobile === emailOrPhone
     );
@@ -1453,7 +1669,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error(e);
       }
 
-      // Hardcoded fallback staff if localStorage is empty
+      // Hardcoded fallback staff
       const defaultStaffFallbacks = [
         {
           id: 'staff-02',
@@ -1586,6 +1802,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false;
       }
       setCurrentUser(user);
+      setPtenitUser(user);
+      setMarketplaceUser(user);
+      syncDocToFirestore('users', user.id, user);
       return true;
     }
 
@@ -1596,21 +1815,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: emailOrPhone.includes('@') ? emailOrPhone : `${emailOrPhone}@ptenit.com`,
       mobile: emailOrPhone,
       role: 'student',
+      roles: ['student'],
+      activeRole: 'student',
       createdAt: new Date().toISOString().split('T')[0]
     };
     setUsers(prev => [...prev, newUser]);
     setCurrentUser(newUser);
+    setPtenitUser(newUser);
+    setMarketplaceUser(newUser);
+    syncDocToFirestore('users', newUser.id, newUser);
     return true;
   };
 
-  const signup = (userData: Omit<User, 'id' | 'createdAt'>, _pass: string): boolean => {
+  const signup = (userData: Omit<User, 'id' | 'createdAt'>, pass: string): boolean => {
+    const newId = `usr-${Date.now()}`;
     const newUser: User = {
       ...userData,
-      id: `usr-${Date.now()}`,
+      id: newId,
       createdAt: new Date().toISOString().split('T')[0]
     };
+
+    if (userData.email && userData.email.includes('@')) {
+      createUserWithEmailAndPassword(auth, userData.email, pass)
+        .then((cred) => {
+          const fbUser = { ...newUser, id: cred.user.uid };
+          syncDocToFirestore('users', cred.user.uid, fbUser);
+          setCurrentUser(fbUser);
+          setPtenitUser(fbUser);
+          setMarketplaceUser(fbUser);
+        })
+        .catch((err) => {
+          console.warn('[Firebase Auth Signup]', err.code);
+          syncDocToFirestore('users', newId, newUser);
+          setCurrentUser(newUser);
+          setPtenitUser(newUser);
+          setMarketplaceUser(newUser);
+        });
+    } else {
+      syncDocToFirestore('users', newId, newUser);
+      setCurrentUser(newUser);
+      setPtenitUser(newUser);
+      setMarketplaceUser(newUser);
+    }
+
     setUsers(prev => [...prev, newUser]);
-    setCurrentUser(newUser);
     return true;
   };
 
@@ -1624,11 +1872,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    signOut(auth).catch(() => {});
     setCurrentUser(null);
+    setPtenitUser(null);
+    setMarketplaceUser(null);
+    localStorage.removeItem(`${STORAGE_KEY}_current_user`);
+    localStorage.removeItem(`${STORAGE_KEY}_ptenit_user`);
+    localStorage.removeItem(`${STORAGE_KEY}_marketplace_user`);
   };
 
   const logoutMarketplace = () => {
-    setCurrentUser(null);
+    logout();
   };
 
   const demoLoginMarketplace = (role: 'customer' | 'instructor') => {
@@ -1686,15 +1940,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       rating: 5.0,
       createdAt: new Date().toISOString().split('T')[0]
     };
-    setCourses(prev => [newCourse, ...prev]);
+    setCourses(prev => {
+      const next = [newCourse, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_courses`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('courses', newCourse.id, newCourse);
   };
 
   const updateCourse = (id: string, updatedFields: Partial<Course>) => {
-    setCourses(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
+    setCourses(prev => {
+      const next = prev.map(c => {
+        if (c.id === id) {
+          const updated = { ...c, ...updatedFields };
+          syncDocToFirestore('courses', id, updated);
+          return updated;
+        }
+        return c;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_courses`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const deleteCourse = (id: string) => {
-    setCourses(prev => prev.filter(c => c.id !== id));
+    setCourses(prev => {
+      const next = prev.filter(c => c.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_courses`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('courses', id);
   };
 
   const acceptCourseOffer = (courseId: string, teacherId?: string, teacherName?: string) => {
@@ -1797,24 +2072,67 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Enrollments & Learning
   const enrollCourse = async (
     courseId: string,
-    paymentDetails?: { method: PaymentOrder['paymentMethod']; phone: string; txId: string; amount: number }
+    paymentDetails?: {
+      method: PaymentOrder['paymentMethod'];
+      phone: string;
+      txId: string;
+      amount: number;
+      studentName?: string;
+      studentEmail?: string;
+      studentPhone?: string;
+      isAutomated?: boolean;
+    }
   ): Promise<boolean> => {
-    if (!currentUser) return false;
     const course = courses.find(c => c.id === courseId);
     if (!course) return false;
 
+    // Resolve or auto-create student user account
+    let studentUser = currentUser;
+    if (!studentUser) {
+      const studentName = paymentDetails?.studentName?.trim() || 'সম্মানিত শিক্ষার্থী';
+      const studentEmail = paymentDetails?.studentEmail?.trim() || `student-${Date.now()}@ptenit.com`;
+      const studentMobile = paymentDetails?.studentPhone?.trim() || paymentDetails?.phone?.trim() || '01700000000';
+
+      const existingUser = users.find(u =>
+        (paymentDetails?.studentEmail && u.email.toLowerCase() === paymentDetails.studentEmail.toLowerCase()) ||
+        (studentMobile && u.mobile === studentMobile)
+      );
+
+      if (existingUser) {
+        studentUser = existingUser;
+      } else {
+        studentUser = {
+          id: `usr-${Date.now()}`,
+          name: studentName,
+          email: studentEmail,
+          mobile: studentMobile,
+          role: 'student',
+          roles: ['student'],
+          activeRole: 'student',
+          createdAt: new Date().toISOString().split('T')[0]
+        };
+        setUsers(prev => {
+          const next = [studentUser!, ...prev];
+          localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+          return next;
+        });
+        syncDocToFirestore('users', studentUser.id, studentUser);
+      }
+      setCurrentUser(studentUser);
+    }
+
     // Check if already enrolled
-    const existing = enrollments.find(e => e.userId === currentUser.id && e.courseId === courseId);
+    const existing = enrollments.find(e => e.userId === studentUser!.id && e.courseId === courseId);
     if (existing) return true;
 
     if (!course.isFree && paymentDetails) {
       // Create Order
       const newOrder: PaymentOrder = {
         id: `ord-${Date.now().toString().slice(-6)}`,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        userEmail: currentUser.email,
-        userMobile: currentUser.mobile,
+        userId: studentUser!.id,
+        userName: studentUser!.name,
+        userEmail: studentUser!.email,
+        userMobile: studentUser!.mobile,
         courseId: course.id,
         courseTitle: course.title,
         amount: paymentDetails.amount,
@@ -1822,15 +2140,60 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         transactionId: paymentDetails.txId,
         senderPhone: paymentDetails.phone,
         status: 'Paid', // Instantly activate for great user experience
-        createdAt: new Date().toLocaleString('en-US', { hour12: true })
+        createdAt: new Date().toLocaleString('bn-BD', { hour12: true })
       };
-      setOrders(prev => [newOrder, ...prev]);
+      setOrders(prev => {
+        const next = [newOrder, ...prev];
+        localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(next));
+        return next;
+      });
+      syncDocToFirestore('orders', newOrder.id, newOrder);
+
+      // Central Notification for Admin
+      const notifItem: NotificationItem = {
+        id: `notif-${Date.now()}`,
+        title: `🎓 নতুন কোর্স এনরোলমেন্ট ও পেমেন্ট #${newOrder.id}`,
+        message: `${newOrder.userName} (${newOrder.senderPhone}) "${newOrder.courseTitle}" কোর্সের জন্য ৳${newOrder.amount} (${newOrder.paymentMethod}, Trx: ${newOrder.transactionId}) পরিশোধ করেছেন।`,
+        time: 'এখনই',
+        read: false,
+        type: 'success',
+        targetTab: 'orders',
+        targetId: newOrder.id
+      };
+      setNotifications(prev => {
+        const next = [notifItem, ...prev];
+        localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(next));
+        return next;
+      });
+      syncDocToFirestore('notifications', notifItem.id, notifItem);
+      playAppSound('order');
+
+      // Auto-feed into Company Bills ledger for Admin verification & financial tracking
+      const companyBillItem: CompanyBillItem = {
+        id: `BILL-${newOrder.id.replace(/[^0-9]/g, '') || Date.now().toString().slice(-6)}`,
+        payerName: newOrder.userName,
+        payerPhone: newOrder.senderPhone || newOrder.userMobile,
+        gateway: (newOrder.paymentMethod === 'bKash' ? 'bKash' : newOrder.paymentMethod === 'Nagad' ? 'Nagad' : newOrder.paymentMethod === 'Rocket' ? 'Rocket' : 'Bank'),
+        transactionId: newOrder.transactionId,
+        amount: newOrder.amount,
+        category: `কোর্স ফি: ${newOrder.courseTitle}`,
+        status: 'verified',
+        verifiedAt: new Date().toLocaleString('bn-BD', { hour12: true }),
+        date: new Date().toLocaleString('bn-BD', { hour12: true }),
+        note: `কোর্স এনরোলমেন্ট অর্ডার #${newOrder.id} - TrxID: ${newOrder.transactionId}`
+      };
+      setCompanyBills(prev => {
+        const next = [companyBillItem, ...prev.filter(b => b.id !== companyBillItem.id)];
+        localStorage.setItem('ptenit_company_bills', JSON.stringify(next));
+        return next;
+      });
+      syncDocToFirestore('companyBills', companyBillItem.id, companyBillItem);
     }
 
     // Add Enrollment
     const newEnrollment: Enrollment = {
       id: `enr-${Date.now()}`,
-      userId: currentUser.id,
+      userId: studentUser!.id,
       courseId: course.id,
       progress: 0,
       completedLessons: [],
@@ -1839,8 +2202,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       certificateIssued: false
     };
 
-    setEnrollments(prev => [...prev, newEnrollment]);
-    setCourses(prev => prev.map(c => c.id === courseId ? { ...c, enrolledCount: c.enrolledCount + 1 } : c));
+    setEnrollments(prev => {
+      const next = [...prev, newEnrollment];
+      localStorage.setItem(`${STORAGE_KEY}_enrollments`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('enrollments', newEnrollment.id, newEnrollment);
+
+    setCourses(prev => {
+      const next = prev.map(c => {
+        if (c.id === courseId) {
+          const updated = { ...c, enrolledCount: (c.enrolledCount || 0) + 1 };
+          syncDocToFirestore('courses', courseId, updated);
+          return updated;
+        }
+        return c;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_courses`, JSON.stringify(next));
+      return next;
+    });
+
     return true;
   };
 
@@ -1921,49 +2302,104 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Services
   const addService = (serviceData: Omit<Service, 'id'>) => {
     const newService: Service = { ...serviceData, id: `srv-${Date.now()}` };
-    setServices(prev => [...prev, newService]);
+    setServices(prev => {
+      const next = [...prev, newService];
+      localStorage.setItem(`${STORAGE_KEY}_services`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('services', newService.id, newService);
   };
 
   const updateService = (id: string, fields: Partial<Service>) => {
-    setServices(prev => prev.map(s => s.id === id ? { ...s, ...fields } : s));
+    setServices(prev => {
+      const next = prev.map(s => {
+        if (s.id === id) {
+          const updated = { ...s, ...fields };
+          syncDocToFirestore('services', id, updated);
+          return updated;
+        }
+        return s;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_services`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const deleteService = (id: string) => {
-    setServices(prev => prev.filter(s => s.id !== id));
+    setServices(prev => {
+      const next = prev.filter(s => s.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_services`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('services', id);
   };
 
   // Gallery
   const addGalleryItem = (item: Omit<GalleryItem, 'id'>) => {
     const newItem: GalleryItem = { ...item, id: `gal-${Date.now()}` };
-    setGallery(prev => [newItem, ...prev]);
+    setGallery(prev => {
+      const next = [newItem, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_gallery`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('gallery', newItem.id, newItem);
   };
 
   const deleteGalleryItem = (id: string) => {
-    setGallery(prev => prev.filter(g => g.id !== id));
+    setGallery(prev => {
+      const next = prev.filter(g => g.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_gallery`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('gallery', id);
   };
 
   // Testimonials
   const addTestimonial = (item: Omit<Testimonial, 'id'>) => {
     const newItem: Testimonial = { ...item, id: `test-${Date.now()}` };
-    setTestimonials(prev => [newItem, ...prev]);
+    setTestimonials(prev => {
+      const next = [newItem, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_testimonials`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('testimonials', newItem.id, newItem);
   };
 
   const deleteTestimonial = (id: string) => {
-    setTestimonials(prev => prev.filter(t => t.id !== id));
+    setTestimonials(prev => {
+      const next = prev.filter(t => t.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_testimonials`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('testimonials', id);
   };
 
   // Offers & Settings
   const updateOffers = (newOffers: Offer[]) => {
     setOffers(newOffers);
+    syncDocToFirestore('offers', 'default', { list: newOffers });
   };
 
   const updateSiteSettings = (newSettings: SiteSettings) => {
     setSiteSettings(newSettings);
+    localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(newSettings));
+    syncDocToFirestore('siteSettings', 'default', newSettings);
   };
 
   // Orders
   const updateOrderStatus = (orderId: string, status: PaymentOrder['status']) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
+    setOrders(prev => {
+      const next = prev.map(o => {
+        if (o.id === orderId) {
+          const updated = { ...o, status };
+          syncDocToFirestore('orders', orderId, updated);
+          return updated;
+        }
+        return o;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(next));
+      return next;
+    });
   };
 
   // Contact
@@ -1981,26 +2417,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setContactMessages(prev => prev.map(m => m.id === id ? { ...m, read: true } : m));
   };
 
-  const markNotificationRead = useCallback((id: string) => {
-    setNotifications(prev => {
-      const hasUnread = prev.some(n => n.id === id && !n.read);
-      if (!hasUnread) return prev;
-      return prev.map(n => n.id === id ? { ...n, read: true } : n);
-    });
-  }, []);
+  const markNotificationRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
 
-  const markAllNotificationsRead = useCallback(() => {
-    setNotifications(prev => {
-      const hasUnread = prev.some(n => !n.read);
-      if (!hasUnread) return prev;
-      return prev.map(n => ({ ...n, read: true }));
-    });
-    setDirectMessages(prev => {
-      const hasUnread = prev.some(m => !m.read);
-      if (!hasUnread) return prev;
-      return prev.map(m => ({ ...m, read: true }));
-    });
-  }, []);
+  const markAllNotificationsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setDirectMessages(prev => prev.map(m => ({ ...m, read: true })));
+  };
 
   const sendCentralNotification = (notif: Omit<NotificationItem, 'id' | 'time' | 'read'>) => {
     const newNotif: NotificationItem = {
@@ -2201,8 +2625,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const markDirectMessageRead = useCallback((id: string) => {
     setDirectMessages(prev => {
-      const hasUnread = prev.some(m => m.id === id && !m.read);
-      if (!hasUnread) return prev;
+      const target = prev.find(m => m.id === id);
+      if (!target || target.read) return prev;
       return prev.map(m => m.id === id ? { ...m, read: true } : m);
     });
     setReadConversationIds(prev => {
@@ -2221,35 +2645,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return next;
     });
     setDirectMessages(prev => {
-      const isAnyMatchingUnread = prev.some(m => {
+      let changed = false;
+      const next = prev.map(m => {
         const isMatch =
           m.id === convoId ||
           m.senderId === convoId ||
           convoId.includes(m.id) ||
           (m.senderName && convoId.toLowerCase().includes(m.senderName.toLowerCase())) ||
           (m.senderName && m.senderName.toLowerCase().includes(convoId.toLowerCase()));
-        return isMatch && (!m.read || (m.unreadCount && m.unreadCount > 0));
-      });
-      if (!isAnyMatchingUnread) return prev;
-      return prev.map(m => {
-        const isMatch =
-          m.id === convoId ||
-          m.senderId === convoId ||
-          convoId.includes(m.id) ||
-          (m.senderName && convoId.toLowerCase().includes(m.senderName.toLowerCase())) ||
-          (m.senderName && m.senderName.toLowerCase().includes(convoId.toLowerCase()));
-        if (isMatch) {
+        if (isMatch && (!m.read || m.unreadCount !== 0)) {
+          changed = true;
           return { ...m, read: true, unreadCount: 0 };
         }
         return m;
       });
+      return changed ? next : prev;
     });
   }, []);
 
-  const markAllConversationsRead = useCallback(() => {
+  const markAllConversationsRead = useCallback((_role?: string) => {
     setDirectMessages(prev => {
-      const hasUnread = prev.some(m => !m.read || (m.unreadCount && m.unreadCount > 0));
-      if (!hasUnread) return prev;
+      const anyUnread = prev.some(m => !m.read || m.unreadCount !== 0);
+      if (!anyUnread) return prev;
       return prev.map(m => ({ ...m, read: true, unreadCount: 0 }));
     });
     setReadConversationIds(prev => {
@@ -2262,15 +2679,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         'chat-creative-pixels',
         'chat-piten-support'
       ]));
+      if (allIds.length === prev.length) return prev;
       localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(allIds));
       return allIds;
     });
   }, []);
 
-  const markAllDirectMessagesRead = useCallback(() => {
+  const unreadMarketplaceMsgCount = useMemo(() => {
+    return directMessages.filter(m => !m.read).length;
+  }, [directMessages]);
+
+  const roleScopedNotifications = useMemo(() => {
+    return notifications;
+  }, [notifications]);
+
+  const markAllDirectMessagesRead = useCallback((_role?: string) => {
     setDirectMessages(prev => {
-      const hasUnread = prev.some(m => !m.read);
-      if (!hasUnread) return prev;
+      const anyUnread = prev.some(m => !m.read);
+      if (!anyUnread) return prev;
       return prev.map(m => ({ ...m, read: true }));
     });
   }, []);
@@ -2285,10 +2711,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     playAppSound('message');
   };
 
-  const openChatWindow = (contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string }) => {
+  const openChatWindow = (contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; isClosed?: boolean; isReadOnly?: boolean; initialMessage?: string }) => {
     const windowId = contact.id || `chat-${contact.senderName.replace(/\s+/g, '-').toLowerCase()}`;
     setActiveMessengerConversationId(windowId);
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     
     setActiveChatWindows(prev => {
       const existing = prev.find(w => w.id === windowId || w.senderName === contact.senderName);
@@ -2326,61 +2751,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [...prev, newWin];
     });
 
-    // On mobile view, directly open full screen messenger instead of separate floating mini popup window
-    if (isMobile) {
-      openMessengerInbox(windowId, 'messages', contact.orderId);
-    }
+    // Floating mini chat popup window opens on screen directly over the current view
+    // (User can view their orders and close popup with 'X' button)
   };
 
   const closeChatWindow = (id: string) => {
     setActiveChatWindows(prev => prev.filter(w => w.id !== id));
   };
 
-  const openMessengerInbox = useCallback((conversationId?: string, initialTab: 'messages' | 'notifications' | 'courses' = 'messages', orderId?: string) => {
-    const tabName = (typeof initialTab === 'string' && ['messages', 'notifications', 'courses'].includes(initialTab)) ? initialTab : 'messages';
-    setInitialMessengerTab(tabName);
-    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-
-    // On PC view (Desktop), clicking the general message/notification button toggles the last column
-    if (isDesktop && !conversationId) {
-      if (tabName === 'messages') {
-        setRightColumnView(prev => prev === 'messages' ? 'default' : 'messages');
-      } else if (tabName === 'notifications') {
-        setRightColumnView(prev => prev === 'notifications' ? 'default' : 'notifications');
-      }
-      setIsMessengerInboxOpen(false);
-      setIsNotificationCenterOpen(false);
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('app:navigate-tab', { detail: { tab: 'marketplace' } }));
-        setTimeout(() => {
-          const col3 = document.getElementById('marketplace-column-3-seller')
-            || document.getElementById('marketplace-column-3-agency')
-            || document.getElementById('marketplace-column-3');
-          if (col3) {
-            col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 150);
-      }
-      return;
+  const openMessengerInbox = (conversationId?: string, initialTab: 'messages' | 'notifications' | 'courses' | string = 'messages', orderId?: string) => {
+    if (initialTab === 'messages' || initialTab === 'notifications' || initialTab === 'courses') {
+      setInitialMessengerTab(initialTab);
+    } else {
+      setInitialMessengerTab('messages');
     }
-
     if (conversationId) {
       setActiveMessengerConversationId(conversationId);
       setActiveMessengerOrderId(orderId || null);
-
-      if (isDesktop) {
-        // On desktop, opening a specific conversation opens the bottom-right floating chat window
-        openChatWindow({
-          id: conversationId,
-          orderId: orderId,
-          senderName: 'User',
-          initialMessage: ''
-        });
-        setIsMessengerInboxOpen(false);
-        return;
-      }
-
       // If an orderId or active chat needs to be registered, sync it
       if (orderId) {
         setActiveChatWindows(prev => {
@@ -2395,31 +2782,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setActiveMessengerConversationId(null);
       setActiveMessengerOrderId(null);
     }
-    // Clear floating popup windows so full messenger is focused on mobile
+    // Clear floating popup windows so full messenger is focused
     setActiveChatWindows([]);
     setIsNotificationCenterOpen(false);
-    setIsMessengerInboxOpen(true);
-  }, []);
 
-  const closeMessengerInbox = useCallback(() => {
+    // On PC (desktop): when general messenger or notification icon is clicked, show as a list in the last column
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    if (isDesktop && !conversationId) {
+      setIsMessengerInboxOpen(false);
+      setRightColumnView(initialTab === 'notifications' ? 'notifications' : 'messages');
+      setTimeout(() => {
+        const col3 = document.getElementById('marketplace-column-3-seller')
+          || document.getElementById('marketplace-column-3-agency')
+          || document.getElementById('marketplace-column-3');
+        if (col3) {
+          col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+      return;
+    }
+
+    setIsMessengerInboxOpen(true);
+  };
+
+  const closeMessengerInbox = () => {
     setActiveMessengerConversationId(null);
     setActiveMessengerOrderId(null);
     setIsMessengerInboxOpen(false);
     setIsNotificationCenterOpen(false);
-    setRightColumnView('default');
-  }, []);
+  };
 
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
-  const openNotificationCenter = useCallback(() => {
+  const openNotificationCenter = () => {
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    if (isDesktop) {
+      setIsNotificationCenterOpen(false);
+      setIsMessengerInboxOpen(false);
+      setRightColumnView('notifications');
+      setTimeout(() => {
+        const col3 = document.getElementById('marketplace-column-3-seller')
+          || document.getElementById('marketplace-column-3-agency')
+          || document.getElementById('marketplace-column-3');
+        if (col3) {
+          col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+      return;
+    }
     openMessengerInbox(undefined, 'notifications');
-  }, [openMessengerInbox]);
+  };
 
-  const closeNotificationCenter = useCallback(() => {
+  const closeNotificationCenter = () => {
     setIsNotificationCenterOpen(false);
     setIsMessengerInboxOpen(false);
-    setRightColumnView('default');
-  }, []);
+  };
 
   const [marketplaceMode, setMarketplaceModeState] = useState<'buying' | 'selling'>(() => {
     try {
@@ -2430,13 +2847,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const setMarketplaceMode = useCallback((mode: 'buying' | 'selling') => {
-    setMarketplaceModeState(prev => {
-      if (prev === mode) return prev;
-      try {
-        localStorage.setItem('marketplace_mode', mode);
-      } catch {}
-      return mode;
-    });
+    setMarketplaceModeState(prev => (prev === mode ? prev : mode));
+    try {
+      localStorage.setItem('marketplace_mode', mode);
+    } catch {}
   }, []);
 
   const clearAllNotifications = () => {
@@ -2494,57 +2908,177 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     playAppSound('message');
   };
 
-  const createGoogleMeetCall = (windowId: string) => {
-    const randomCode = Math.random().toString(36).substring(2, 5) + '-' + Math.random().toString(36).substring(2, 6) + '-' + Math.random().toString(36).substring(2, 5);
-    const meetUrl = `https://meet.google.com/${randomCode}`;
-    sendChatMessage(windowId, `📹 সরাসরি গুগুল মিট (Google Meet) ভিডিও কনফারেন্স লিংক প্রস্তুত করা হয়েছে। ক্লিক করে যুক্ত হন!`, meetUrl);
+  // In-App Video/Audio/Screen Meet Studio State (Our site's native conference engine)
+  const [inAppMeetState, setInAppMeetState] = useState<{
+    isOpen: boolean;
+    roomTitle?: string;
+    targetName?: string;
+    targetAvatar?: string;
+    targetRole?: string;
+    courseTitle?: string;
+    windowId?: string;
+    initialType?: 'video' | 'audio' | 'screen';
+  }>({
+    isOpen: false
+  });
+
+  const openInAppMeet = useCallback((params?: {
+    roomTitle?: string;
+    targetName?: string;
+    targetAvatar?: string;
+    targetRole?: string;
+    courseTitle?: string;
+    windowId?: string;
+    initialType?: 'video' | 'audio' | 'screen';
+  }) => {
+    setInAppMeetState({
+      isOpen: true,
+      roomTitle: params?.roomTitle || 'PTENit লাইভ ভিডিও ও অডিও কনফারেন্স',
+      targetName: params?.targetName || 'সম্মানিত ক্লায়েন্ট / শিক্ষার্থী',
+      targetAvatar: params?.targetAvatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+      targetRole: params?.targetRole || 'অনলাইন অংশগ্রহণকারী',
+      courseTitle: params?.courseTitle,
+      windowId: params?.windowId,
+      initialType: params?.initialType || 'video'
+    });
+  }, []);
+
+  const closeInAppMeet = useCallback(() => {
+    setInAppMeetState(prev => (prev.isOpen ? { ...prev, isOpen: false } : prev));
+  }, []);
+
+  // Google Meet Modal State & Handlers
+  const [googleMeetModalState, setGoogleMeetModalState] = useState<{
+    isOpen: boolean;
+    windowId?: string;
+    targetName?: string;
+    existingLink?: string;
+  }>({
+    isOpen: false
+  });
+
+  const openGoogleMeetModal = useCallback((windowId: string, targetName?: string, existingLink?: string) => {
+    setGoogleMeetModalState({
+      isOpen: true,
+      windowId,
+      targetName,
+      existingLink
+    });
+  }, []);
+
+  const closeGoogleMeetModal = useCallback(() => {
+    setGoogleMeetModalState(prev => (prev.isOpen ? { isOpen: false } : prev));
+  }, []);
+
+  const createGoogleMeetCall = (windowId: string, customMeetLink?: string) => {
+    // If it's a course live class or a direct link shortcut
+    if (windowId === 'course-live' || windowId.startsWith('meet-')) {
+      openInAppMeet({
+        roomTitle: 'PTENit লাইভ ক্লাস ও মেন্টরিং স্টুডিও',
+        targetName: 'কোর্স শিক্ষক ও মেন্টর',
+        courseTitle: 'অনলাইন লাইভ ক্লাস',
+        initialType: 'video'
+      });
+      return;
+    }
+
+    // Direct URL link passed
+    if (customMeetLink && customMeetLink.trim()) {
+      let finalUrl = customMeetLink.trim();
+      if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+        finalUrl = `https://${finalUrl}`;
+      }
+      sendChatMessage(
+        windowId,
+        `📹 গুগুল মিট (Google Meet) ভিডিও কনফারেন্স কল আমন্ত্রণ পাঠানো হয়েছে। সরাসরি লিংকে জয়েন করুন!`,
+        finalUrl
+      );
+      window.open(finalUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // Default: Launch our platform's own In-App Video & Audio Meet Studio directly inside our site!
+    const targetWin = activeChatWindows.find(w => w.id === windowId);
+    openInAppMeet({
+      windowId,
+      roomTitle: `${targetWin?.senderName || 'সম্মানিত ক্লায়েন্ট'} এর সাথে লাইভ কল`,
+      targetName: targetWin?.senderName || 'সম্মানিত ক্লায়েন্ট',
+      targetAvatar: targetWin?.senderAvatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+      targetRole: targetWin?.senderRole || 'অনলাইন ক্লায়েন্ট',
+      initialType: 'video'
+    });
+
+    // Send notification in conversation
+    sendChatMessage(
+      windowId,
+      `📹 ভিডিও কল শুরু করা হয়েছে। কলে যুক্ত হতে ক্লিক করুন।`,
+      '#in-app-meet'
+    );
   };
 
   const toggleUserBlock = (userId: string, reason?: string) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        const nextBlocked = !u.blocked;
-        return {
-          ...u,
-          blocked: nextBlocked,
-          isRestricted: nextBlocked,
-          restrictionReason: nextBlocked ? (reason || 'প্রশাসনিক পর্যালোচনা ও নীতিমালার কারণে অ্যাকাউন্ট সাময়িক স্থগিত / রেস্ট্রিক্ট করা হয়েছে।') : undefined,
-          restrictedAt: nextBlocked ? new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
-        };
-      }
-      return u;
-    }));
+    setUsers(prev => {
+      const next = prev.map(u => {
+        if (u.id === userId) {
+          const nextBlocked = !u.blocked;
+          const updated = {
+            ...u,
+            blocked: nextBlocked,
+            isRestricted: nextBlocked,
+            restrictionReason: nextBlocked ? (reason || 'প্রশাসনিক পর্যালোচনা ও নীতিমালার কারণে অ্যাকাউন্ট সাময়িক স্থগিত / রেস্ট্রিক্ট করা হয়েছে।') : undefined,
+            restrictedAt: nextBlocked ? new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
+          };
+          syncDocToFirestore('users', userId, updated);
+          return updated;
+        }
+        return u;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const restrictUser = (userId: string, reason?: string) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        return {
-          ...u,
-          blocked: true,
-          isRestricted: true,
-          restrictionReason: reason || 'প্রশাসনিক পর্যালোচনা ও নীতিমালার কারণে অ্যাকাউন্ট স্থগিত / রেস্ট্রিক্ট করা হয়েছে।',
-          restrictedAt: new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }),
-        };
-      }
-      return u;
-    }));
+    setUsers(prev => {
+      const next = prev.map(u => {
+        if (u.id === userId) {
+          const updated = {
+            ...u,
+            blocked: true,
+            isRestricted: true,
+            restrictionReason: reason || 'প্রশাসনিক পর্যালোচনা ও নীতিমালার কারণে অ্যাকাউন্ট স্থগিত / রেস্ট্রিক্ট করা হয়েছে।',
+            restrictedAt: new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }),
+          };
+          syncDocToFirestore('users', userId, updated);
+          return updated;
+        }
+        return u;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+      return next;
+    });
     playAppSound('notification');
   };
 
   const unrestrictUser = (userId: string) => {
-    setUsers(prev => prev.map(u => {
-      if (u.id === userId) {
-        return {
-          ...u,
-          blocked: false,
-          isRestricted: false,
-          restrictionReason: undefined,
-          restrictedAt: undefined,
-        };
-      }
-      return u;
-    }));
+    setUsers(prev => {
+      const next = prev.map(u => {
+        if (u.id === userId) {
+          const updated = {
+            ...u,
+            blocked: false,
+            isRestricted: false,
+            restrictionReason: undefined,
+            restrictedAt: undefined,
+          };
+          syncDocToFirestore('users', userId, updated);
+          return updated;
+        }
+        return u;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+      return next;
+    });
     playAppSound('success');
   };
 
@@ -2554,7 +3088,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `usr-${Date.now()}`,
       createdAt: new Date().toISOString().split('T')[0]
     };
-    setUsers(prev => [newUser, ...prev]);
+    setUsers(prev => {
+      const next = [newUser, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('users', newUser.id, newUser);
+  };
+
+  const updateUser = (id: string, updates: Partial<User>) => {
+    setUsers(prev => {
+      const next = prev.map(u => {
+        if (u.id === id) {
+          const updated = { ...u, ...updates };
+          syncDocToFirestore('users', id, updated);
+          if (currentUser?.id === id) {
+            setCurrentUser(updated);
+          }
+          return updated;
+        }
+        return u;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const requestTeacherPayout = (payoutData: Omit<TeacherPayout, 'id' | 'requestedAt' | 'status'>) => {
@@ -2564,21 +3121,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: 'Pending',
       requestedAt: new Date().toLocaleString('bn-BD', { hour12: true })
     };
-    setPayouts(prev => [newPayout, ...prev]);
+    setPayouts(prev => {
+      const next = [newPayout, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_payouts`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('payouts', newPayout.id, newPayout);
   };
 
   const updatePayoutStatus = (payoutId: string, status: TeacherPayout['status'], txId?: string) => {
-    setPayouts(prev => prev.map(p => {
-      if (p.id === payoutId) {
-        return {
-          ...p,
-          status,
-          transactionId: txId || p.transactionId,
-          processedAt: new Date().toLocaleString('bn-BD', { hour12: true })
-        };
-      }
-      return p;
-    }));
+    setPayouts(prev => {
+      const next = prev.map(p => {
+        if (p.id === payoutId) {
+          const updated = {
+            ...p,
+            status,
+            transactionId: txId || p.transactionId,
+            processedAt: new Date().toLocaleString('bn-BD', { hour12: true })
+          };
+          syncDocToFirestore('payouts', payoutId, updated);
+          return updated;
+        }
+        return p;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_payouts`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const sendTeacherNotice = (noticeData: Omit<TeacherNotice, 'id' | 'sentAt'>) => {
@@ -2588,13 +3156,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sentAt: new Date().toLocaleString('bn-BD', { hour12: true }),
       read: false
     };
-    setTeacherNotices(prev => [newNotice, ...prev]);
+    setTeacherNotices(prev => {
+      const next = [newNotice, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_teacher_notices`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('teacherNotices', newNotice.id, newNotice);
 
     // Also add to global notifications for visibility
     setNotifications(prev => [
       {
         id: `notif-${Date.now()}`,
-        title: `📢 সাপোট নোটিশ: ${noticeData.subject}`,
+        title: `📢 সাপোর্ট নোটিশ: ${noticeData.subject}`,
         message: noticeData.message,
         time: "এখনই",
         read: false,
@@ -2611,11 +3184,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `asgn-${Date.now()}`,
       createdAt: new Date().toISOString().split('T')[0]
     };
-    setAssignments(prev => [newAsgn, ...prev]);
+    setAssignments(prev => {
+      const next = [newAsgn, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_assignments`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('assignments', newAsgn.id, newAsgn);
   };
 
   const deleteAssignment = (id: string) => {
-    setAssignments(prev => prev.filter(a => a.id !== id));
+    setAssignments(prev => {
+      const next = prev.filter(a => a.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_assignments`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('assignments', id);
   };
 
   const submitAssignment = (subData: Omit<AssignmentSubmission, 'id' | 'submittedAt' | 'status'>) => {
@@ -2625,34 +3208,71 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       submittedAt: new Date().toLocaleString('bn-BD', { hour12: true }),
       status: 'submitted'
     };
-    setSubmissions(prev => [newSub, ...prev]);
+    setSubmissions(prev => {
+      const next = [newSub, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_submissions`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('submissions', newSub.id, newSub);
   };
 
   const gradeSubmission = (submissionId: string, points: number, feedback: string) => {
-    setSubmissions(prev => prev.map(s => s.id === submissionId ? {
-      ...s,
-      points,
-      feedback,
-      status: 'graded'
-    } : s));
+    setSubmissions(prev => {
+      const next = prev.map(s => {
+        if (s.id === submissionId) {
+          const updated = {
+            ...s,
+            points,
+            feedback,
+            status: 'graded' as const
+          };
+          syncDocToFirestore('submissions', submissionId, updated);
+          return updated;
+        }
+        return s;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_submissions`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const updateSubmissionStatus = (submissionId: string, status: AssignmentSubmission['status']) => {
-    setSubmissions(prev => prev.map(s => s.id === submissionId ? {
-      ...s,
-      status
-    } : s));
+    setSubmissions(prev => {
+      const next = prev.map(s => {
+        if (s.id === submissionId) {
+          const updated = { ...s, status };
+          syncDocToFirestore('submissions', submissionId, updated);
+          return updated;
+        }
+        return s;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_submissions`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const deleteSubmission = (submissionId: string) => {
-    setSubmissions(prev => prev.filter(s => s.id !== submissionId));
+    setSubmissions(prev => {
+      const next = prev.filter(s => s.id !== submissionId);
+      localStorage.setItem(`${STORAGE_KEY}_submissions`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('submissions', submissionId);
   };
 
   const updateSubmission = (submissionId: string, updates: Partial<AssignmentSubmission>) => {
-    setSubmissions(prev => prev.map(s => s.id === submissionId ? {
-      ...s,
-      ...updates
-    } : s));
+    setSubmissions(prev => {
+      const next = prev.map(s => {
+        if (s.id === submissionId) {
+          const updated = { ...s, ...updates };
+          syncDocToFirestore('submissions', submissionId, updated);
+          return updated;
+        }
+        return s;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_submissions`, JSON.stringify(next));
+      return next;
+    });
   };
 
   // Customer Project Functions
@@ -2664,7 +3284,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: 'Pending Review',
       createdAt: createdAtIso.split('T')[0]
     };
-    setCustomerProjects(prev => [newProj, ...prev]);
+    setCustomerProjects(prev => {
+      const next = [newProj, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('customerProjects', newProj.id, newProj);
 
     // Also automatically create a MarketplaceOrder for PTEN IT Agency Service
     const orderAmount = projData.priceEstimate || 5000;
@@ -2696,16 +3321,74 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: createdAtIso,
       deadlineDate: projData.deadline || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
     };
-    setMarketplaceOrders(prev => [agencyOrder, ...prev]);
+    setMarketplaceOrders(prev => {
+      const next = [agencyOrder, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('marketplaceOrders', agencyOrder.id, agencyOrder);
+
+    // Ensure buyer user is recorded in users collection
+    const buyerId = agencyOrder.buyerId;
+    const existingUser = users.find(u => u.id === buyerId || (agencyOrder.buyerEmail && u.email.toLowerCase() === agencyOrder.buyerEmail.toLowerCase()));
+    if (!existingUser) {
+      const newBuyerUser: User = {
+        id: buyerId,
+        name: agencyOrder.buyerName,
+        email: agencyOrder.buyerEmail,
+        mobile: agencyOrder.buyerPhone,
+        role: 'customer',
+        roles: ['customer'],
+        activeRole: 'customer',
+        marketplaceMode: 'buying',
+        createdAt: new Date().toISOString().split('T')[0]
+      };
+      setUsers(prev => {
+        const next = [newBuyerUser, ...prev];
+        localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+        return next;
+      });
+      syncDocToFirestore('users', buyerId, newBuyerUser);
+    }
+
+    // Admin Notification
+    const notifItem: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title: `💼 নতুন কাস্টম প্রজেক্ট অর্ডার #${newProj.id}`,
+      message: `${newProj.customerName} "${newProj.serviceTitle}" জমা দিয়েছেন।`,
+      time: 'এখনই',
+      read: false,
+      type: 'info',
+      targetTab: 'agency_projects',
+      targetId: newProj.id
+    };
+    setNotifications(prev => {
+      const next = [notifItem, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('notifications', notifItem.id, notifItem);
+    playAppSound('order');
   };
 
   const updateCustomerProjectStatus = (id: string, status: CustomerProject['status'], priceEstimate?: number) => {
-    setCustomerProjects(prev => prev.map(p => p.id === id ? {
-      ...p,
-      status,
-      ...(priceEstimate !== undefined ? { priceEstimate } : {}),
-      updatedAt: new Date().toISOString().split('T')[0]
-    } : p));
+    setCustomerProjects(prev => {
+      const next = prev.map(p => {
+        if (p.id === id) {
+          const updated = {
+            ...p,
+            status,
+            ...(priceEstimate !== undefined ? { priceEstimate } : {}),
+            updatedAt: new Date().toISOString().split('T')[0]
+          };
+          syncDocToFirestore('customerProjects', id, updated);
+          return updated;
+        }
+        return p;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(next));
+      return next;
+    });
   };
 
   // Marketplace & Agency Dispatch Functions
@@ -2760,15 +3443,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       salesCount: 0,
       createdAt: new Date().toISOString().split('T')[0]
     };
-    setGigs(prev => [created, ...prev]);
+    setGigs(prev => {
+      const next = [created, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_gigs`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('gigs', created.id, created);
   };
 
   const updateGig = (id: string, updated: Partial<MarketplaceGig>) => {
-    setGigs(prev => prev.map(g => g.id === id ? { ...g, ...updated } : g));
+    setGigs(prev => {
+      const next = prev.map(g => {
+        if (g.id === id) {
+          const item = { ...g, ...updated };
+          syncDocToFirestore('gigs', id, item);
+          return item;
+        }
+        return g;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_gigs`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const deleteGig = (id: string) => {
-    setGigs(prev => prev.filter(g => g.id !== id));
+    setGigs(prev => {
+      const next = prev.filter(g => g.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_gigs`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('gigs', id);
   };
 
   const createJob = (newJob: Omit<MarketplaceJob, 'id' | 'createdAt' | 'proposalsCount' | 'status'>) => {
@@ -2779,7 +3483,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: newJob.assignedStaffId ? 'assigned' : 'open',
       createdAt: new Date().toISOString().split('T')[0]
     };
-    setJobs(prev => [created, ...prev]);
+    setJobs(prev => {
+      const next = [created, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_jobs`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('jobs', created.id, created);
 
     // If custom assigned or internal staff only, also create an agency order
     if (newJob.assignedStaffId) {
@@ -2804,21 +3513,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: new Date().toISOString().split('T')[0],
         deadlineDate: new Date(Date.now() + (newJob.deadlineDays || 7) * 86400000).toISOString().split('T')[0]
       };
-      setMarketplaceOrders(prev => [order, ...prev]);
+      setMarketplaceOrders(prev => {
+        const next = [order, ...prev];
+        localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+        return next;
+      });
+      syncDocToFirestore('marketplaceOrders', order.id, order);
     }
   };
 
   const updateJobStatus = (id: string, status: MarketplaceJob['status'], assignedStaffId?: string, assignedStaffName?: string) => {
-    setJobs(prev => prev.map(j => {
-      if (j.id === id) {
-        return {
-          ...j,
-          status,
-          ...(assignedStaffId ? { assignedStaffId, assignedStaffName } : {})
-        };
-      }
-      return j;
-    }));
+    setJobs(prev => {
+      const next = prev.map(j => {
+        if (j.id === id) {
+          const item = {
+            ...j,
+            status,
+            ...(assignedStaffId ? { assignedStaffId, assignedStaffName } : {})
+          };
+          syncDocToFirestore('jobs', id, item);
+          return item;
+        }
+        return j;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_jobs`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const submitProposal = (newProp: Omit<MarketplaceProposal, 'id' | 'createdAt' | 'status'>) => {
@@ -2828,8 +3548,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       status: 'pending',
       createdAt: new Date().toISOString().split('T')[0]
     };
-    setProposals(prev => [created, ...prev]);
-    setJobs(prev => prev.map(j => j.id === newProp.jobId ? { ...j, proposalsCount: (j.proposalsCount || 0) + 1 } : j));
+    setProposals(prev => {
+      const next = [created, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_proposals`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('proposals', created.id, created);
+    setJobs(prev => {
+      const next = prev.map(j => {
+        if (j.id === newProp.jobId) {
+          const updated = { ...j, proposalsCount: (j.proposalsCount || 0) + 1 };
+          syncDocToFirestore('jobs', j.id, updated);
+          return updated;
+        }
+        return j;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_jobs`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const acceptProposalAndCreateOrder = (jobId: string, proposalId: string) => {
@@ -2837,8 +3573,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const job = jobs.find(j => j.id === jobId);
     if (!prop || !job) return;
 
-    setProposals(prev => prev.map(p => p.jobId === jobId ? { ...p, status: p.id === proposalId ? 'accepted' : 'rejected' } : p));
-    setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'in_progress', assignedStaffId: prop.freelancerId, assignedStaffName: prop.freelancerName } : j));
+    setProposals(prev => prev.map(p => {
+      if (p.jobId === jobId) {
+        const item = { ...p, status: p.id === proposalId ? 'accepted' as const : 'rejected' as const };
+        syncDocToFirestore('proposals', p.id, item);
+        return item;
+      }
+      return p;
+    }));
+    setJobs(prev => prev.map(j => {
+      if (j.id === jobId) {
+        const item = { ...j, status: 'in_progress' as const, assignedStaffId: prop.freelancerId, assignedStaffName: prop.freelancerName };
+        syncDocToFirestore('jobs', j.id, item);
+        return item;
+      }
+      return j;
+    }));
 
     const order: MarketplaceOrder = {
       id: `ord-mkt-${Date.now()}`,
@@ -2865,6 +3615,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deadlineDate: new Date(Date.now() + prop.deliveryDays * 86400000).toISOString().split('T')[0]
     };
     setMarketplaceOrders(prev => [order, ...prev]);
+    syncDocToFirestore('marketplaceOrders', order.id, order);
   };
 
   const createDirectGigOrder = (
@@ -2907,33 +3658,87 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: new Date().toISOString(),
       deadlineDate: new Date(Date.now() + pkg.deliveryDays * 86400000).toISOString().split('T')[0]
     };
-    setMarketplaceOrders(prev => [order, ...prev]);
-    setGigs(prev => prev.map(g => g.id === gigId ? { ...g, salesCount: (g.salesCount || 0) + 1 } : g));
+    setMarketplaceOrders(prev => {
+      const next = [order, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('marketplaceOrders', order.id, order);
+    setGigs(prev => {
+      const next = prev.map(g => {
+        if (g.id === gigId) {
+          const item = { ...g, salesCount: (g.salesCount || 0) + 1 };
+          syncDocToFirestore('gigs', gigId, item);
+          return item;
+        }
+        return g;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_gigs`, JSON.stringify(next));
+      return next;
+    });
 
-    // Send notifications & direct messages targeted to Marketplace
-    setNotifications(prev => [
-      {
-        id: `notif-${Date.now()}-seller`,
-        title: '🛒 নতুন মার্কেটপ্লেস গিগ অর্ডার!',
-        message: `আপনার "${gig.title}" গিগটির একটি নতুন অর্ডার (৳${pkg.price}) প্লেস হয়েছে। (অর্ডার আইডি: #${order.id})`,
-        time: 'এখনই',
-        read: false,
-        type: 'success',
-        targetTab: 'marketplace',
-        targetId: order.id
-      },
-      {
-        id: `notif-${Date.now()}-buyer`,
-        title: '🎉 অর্ডার নিশ্চিত করা হয়েছে!',
-        message: `${gig.sellerName}-এর "${gig.title}" গিগে আপনার অর্ডার #${order.id} প্লেস হয়েছে। সেলারের সাথে চ্যাট করুন।`,
-        time: 'এখনই',
-        read: false,
-        type: 'info',
-        targetTab: 'marketplace',
-        targetId: order.id
-      },
-      ...prev
-    ]);
+    // Auto-feed into Company Bills ledger for Admin financial tracking
+    const mktBillItem: CompanyBillItem = {
+      id: `BILL-MKT-${order.id.replace(/[^0-9]/g, '') || Date.now().toString().slice(-6)}`,
+      payerName: buyerName,
+      payerPhone: buyerPhone,
+      gateway: (buyerDetails?.paymentMethod?.includes('Nagad') ? 'Nagad' : buyerDetails?.paymentMethod?.includes('Rocket') ? 'Rocket' : 'bKash') as any,
+      transactionId: order.transactionId,
+      amount: pkg.price,
+      category: `গিগ অর্ডার ডিপোজিট: ${gig.title}`,
+      status: 'pending',
+      date: new Date().toLocaleString('bn-BD', { hour12: true }),
+      note: `মার্কেটপ্লেস অর্ডার #${order.id} (সেলার: ${gig.sellerName})`
+    };
+    setCompanyBills(prev => {
+      const next = [mktBillItem, ...prev.filter(b => b.id !== mktBillItem.id)];
+      localStorage.setItem('ptenit_company_bills', JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('companyBills', mktBillItem.id, mktBillItem);
+
+    // Send notifications & direct messages targeted to Marketplace & Admin
+    const sellerNotif: NotificationItem = {
+      id: `notif-${Date.now()}-seller`,
+      title: '🛒 নতুন মার্কেটপ্লেস গিগ অর্ডার!',
+      message: `আপনার "${gig.title}" গিগটির একটি নতুন অর্ডার (৳${pkg.price}) প্লেস হয়েছে। (অর্ডার আইডি: #${order.id})`,
+      time: 'এখনই',
+      read: false,
+      type: 'success',
+      targetTab: 'marketplace',
+      targetId: order.id
+    };
+
+    const buyerNotif: NotificationItem = {
+      id: `notif-${Date.now()}-buyer`,
+      title: '🎉 অর্ডার নিশ্চিত করা হয়েছে!',
+      message: `${gig.sellerName}-এর "${gig.title}" গিগে আপনার অর্ডার #${order.id} প্লেস হয়েছে। সেলারের সাথে চ্যাট করুন।`,
+      time: 'এখনই',
+      read: false,
+      type: 'info',
+      targetTab: 'marketplace',
+      targetId: order.id
+    };
+
+    const adminNotif: NotificationItem = {
+      id: `notif-${Date.now()}-admin`,
+      title: '🛒 নতুন গিগ অর্ডার প্রাপ্তি (এডমিন)!',
+      message: `${buyerName} (${buyerPhone}) "${gig.title}" গিগে ৳${pkg.price} মূল্যের নতুন অর্ডার #${order.id} প্লেস করেছেন।`,
+      time: 'এখনই',
+      read: false,
+      type: 'success',
+      targetTab: 'orders',
+      targetId: order.id
+    };
+
+    setNotifications(prev => {
+      const next = [adminNotif, sellerNotif, buyerNotif, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('notifications', sellerNotif.id, sellerNotif);
+    syncDocToFirestore('notifications', buyerNotif.id, buyerNotif);
+    syncDocToFirestore('notifications', adminNotif.id, adminNotif);
 
     setDirectMessages(prev => [
       {
@@ -2957,14 +3762,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deliverMarketplaceOrder = (orderId: string, note: string, fileUrl?: string, fileName?: string) => {
     setMarketplaceOrders(prev => prev.map(o => {
       if (o.id === orderId) {
-        return {
+        const item = {
           ...o,
-          status: 'in_review',
+          status: 'in_review' as const,
           deliveryNote: note,
           deliveryFileUrl: fileUrl,
           deliveryFileName: fileName,
           deliveredAt: new Date().toISOString().split('T')[0]
         };
+        syncDocToFirestore('marketplaceOrders', orderId, item);
+        return item;
       }
       return o;
     }));
@@ -2987,7 +3794,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const requestOrderRevision = (orderId: string, note: string) => {
     setMarketplaceOrders(prev => prev.map(o => {
       if (o.id === orderId) {
-        return { ...o, status: 'revision_requested', revisionNote: note };
+        const item = { ...o, status: 'revision_requested' as const, revisionNote: note };
+        syncDocToFirestore('marketplaceOrders', orderId, item);
+        return item;
       }
       return o;
     }));
@@ -3018,9 +3827,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const bonus = o.sellerReviewBonus || 0;
         const currentPayout = o.sellerPayout || Math.round((o.amount || 0) * 0.9);
         const finalPayout = currentPayout + bonus;
-        return {
+        const item = {
           ...o,
-          status: 'completed',
+          status: 'completed' as const,
           rating,
           reviewComment,
           sellerPayout: finalPayout,
@@ -3030,6 +3839,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isWorkFirstPaid: true,
           paidAt: new Date().toISOString()
         };
+        syncDocToFirestore('marketplaceOrders', orderId, item);
+        return item;
       }
       return o;
     }));
@@ -3054,7 +3865,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const cancelMarketplaceOrder = (orderId: string, reason?: string) => {
     setMarketplaceOrders(prev => prev.map(o => {
       if (o.id === orderId) {
-        return { ...o, status: 'cancelled', revisionNote: reason };
+        const item = { ...o, status: 'cancelled' as const, revisionNote: reason };
+        syncDocToFirestore('marketplaceOrders', orderId, item);
+        return item;
       }
       return o;
     }));
@@ -3075,20 +3888,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateMarketplaceOrderStatus = (orderId: string, status: MarketplaceOrder['status'], updateNote?: string) => {
-    setMarketplaceOrders(prev => prev.map(o => {
-      if (o.id === orderId) {
-        const newUpdates = updateNote ? [
-          ...(o.updates || []),
-          { id: `upd-${Date.now()}`, date: new Date().toLocaleString('bn-BD', { hour12: true }), note: updateNote, sender: currentUser?.name || 'Seller' }
-        ] : (o.updates || []);
-        return {
-          ...o,
-          status,
-          updates: newUpdates
-        };
-      }
-      return o;
-    }));
+    setMarketplaceOrders(prev => {
+      const next = prev.map(o => {
+        if (o.id === orderId) {
+          const newUpdates = updateNote ? [
+            ...(o.updates || []),
+            { id: `upd-${Date.now()}`, date: new Date().toLocaleString('bn-BD', { hour12: true }), note: updateNote, sender: currentUser?.name || 'Seller' }
+          ] : (o.updates || []);
+          const item = {
+            ...o,
+            status,
+            updates: newUpdates
+          };
+          syncDocToFirestore('marketplaceOrders', orderId, item);
+          return item;
+        }
+        return o;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+      return next;
+    });
 
     setNotifications(prev => [
       {
@@ -3106,13 +3925,64 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addMarketplaceOrder = (order: MarketplaceOrder) => {
-    setMarketplaceOrders(prev => [order, ...prev]);
+    setMarketplaceOrders(prev => {
+      const next = [order, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('marketplaceOrders', order.id, order);
+
+    // Ensure buyer user is recorded in users collection
+    if (order.buyerEmail || order.buyerPhone || order.buyerName) {
+      const buyerId = order.buyerId || `buyer-${Date.now()}`;
+      const existingUser = users.find(u => u.id === buyerId || (order.buyerEmail && u.email.toLowerCase() === order.buyerEmail.toLowerCase()));
+      if (!existingUser) {
+        const newBuyer: User = {
+          id: buyerId,
+          name: order.buyerName || 'সম্মানিত ক্লায়েন্ট',
+          email: order.buyerEmail || `client-${Date.now()}@ptenit.com`,
+          mobile: order.buyerPhone || '01700000000',
+          role: 'customer',
+          roles: ['customer'],
+          activeRole: 'customer',
+          marketplaceMode: 'buying',
+          createdAt: new Date().toISOString().split('T')[0]
+        };
+        setUsers(prev => {
+          const next = [newBuyer, ...prev];
+          localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+          return next;
+        });
+        syncDocToFirestore('users', buyerId, newBuyer);
+      }
+    }
+
+    // Central Notification for Admin
+    const notifItem: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title: `🛍️ নতুন ডিজিটাল/মার্কেটপ্লেস অর্ডার #${order.id}`,
+      message: `${order.buyerName} (${order.buyerPhone || ''}) "${order.title}" অর্ডার করেছেন (৳${order.amount})।`,
+      time: 'এখনই',
+      read: false,
+      type: 'success',
+      targetTab: 'marketplace',
+      targetId: order.id
+    };
+    setNotifications(prev => {
+      const next = [notifItem, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('notifications', notifItem.id, notifItem);
+    playAppSound('order');
   };
 
   const dispatchJobToStaff = (jobId: string, staffId: string, staffName: string) => {
     setJobs(prev => prev.map(j => {
       if (j.id === jobId) {
-        return { ...j, status: 'assigned', visibility: 'custom_assigned', assignedStaffId: staffId, assignedStaffName: staffName };
+        const item = { ...j, status: 'assigned' as const, visibility: 'custom_assigned' as const, assignedStaffId: staffId, assignedStaffName: staffName };
+        syncDocToFirestore('jobs', j.id, item);
+        return item;
       }
       return j;
     }));
@@ -3141,28 +4011,64 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deadlineDate: new Date(Date.now() + (job.deadlineDays || 7) * 86400000).toISOString().split('T')[0]
       };
       setMarketplaceOrders(prev => [order, ...prev]);
+      syncDocToFirestore('marketplaceOrders', order.id, order);
     }
   };
 
   const deleteUser = (id: string) => {
-    setUsers(prev => prev.filter(u => u.id !== id));
+    setUsers(prev => {
+      const next = prev.filter(u => u.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('users', id);
   };
 
   const deleteOrder = (id: string) => {
-    setOrders(prev => prev.filter(o => o.id !== id));
+    setOrders(prev => {
+      const next = prev.filter(o => o.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_orders`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('orders', id);
   };
 
   const deleteJob = (id: string) => {
-    setJobs(prev => prev.filter(j => j.id !== id));
+    setJobs(prev => {
+      const next = prev.filter(j => j.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_jobs`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('jobs', id);
   };
 
   const deleteMarketplaceOrder = (id: string) => {
-    setMarketplaceOrders(prev => prev.filter(o => o.id !== id));
-    setCustomerProjects(prev => prev.filter(p => p.id !== id && `ord-${p.id}` !== id && `ord-ptenit-${p.id}` !== id));
+    setMarketplaceOrders(prev => {
+      const next = prev.filter(o => o.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+      return next;
+    });
+    setCustomerProjects(prev => {
+      const next = prev.filter(p => p.id !== id && `ord-${p.id}` !== id && `ord-ptenit-${p.id}` !== id);
+      localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('marketplaceOrders', id);
   };
 
   const updateMarketplaceOrder = (id: string, updates: Partial<MarketplaceOrder>) => {
-    setMarketplaceOrders(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o));
+    setMarketplaceOrders(prev => {
+      const next = prev.map(o => {
+        if (o.id === id) {
+          const item = { ...o, ...updates };
+          syncDocToFirestore('marketplaceOrders', id, item);
+          return item;
+        }
+        return o;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const addDigitalProduct = (product: Omit<DigitalProduct, 'id' | 'createdAt' | 'salesCount'>) => {
@@ -3172,23 +4078,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       salesCount: 0,
       createdAt: new Date().toISOString().split('T')[0]
     };
-    setDigitalProducts(prev => [newProd, ...prev]);
+    setDigitalProducts(prev => {
+      const next = [newProd, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_digital_products`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('digitalProducts', newProd.id, newProd);
   };
 
   const updateDigitalProduct = (id: string, updatedFields: Partial<DigitalProduct>) => {
-    setDigitalProducts(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
+    setDigitalProducts(prev => {
+      const next = prev.map(p => {
+        if (p.id === id) {
+          const item = { ...p, ...updatedFields };
+          syncDocToFirestore('digitalProducts', id, item);
+          return item;
+        }
+        return p;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_digital_products`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const deleteDigitalProduct = (id: string) => {
-    setDigitalProducts(prev => prev.filter(p => p.id !== id));
+    setDigitalProducts(prev => {
+      const next = prev.filter(p => p.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_digital_products`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('digitalProducts', id);
   };
 
   const deleteTeacherPayout = (id: string) => {
-    setPayouts(prev => prev.filter(p => p.id !== id));
+    setPayouts(prev => {
+      const next = prev.filter(p => p.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_payouts`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('payouts', id);
   };
 
   const deleteTeacherNotice = (id: string) => {
-    setTeacherNotices(prev => prev.filter(n => n.id !== id));
+    setTeacherNotices(prev => {
+      const next = prev.filter(n => n.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_teacher_notices`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('teacherNotices', id);
   };
 
   const addLiveSession = (session: Omit<LiveClassSession, 'id' | 'createdAt'>) => {
@@ -3197,15 +4134,102 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `live-${Date.now()}`,
       createdAt: new Date().toISOString()
     };
-    setLiveSessions(prev => [newSession, ...prev]);
+    setLiveSessions(prev => {
+      const next = [newSession, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_live_sessions`, JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('liveSessions', newSession.id, newSession);
   };
 
   const updateLiveSession = (id: string, updatedFields: Partial<LiveClassSession>) => {
-    setLiveSessions(prev => prev.map(s => s.id === id ? { ...s, ...updatedFields } : s));
+    setLiveSessions(prev => {
+      const next = prev.map(s => {
+        if (s.id === id) {
+          const item = { ...s, ...updatedFields };
+          syncDocToFirestore('liveSessions', id, item);
+          return item;
+        }
+        return s;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_live_sessions`, JSON.stringify(next));
+      return next;
+    });
   };
 
   const deleteLiveSession = (id: string) => {
-    setLiveSessions(prev => prev.filter(s => s.id !== id));
+    setLiveSessions(prev => {
+      const next = prev.filter(s => s.id !== id);
+      localStorage.setItem(`${STORAGE_KEY}_live_sessions`, JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('liveSessions', id);
+  };
+
+  const addCompanyBill = (bill: CompanyBillItem) => {
+    setCompanyBills(prev => {
+      const filtered = prev.filter(b => b.id !== bill.id && b.transactionId !== bill.transactionId);
+      const next = [bill, ...filtered];
+      localStorage.setItem('ptenit_company_bills', JSON.stringify(next));
+      return next;
+    });
+    syncDocToFirestore('companyBills', bill.id, bill);
+  };
+
+  const verifyCompanyBill = (billId: string, verifiedBy?: string) => {
+    setCompanyBills(prev => {
+      const next = prev.map(b => {
+        if (b.id === billId) {
+          const item: CompanyBillItem = {
+            ...b,
+            status: 'verified' as const,
+            verifiedAt: new Date().toLocaleString('bn-BD', { hour12: true })
+          };
+          syncDocToFirestore('companyBills', billId, item);
+          return item;
+        }
+        return b;
+      });
+      localStorage.setItem('ptenit_company_bills', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const rejectCompanyBill = (billId: string, reason?: string) => {
+    setCompanyBills(prev => {
+      const next = prev.map(b => {
+        if (b.id === billId) {
+          const item: CompanyBillItem = {
+            ...b,
+            status: 'rejected' as const,
+            note: reason ? `${b.note || ''} [বাতিলের কারণ: ${reason}]` : b.note
+          };
+          syncDocToFirestore('companyBills', billId, item);
+          return item;
+        }
+        return b;
+      });
+      localStorage.setItem('ptenit_company_bills', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const deleteCompanyBill = (billId: string) => {
+    setCompanyBills(prev => {
+      const next = prev.filter(b => b.id !== billId);
+      localStorage.setItem('ptenit_company_bills', JSON.stringify(next));
+      return next;
+    });
+    deleteDocFromFirestore('companyBills', billId);
+  };
+
+  const clearSampleVouchers = () => {
+    setCompanyBills(prev => {
+      // Keep only live non-sample items
+      const liveOnly = prev.filter(b => !b.id.startsWith('BILL-1001') && !b.id.startsWith('BILL-1002') && !b.id.startsWith('BILL-1003') && !b.id.startsWith('BILL-1004'));
+      localStorage.setItem('ptenit_company_bills', JSON.stringify(liveOnly));
+      return liveOnly;
+    });
   };
 
   return (
@@ -3296,6 +4320,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         switchRole,
         updateProfile,
         addUser,
+        updateUser,
         deleteUser,
         deleteOrder,
         deleteJob,
@@ -3344,6 +4369,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         rejectMentorApplication,
         rightColumnView,
         setRightColumnView,
+        unreadMarketplaceMsgCount,
+        roleScopedNotifications,
         readConversationIds,
         markConversationRead,
         markAllConversationsRead,
@@ -3355,12 +4382,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleMinimizeChatWindow,
         sendChatMessage,
         createGoogleMeetCall,
+        inAppMeetState,
+        openInAppMeet,
+        closeInAppMeet,
+        googleMeetModalState,
+        openGoogleMeetModal,
+        closeGoogleMeetModal,
         toggleUserBlock,
         restrictUser,
         unrestrictUser,
         playAppSound,
         isOfferSoundEnabled,
-        toggleOfferSound
+        toggleOfferSound,
+        companyBills,
+        addCompanyBill,
+        verifyCompanyBill,
+        rejectCompanyBill,
+        deleteCompanyBill,
+        clearSampleVouchers
       }}
     >
       {children}

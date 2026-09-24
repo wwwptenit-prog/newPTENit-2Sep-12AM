@@ -333,11 +333,11 @@ export const MarketplaceMessengerView: React.FC<MarketplaceMessengerViewProps> =
   );
 
   return (
-    <div className={`w-full flex flex-col font-bengali ${isEmbedded ? 'h-[calc(100dvh-100px)] h-[calc(100vh-100px)] sm:h-[80vh] min-h-[400px]' : 'h-full'}`}>
-      <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden bg-white dark:bg-[#18222D]">
+    <div className={`w-full flex flex-col font-bengali ${isEmbedded ? 'h-[calc(100dvh-130px)] sm:h-[80vh] min-h-[400px]' : 'h-full'}`}>
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row h-full overflow-hidden bg-white dark:bg-[#18222D]">
         
         {/* LEFT PANE: MESSAGES HISTORY & STORIES */}
-        <div className={`w-full md:w-80 lg:w-96 border-r border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#18222D] flex flex-col h-full shrink-0 relative ${
+        <div className={`w-full md:w-80 lg:w-96 border-r border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#18222D] flex flex-col h-full min-h-0 shrink-0 relative ${
           selectedConversationId ? 'hidden md:flex' : 'flex'
         }`}>
           
@@ -347,7 +347,6 @@ export const MarketplaceMessengerView: React.FC<MarketplaceMessengerViewProps> =
               <div>
                 <h1 className="text-lg sm:text-xl font-black text-slate-950 dark:text-white tracking-tight flex items-center gap-1.5">
                   <span>Messages</span>
-                  <span className="w-2 h-2 rounded-full bg-[#006A4E]" />
                 </h1>
                 <p className="text-[10px] font-semibold text-slate-400/90 tracking-wide leading-tight mt-0.5 font-sans">
                   PTENit Marketplace Inbox
@@ -466,7 +465,10 @@ export const MarketplaceMessengerView: React.FC<MarketplaceMessengerViewProps> =
           </div>
 
           {/* CONVERSATION LIST FEED */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50 no-scrollbar pb-20">
+          <div 
+            className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/50 no-scrollbar pb-20 overscroll-contain touch-pan-y"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
             {conversationList.length === 0 ? (
               <div className="p-8 text-center text-slate-400 space-y-2">
                 <MessageCircle className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600" />
@@ -512,7 +514,7 @@ export const MarketplaceMessengerView: React.FC<MarketplaceMessengerViewProps> =
                         <div className="flex items-center gap-1.5 min-w-0">
                           <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate flex items-center gap-1">
                             <span className="truncate">{c.name}</span>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#0084FF] fill-[#0084FF] text-white shrink-0" title="ভেরিফাইড প্রোফাইল" />
+                            <span title="ভেরিফাইড প্রোফাইল"><CheckCircle2 className="w-3.5 h-3.5 text-[#0084FF] fill-[#0084FF] text-white shrink-0" /></span>
                           </h4>
                           {c.badge && (
                             <span className="px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-bold border border-slate-200 dark:border-slate-700 shrink-0">
@@ -559,7 +561,7 @@ export const MarketplaceMessengerView: React.FC<MarketplaceMessengerViewProps> =
         </div>
 
         {/* RIGHT PANE: CHAT CONVERSATION VIEW */}
-        <div className={`flex-1 flex flex-col h-full bg-white dark:bg-[#18222D] ${
+        <div className={`flex-1 min-h-0 flex flex-col h-full bg-white dark:bg-[#18222D] ${
           selectedConversationId ? 'flex' : 'hidden md:flex'
         }`}>
           {currentActiveWin ? (
@@ -980,7 +982,7 @@ const EmbeddedChatThread: React.FC<EmbeddedChatThreadProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#18222D]">
+    <div className="flex-1 min-h-0 flex flex-col h-full bg-white dark:bg-[#18222D] overflow-hidden">
       {/* TOP HEADER BAR (VISIBLE ON ALL SCREENS INCLUDING PHONE VIEW) */}
       <div className="flex px-2.5 sm:px-4 py-2 bg-white dark:bg-[#1C2733] border-b border-slate-200/80 dark:border-slate-800 items-center justify-between shrink-0 shadow-2xs">
         <div className="flex items-center gap-2 min-w-0">
@@ -1011,10 +1013,9 @@ const EmbeddedChatThread: React.FC<EmbeddedChatThreadProps> = ({
           <div className="min-w-0">
             <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate flex items-center gap-1">
               <span className="truncate">{win.senderName}</span>
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#0084FF] fill-[#0084FF] text-white shrink-0" title="ভেরিফাইড প্রোফাইল" />
+              <span title="ভেরিফাইড প্রোফাইল"><CheckCircle2 className="w-3.5 h-3.5 text-[#0084FF] fill-[#0084FF] text-white shrink-0" /></span>
             </h3>
             <p className="text-[10px] font-bold text-[#006A4E] dark:text-sky-400 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0" />
               <span className="truncate">অনলাইনে আছেন</span>
             </p>
           </div>
@@ -1058,7 +1059,10 @@ const EmbeddedChatThread: React.FC<EmbeddedChatThreadProps> = ({
       </div>
 
       {/* MESSAGES FEED */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/60 dark:bg-[#101923] no-scrollbar">
+      <div 
+        className="flex-1 min-h-0 p-3 sm:p-4 overflow-y-auto space-y-3 bg-slate-50/60 dark:bg-[#101923] overscroll-contain touch-pan-y"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         {/* Profile Intro Banner */}
         <div className="py-5 text-center space-y-2 border-b border-slate-200/50 dark:border-slate-800/60 max-w-sm mx-auto">
           <img
@@ -1068,7 +1072,7 @@ const EmbeddedChatThread: React.FC<EmbeddedChatThreadProps> = ({
           />
           <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white flex items-center justify-center gap-1">
             <span>{win.senderName}</span>
-            <CheckCircle2 className="w-4 h-4 text-[#0084FF] fill-[#0084FF] text-white shrink-0" title="Verified Profile" />
+            <span title="Verified Profile"><CheckCircle2 className="w-4 h-4 text-[#0084FF] fill-[#0084FF] text-white shrink-0" /></span>
           </h4>
           <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
             <span className="truncate">{win.senderRole || 'Pro Seller • React & Node Specialist'}</span>

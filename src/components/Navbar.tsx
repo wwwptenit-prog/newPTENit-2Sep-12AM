@@ -60,10 +60,10 @@ export const Navbar: React.FC<NavbarProps> = ({
     openNotificationCenter,
     notifications,
     directMessages,
-    logout,
-    logoutMarketplace,
     rightColumnView,
-    setRightColumnView
+    setRightColumnView,
+    logout,
+    logoutMarketplace
   } = useData();
 
   const unreadMsgCount = (directMessages || []).filter(m => !m.read).length;
@@ -123,7 +123,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-50 w-full transition-all duration-300">
       {/* Top Slim Header Bar - Hidden on mobile/phone screens */}
-      <div className="hidden md:block bg-slate-50 text-slate-700 text-[11px] sm:text-xs py-1 sm:py-1.5 px-3 sm:px-4 border-b border-slate-200">
+      <div className="hidden md:block bg-slate-50/85 backdrop-blur-md text-slate-700 text-[11px] sm:text-xs py-1 sm:py-1.5 px-3 sm:px-4 border-b border-slate-200/80">
         <div className="max-w-[1920px] mx-auto px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 flex justify-between items-center gap-2">
           <div className="flex items-center gap-2 sm:gap-4 text-slate-600 font-medium text-[11px] sm:text-xs">
             <span className="flex items-center gap-1">
@@ -158,8 +158,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Main Navigation - Forest Green Brand Bar (Matches "সার্ভিস দেখুন" button) */}
-      <nav className="bg-[#006A4E] border-b border-[#00543e] text-white shadow-md relative">
+      {/* Main Navigation - Forest Green Glass Brand Bar */}
+      <nav className="bg-[#006A4E]/92 backdrop-blur-xl border-b border-[#00543e]/70 text-white shadow-lg relative">
         <div className="max-w-[1920px] mx-auto px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
           <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-3">
             
@@ -459,31 +459,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                   type="button"
                   onClick={() => {
                     const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-                    if (isDesktop) {
-                      if (activeTab !== 'marketplace') {
-                        setActiveTab('marketplace');
-                      }
-                      if (rightColumnView === 'messages') {
-                        setRightColumnView('default');
-                      } else {
-                        setRightColumnView('messages');
-                        setTimeout(() => {
-                          const col3 = document.getElementById('marketplace-column-3-seller')
-                            || document.getElementById('marketplace-column-3-agency')
-                            || document.getElementById('marketplace-column-3');
-                          if (col3) {
-                            col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }
-                        }, 150);
-                      }
-                    } else {
-                      if (openMessengerInbox) openMessengerInbox(undefined, 'messages');
+                    if (isDesktop && setRightColumnView) {
+                      setActiveTab('marketplace');
+                      setRightColumnView(prev => prev === 'messages' ? 'default' : 'messages');
+                      setTimeout(() => {
+                        const col3 = document.getElementById('marketplace-column-3-seller')
+                          || document.getElementById('marketplace-column-3-agency')
+                          || document.getElementById('marketplace-column-3');
+                        if (col3) {
+                          col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }, 100);
+                    } else if (openMessengerInbox) {
+                      openMessengerInbox(undefined, 'messages');
                     }
                   }}
-                  className={`p-2 rounded-lg bg-white/15 hover:bg-white/25 text-white border border-white/25 transition cursor-pointer relative active:scale-95 ${
-                    rightColumnView === 'messages' ? 'bg-white/35 ring-2 ring-white/60 text-white' : ''
+                  className={`p-2 rounded-lg transition cursor-pointer relative active:scale-95 ${
+                    rightColumnView === 'messages'
+                      ? 'bg-white text-[#006A4E] shadow-sm ring-2 ring-white/50'
+                      : 'bg-white/15 hover:bg-white/25 text-white border border-white/25'
                   }`}
-                  title="মেসেঞ্জার ও চ্যাট (লাস্ট কলামে তালিকা)"
+                  title="মেসেঞ্জার ও চ্যাট"
                 >
                   <Mail className="w-4 h-4" />
                   {unreadMsgCount > 0 && (
@@ -498,29 +494,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                   type="button"
                   onClick={() => {
                     const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-                    if (isDesktop) {
-                      if (activeTab !== 'marketplace') {
-                        setActiveTab('marketplace');
-                      }
-                      if (rightColumnView === 'notifications') {
-                        setRightColumnView('default');
-                      } else {
-                        setRightColumnView('notifications');
-                        setTimeout(() => {
-                          const col3 = document.getElementById('marketplace-column-3-seller')
-                            || document.getElementById('marketplace-column-3-agency')
-                            || document.getElementById('marketplace-column-3');
-                          if (col3) {
-                            col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                          }
-                        }, 150);
-                      }
-                    } else {
-                      if (openNotificationCenter) openNotificationCenter();
+                    if (isDesktop && setRightColumnView) {
+                      setActiveTab('marketplace');
+                      setRightColumnView(prev => prev === 'notifications' ? 'default' : 'notifications');
+                      setTimeout(() => {
+                        const col3 = document.getElementById('marketplace-column-3-seller')
+                          || document.getElementById('marketplace-column-3-agency')
+                          || document.getElementById('marketplace-column-3');
+                        if (col3) {
+                          col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }, 100);
+                    } else if (openNotificationCenter) {
+                      openNotificationCenter();
                     }
                   }}
-                  className={`p-2 rounded-lg bg-white/15 hover:bg-white/25 text-white border border-white/25 transition cursor-pointer relative active:scale-95 ${
-                    rightColumnView === 'notifications' ? 'bg-white/35 ring-2 ring-white/60 text-white' : ''
+                  className={`p-2 rounded-lg transition cursor-pointer relative active:scale-95 ${
+                    rightColumnView === 'notifications'
+                      ? 'bg-white text-[#006A4E] shadow-sm ring-2 ring-white/50'
+                      : 'bg-white/15 hover:bg-white/25 text-white border border-white/25'
                   }`}
                   title="নোটিফিকেশন সেন্টার"
                 >

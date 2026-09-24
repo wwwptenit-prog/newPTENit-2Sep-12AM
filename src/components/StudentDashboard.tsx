@@ -671,6 +671,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                         email: currentUser?.email || 'student@ptenit.com',
                         phone: currentUser?.mobile || '',
                         subject: `[${activeSupportSender}] স্টুডেন্ট মেসেজ`,
+                        serviceOrCourse: `Student Support - ${activeSupportSender}`,
                         message: newMsg.text
                       });
                       setStudentChatInput('');

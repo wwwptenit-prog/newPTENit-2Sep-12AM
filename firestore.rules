@@ -2,10 +2,130 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // PTENit Firestore Security Rules
-    // Allows public read of public catalog (courses, services, gigs, jobs, settings)
-    // Allows writes for authenticated sessions or client application sync
+    // Auth Helpers
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == 'mdskazisohag@gmail.com' ||
+         request.auth.token.email == 'admin@ptenit.com' ||
+         request.auth.token.role == 'admin' || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
 
+    // Users Collection
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Courses Collection (Live Sync & Admin Publishing)
+    match /courses/{courseId} {
+      allow read, write: if true;
+    }
+
+    // Services Collection
+    match /services/{serviceId} {
+      allow read, write: if true;
+    }
+
+    // Orders Collection (Course Payments & Enrollment)
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // Marketplace Orders (Gig & Job Orders)
+    match /marketplaceOrders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // Marketplace Gigs
+    match /gigs/{gigId} {
+      allow read, write: if true;
+    }
+
+    // Marketplace Jobs
+    match /jobs/{jobId} {
+      allow read, write: if true;
+    }
+
+    // Proposals for Jobs
+    match /proposals/{proposalId} {
+      allow read, write: if true;
+    }
+
+    // Gallery / Portfolio
+    match /gallery/{galleryId} {
+      allow read, write: if true;
+    }
+
+    // Testimonials / Reviews
+    match /testimonials/{testimonialId} {
+      allow read, write: if true;
+    }
+
+    // Written Content / Blogs / Public Notices
+    match /writtenContent/{contentId} {
+      allow read, write: if true;
+    }
+
+    // Site Settings
+    match /siteSettings/{settingId} {
+      allow read, write: if true;
+    }
+
+    // Contact Messages / Inquiries
+    match /contactMessages/{messageId} {
+      allow read, write: if true;
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read, write: if true;
+    }
+
+    // Direct Messages & Chats
+    match /directMessages/{messageId} {
+      allow read, write: if true;
+    }
+
+    // Digital Products
+    match /digitalProducts/{productId} {
+      allow read, write: if true;
+    }
+
+    // Custom Customer Projects
+    match /customerProjects/{projectId} {
+      allow read, write: if true;
+    }
+
+    // Company Bills & Financials
+    match /companyBills/{billId} {
+      allow read, write: if true;
+    }
+
+    // Assignments & Submissions
+    match /assignments/{assignmentId} {
+      allow read, write: if true;
+    }
+
+    match /submissions/{submissionId} {
+      allow read, write: if true;
+    }
+
+    // Teacher Payouts
+    match /payouts/{payoutId} {
+      allow read, write: if true;
+    }
+
+    // Teacher Notices
+    match /teacherNotices/{noticeId} {
+      allow read, write: if true;
+    }
+
+    // Default fallback
     match /{document=**} {
       allow read, write: if true;
     }
