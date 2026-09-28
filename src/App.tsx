@@ -15,6 +15,7 @@ import { GallerySection } from './components/GallerySection';
 import { OfficeLocation } from './components/OfficeLocation';
 import { Course } from './types';
 import { getUrlParams, updateUrlState } from './utils/urlRouter';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Performance optimization: Lazy load heavy sub-systems and dashboards on-demand
 const CourseDetailModal = React.lazy(() => import('./components/CourseDetailModal').then(m => ({ default: m.CourseDetailModal })));
@@ -651,11 +652,13 @@ const MainAppContent: React.FC = () => {
     </div>
   );
 };
-
+ 
 export default function App() {
   return (
-    <DataProvider>
-      <MainAppContent />
-    </DataProvider>
+    <ErrorBoundary>
+      <DataProvider>
+        <MainAppContent />
+      </DataProvider>
+    </ErrorBoundary>
   );
 }

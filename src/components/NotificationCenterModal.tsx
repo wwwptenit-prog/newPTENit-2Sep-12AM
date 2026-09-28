@@ -65,8 +65,12 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
 
   const isSeller = marketplaceMode === 'selling';
 
-  // Role-scoped notifications (Buyer only sees buyer/all; Seller sees seller/all)
+  // Role-scoped notifications (Buyer only sees buyer/all; Seller sees seller/all; User sees their own notifications)
   const scopedNotifications = notifications.filter(n => {
+    if (currentUser) {
+      if (n.recipientId && n.recipientId !== currentUser.id && n.recipientId !== 'all') return false;
+      if (n.recipientEmail && currentUser.email && n.recipientEmail.toLowerCase() !== currentUser.email.toLowerCase() && n.recipientEmail !== 'all') return false;
+    }
     if (n.mode === 'selling') return isSeller;
     if (n.mode === 'buying') return !isSeller;
     if (n.recipientRole) {

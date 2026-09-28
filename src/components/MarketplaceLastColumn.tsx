@@ -83,205 +83,58 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
   const [msgFilter, setMsgFilter] = useState<'all' | 'unread' | 'sellers' | 'orders'>('all');
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'orders' | 'system'>('all');
 
-  // Seller client conversations
-  const sellerConversations: ConversationItem[] = [
-    {
-      id: 'chat-client-sohag',
-      name: 'সোহাগ কাজী (বায়ার / ক্লায়েন্ট)',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-      role: 'ক্লায়েন্ট • ই-কমার্স প্রজেক্ট #ORD-8821',
-      badge: 'Active Client',
-      rating: 5.0,
-      ordersCount: 4,
-      lastMessage: 'ভাইয়া, আমার ই-কমার্স প্রজেক্টের ডিজাইন ডেমো কি তৈরি হয়েছে? একটু আপডেট দিবেন।',
-      time: '১০ মিনিট আগে',
-      unreadCount: 1,
-      isOnline: true,
-      category: 'orders',
-      orderId: 'ORD-8821'
-    },
-    {
-      id: 'chat-client-tanjim',
-      name: 'তানজিম আহমেদ (সেবাগ্রহীতা বায়ার)',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-      role: 'ক্লায়েন্ট • গিগ সার্ভিস #ORD-5542',
-      badge: 'Verified Buyer',
-      rating: 4.9,
-      ordersCount: 2,
-      lastMessage: 'আপনার গিগ সার্ভিস অর্ডার করেছি, এস্ক্রো ওয়ালেটে টাকা জমা হয়েছে। কোড শুরু করুন।',
-      time: '৩৫ মিনিট আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'orders',
-      orderId: 'ORD-5542'
-    },
-    {
-      id: 'chat-client-sumaiya',
-      name: 'সুমাইয়া ইসলাম (ক্লায়েন্ট)',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-      role: 'ক্লায়েন্ট • মোবাইল অ্যাপ ইনকোয়ারি',
-      badge: 'Client',
-      rating: 5.0,
-      ordersCount: 1,
-      lastMessage: 'আমাদের মোবাইল অ্যাপের API ডকুমেন্টেশন ইনবক্সে পাঠিয়েছি, একটু দেখে নিন।',
-      time: '১ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'sellers'
-    },
-    {
-      id: 'chat-piten-support',
-      name: 'PTENit এসক্রো সাপোর্ট ও সিকিউরিটি',
-      avatar: 'https://images.unsplash.com/photo-1556742049-0a67e557224f?auto=format&fit=crop&w=120&q=80',
-      role: 'অফিসিয়াল সেলার এসক্রো সুরক্ষা',
-      badge: 'Verified Official',
-      rating: 5.0,
-      ordersCount: 999,
-      lastMessage: 'অর্ডার #ORD-8821 এর এস্ক্রো পেমেন্ট ভেরিফিকেশন সফল হয়েছে।',
-      time: '২ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'orders'
-    },
-    {
-      id: 'chat-client-ariful',
-      name: 'আরিফুল হাসান (বায়ার)',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
-      role: 'ক্লায়েন্ট • লোগো ও ব্র্যান্ডিং রিভিশন',
-      badge: 'Buyer',
-      rating: 5.0,
-      ordersCount: 3,
-      lastMessage: 'লোগো কনসেপ্টের প্রাথমিক কালার প্যালেট চমৎকার হয়েছে।',
-      time: '৩ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: false,
-      onlineTimeAgo: '৩ ঘণ্টা আগে',
-      category: 'sellers'
-    }
-  ];
-
-  // Buyer freelancer conversations
-  const buyerConversations: ConversationItem[] = [
-    {
-      id: 'chat-tanvir-ahmed',
-      name: 'Tanvir Ahmed',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-      role: 'Top Rated • Full-Stack Web',
-      badge: 'Top Rated',
-      rating: 5.0,
-      ordersCount: 142,
-      lastMessage: 'প্রজেক্টের সোর্স কোড ও লাইভ প্রিভিউ লিংক পাঠিয়েছি, চেক করে জানাবেন।',
-      time: '১০ মিনিট আগে',
-      unreadCount: 2,
-      isOnline: true,
-      category: 'sellers'
-    },
-    {
-      id: 'chat-creative-pixels',
-      name: 'Creative Pixels Agency',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-      role: 'Level 2 • UI/UX Designer',
-      badge: 'Level 2',
-      rating: 4.9,
-      ordersCount: 89,
-      lastMessage: 'Figma ডিজাইন ফাইল আপডেট করা হয়েছে, ক্লায়েন্ট রিভিশন রেডি।',
-      time: '৪৫ মিনিট আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'sellers'
-    },
-    {
-      id: 'chat-piten-support',
-      name: 'PiTen Marketplace Official',
-      avatar: 'https://images.unsplash.com/photo-1556742049-0a67e557224f?auto=format&fit=crop&w=120&q=80',
-      role: 'অফিসিয়াল সাপোর্ট ও এসক্রো সিকিউরিটি',
-      badge: 'Verified Official',
-      rating: 5.0,
-      ordersCount: 999,
-      lastMessage: 'অর্ডার #PT-8942 এর এস্ক্রো পেমেন্ট ভেরিফিকেশন সফল হয়েছে।',
-      time: '২ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'orders'
-    },
-    {
-      id: 'chat-shahinur-rahman',
-      name: 'Shahinur Rahman',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
-      role: 'Pro Seller • React & Node Specialist',
-      badge: 'Verified Pro',
-      rating: 5.0,
-      ordersCount: 65,
-      lastMessage: 'পেমেন্ট গেটওয়ে এবং ডাটাবেস এপিআই ইন্টিগ্রেশন সম্পন্ন।',
-      time: '৩ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: false,
-      onlineTimeAgo: '৩ ঘণ্টা আগে',
-      category: 'sellers'
-    },
-    {
-      id: 'chat-zubair-hossain',
-      name: 'Zubair Hossain',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=120&q=80',
-      role: 'Level 2 • Mobile App Dev',
-      badge: 'Level 2',
-      rating: 4.9,
-      ordersCount: 78,
-      lastMessage: 'Android APK ও iOS টেস্টফ্লাইট বিল্ড ডাউনলোড লিংক পাঠানো হয়েছে।',
-      time: '৫ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: false,
-      onlineTimeAgo: '৫ ঘণ্টা আগে',
-      category: 'sellers'
-    }
-  ];
-
-  const baseConversations = isSellerMode ? sellerConversations : buyerConversations;
-
-  // Merge with directMessages if any
+  // Build conversations strictly from real active chat windows and directMessages (No default/mock fake chats)
   const mergedConversations: ConversationItem[] = useMemo(() => {
-    // Clone baseConversations so we don't mutate original objects
-    const list: ConversationItem[] = baseConversations.map(c => {
-      const isRead = readConversationIds && (readConversationIds.includes(c.id) || (c.orderId && readConversationIds.includes(c.orderId)));
-      return {
-        ...c,
-        unreadCount: isRead ? 0 : (c.unreadCount || 0)
-      };
+    const map = new Map<string, ConversationItem>();
+
+    // 1. Convert active chat windows to conversations
+    (activeChatWindows || []).forEach(w => {
+      const isRead = readConversationIds && readConversationIds.includes(w.id);
+      map.set(w.id, {
+        id: w.id,
+        name: w.senderName,
+        avatar: w.senderAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
+        role: w.senderRole || (isSellerMode ? 'বায়ার • প্রজেক্ট ক্লায়েন্ট' : 'সেলার • ভেরিফাইড প্রফেশনাল'),
+        badge: isSellerMode ? 'Buyer' : 'Verified Seller',
+        rating: 5.0,
+        ordersCount: 1,
+        lastMessage: w.messages[w.messages.length - 1]?.text || 'চ্যাট শুরু হয়েছে...',
+        time: w.messages[w.messages.length - 1]?.time || 'এইমাত্র',
+        unreadCount: isRead ? 0 : 0,
+        isOnline: true,
+        category: isSellerMode ? 'orders' : 'sellers'
+      });
     });
 
+    // 2. Add real directMessages for current user or scoped
     if (directMessages && directMessages.length > 0) {
       directMessages.forEach(dm => {
         const isDmRead = dm.read || (readConversationIds && readConversationIds.includes(dm.id));
-        const found = list.find(c => 
-          c.id === dm.senderId || 
-          c.id === dm.id ||
-          (dm.senderName && (c.name.includes(dm.senderName) || dm.senderName.includes(c.name)))
-        );
-        if (found) {
-          found.lastMessage = dm.text;
-          found.time = dm.time;
-          if (!isDmRead) {
-            found.unreadCount = Math.max(found.unreadCount || 0, 1);
-          } else {
-            found.unreadCount = 0;
-          }
+        if (map.has(dm.id)) {
+          const item = map.get(dm.id)!;
+          item.lastMessage = dm.message;
+          item.time = dm.time;
+          item.unreadCount = isDmRead ? 0 : (dm.unreadCount || 1);
         } else {
-          list.unshift({
-            id: dm.senderId || dm.id || `chat-dm-${dm.id}`,
-            name: dm.senderName,
-            avatar: dm.senderAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-            role: dm.senderRole || 'মেম্বার',
-            lastMessage: dm.text,
-            time: dm.time,
-            unreadCount: isDmRead ? 0 : 1,
+          map.set(dm.id, {
+            id: dm.id,
+            name: dm.senderName || 'ইউজার',
+            avatar: dm.senderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
+            role: dm.senderRole || (isSellerMode ? 'বায়ার' : 'সেলার'),
+            badge: isSellerMode ? 'Buyer' : 'Seller',
+            lastMessage: dm.message,
+            time: dm.time || 'এইমাত্র',
+            unreadCount: isDmRead ? 0 : (dm.unreadCount || 1),
             isOnline: true,
-            category: 'sellers'
+            category: dm.category || (isSellerMode ? 'orders' : 'sellers'),
+            orderId: dm.orderId
           });
         }
       });
     }
-    return list;
-  }, [baseConversations, directMessages, readConversationIds]);
+
+    return Array.from(map.values());
+  }, [activeChatWindows, directMessages, readConversationIds, isSellerMode]);
 
   // Filter conversations
   const filteredConversations = useMemo(() => {

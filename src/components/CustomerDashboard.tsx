@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Briefcase,
   PlusCircle,
@@ -160,8 +160,23 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({ setActiveT
     setTimeout(() => setProfileSaved(false), 3000);
   };
 
-  const myProjects = customerProjects;
-  const myMessages = contactMessages;
+  const myProjects = useMemo(() => {
+    if (!currentUser) return [];
+    return customerProjects.filter(p => 
+      p.customerId === currentUser.id ||
+      (currentUser.email && p.customerEmail && p.customerEmail.toLowerCase().trim() === currentUser.email.toLowerCase().trim()) ||
+      (currentUser.mobile && p.customerPhone && p.customerPhone.trim() === currentUser.mobile.trim())
+    );
+  }, [customerProjects, currentUser]);
+
+  const myMessages = useMemo(() => {
+    if (!currentUser) return [];
+    return contactMessages.filter(m => 
+      (m as any).userId === currentUser.id ||
+      (currentUser.email && m.email && m.email.toLowerCase().trim() === currentUser.email.toLowerCase().trim()) ||
+      (currentUser.mobile && m.phone && m.phone.trim() === currentUser.mobile.trim())
+    );
+  }, [contactMessages, currentUser]);
 
   return (
     <div className="min-h-screen bg-slate-100/90 dark:bg-slate-950 py-3 sm:py-6 md:py-8 pb-28 lg:pb-8 transition-colors font-bengali">

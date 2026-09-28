@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useData } from '../context/DataContext';
-import { ChatMessage, ActiveChatWindow } from '../types';
+import { ChatMessage, ActiveChatWindow, DirectOfferMeta } from '../types';
+import { DirectProjectOfferChatCard } from './DirectProjectOfferChatCard';
+import { SendDirectOfferModal } from './SendDirectOfferModal';
 import {
   X,
   Lock,
@@ -53,8 +55,34 @@ import {
   CheckCircle,
   MessageSquare,
   Package,
-  Users
 } from 'lucide-react';
+
+const getDirectOfferFromMessage = (m: { text: string; id: string; directOffer?: DirectOfferMeta }, winSenderName: string, winSenderId?: string): DirectOfferMeta | null => {
+  if (m.directOffer) return m.directOffer;
+  if (!m.text.includes('💼') && !m.text.includes('অফার') && !m.text.includes('অর্ডার')) return null;
+
+  const titleMatch = m.text.match(/সার্ভিস:\s*([^\n]+)/) || m.text.match(/প্রজেক্ট:\s*([^\n]+)/);
+  const budgetMatch = m.text.match(/বাজেট:\s*৳?([^\n]+)/);
+  const deliveryMatch = m.text.match(/ডেলিভারি[^\:]*:\s*([^\n]+)/);
+
+  const title = titleMatch ? titleMatch[1].trim() : 'কাস্টম প্রজেক্ট প্রস্তাব';
+  const budgetStr = budgetMatch ? budgetMatch[1].replace(/[^\d]/g, '') : '5000';
+  const deliveryStr = deliveryMatch ? deliveryMatch[1].replace(/[^\d]/g, '') : '3';
+
+  return {
+    id: `parsed-${m.id}`,
+    title,
+    category: 'কাস্টম সার্ভিস',
+    budget: Number(budgetStr) || 5000,
+    deliveryDays: Number(deliveryStr) || 3,
+    description: m.text,
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+    status: 'pending',
+    targetSellerName: winSenderName,
+    targetSellerId: winSenderId
+  };
+};
 
 interface ConversationItem {
   id: string;
@@ -70,6 +98,7 @@ interface ConversationItem {
   isOnline: boolean;
   onlineTimeAgo?: string;
   category?: string;
+  orderId?: string;
 }
 
 interface FloatingMessengerWindowsProps {
@@ -239,182 +268,10 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
   }, [activeCallState?.active]);
 
   // Dedicated Seller Client Conversations (When in Seller Mode)
-  const sellerDefaultHistory: ConversationItem[] = [
-    {
-      id: 'chat-client-sohag',
-      name: 'সোহাগ কাজী (বায়ার / ক্লায়েন্ট)',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-      role: 'ক্লায়েন্ট • ই-কমার্স প্রজেক্ট #ORD-8821',
-      badge: 'Active Client',
-      rating: 5.0,
-      ordersCount: 4,
-      lastMessage: 'ভাইয়া, আমার ই-কমার্স প্রজেক্টের ডিজাইন ডেমো কি তৈরি হয়েছে? একটু আপডেট দিবেন।',
-      time: '১০ মিনিট আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'orders'
-    },
-    {
-      id: 'chat-client-tanjim',
-      name: 'তানজিম আহমেদ (সেবাগ্রহীতা বায়ার)',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-      role: 'ক্লায়েন্ট • গিগ সার্ভিস #ORD-5542',
-      badge: 'Verified Buyer',
-      rating: 4.9,
-      ordersCount: 2,
-      lastMessage: 'আপনার গিগ সার্ভিস অর্ডার করেছি, এস্ক্রো ওয়ালেটে টাকা জমা হয়েছে। কোড শুরু করুন।',
-      time: '৩৫ মিনিট আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'orders'
-    },
-    {
-      id: 'chat-client-sumaiya',
-      name: 'সুমাইয়া ইসলাম (ক্লায়েন্ট)',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-      role: 'ক্লায়েন্ট • মোবাইল অ্যাপ ইনকোয়ারি',
-      badge: 'Client',
-      rating: 5.0,
-      ordersCount: 1,
-      lastMessage: 'আমাদের মোবাইল অ্যাপের API ডকুমেন্টেশন ইনবক্সে পাঠিয়েছি, একটু দেখে নিন।',
-      time: '১ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'sellers'
-    },
-    {
-      id: 'chat-piten-support',
-      name: 'PTENit এসক্রো সাপোর্ট ও সিকিউরিটি',
-      avatar: 'https://images.unsplash.com/photo-1556742049-0a67e557224f?auto=format&fit=crop&w=120&q=80',
-      role: 'অফিসিয়াল সেলার এসক্রো সুরক্ষা',
-      badge: 'Verified Official',
-      rating: 5.0,
-      ordersCount: 999,
-      lastMessage: 'অর্ডার #ORD-8821 এর এস্ক্রো পেমেন্ট ভেরিফিকেশন সফল হয়েছে।',
-      time: '২ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'orders'
-    },
-    {
-      id: 'chat-client-ariful',
-      name: 'আরিফুল হাসান (বায়ার)',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
-      role: 'ক্লায়েন্ট • লোগো ও ব্র্যান্ডিং রিভিশন',
-      badge: 'Buyer',
-      rating: 5.0,
-      ordersCount: 3,
-      lastMessage: 'লোগো কনসেপ্টের প্রাথমিক কালার প্যালেট চমৎকার হয়েছে।',
-      time: '৩ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: false,
-      onlineTimeAgo: '৩ ঘণ্টা আগে',
-      category: 'sellers'
-    }
-  ];
+  const sellerDefaultHistory: ConversationItem[] = [];
 
   // Dedicated Buyer Top Seller Conversations (When in Buyer Mode)
-  const buyerDefaultHistory: ConversationItem[] = [
-    {
-      id: 'chat-tanvir-ahmed',
-      name: 'Tanvir Ahmed',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-      role: 'Top Rated • Full-Stack Web',
-      badge: 'Top Rated',
-      rating: 5.0,
-      ordersCount: 142,
-      lastMessage: 'প্রজেক্টের সোর্স কোড ও লাইভ প্রিভিউ লিংক পাঠিয়েছি, চেক করে জানাবেন।',
-      time: '১০ মিনিট আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'sellers'
-    },
-    {
-      id: 'chat-creative-pixels',
-      name: 'Creative Pixels Agency',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-      role: 'Level 2 • UI/UX Designer',
-      badge: 'Level 2',
-      rating: 4.9,
-      ordersCount: 89,
-      lastMessage: 'Figma ডিজাইন ফাইল আপডেট করা হয়েছে, ক্লায়েন্ট রিভিশন রেডি।',
-      time: '৪৫ মিনিট আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'sellers'
-    },
-    {
-      id: 'chat-piten-support',
-      name: 'PiTen Marketplace Official',
-      avatar: 'https://images.unsplash.com/photo-1556742049-0a67e557224f?auto=format&fit=crop&w=120&q=80',
-      role: 'অফিসিয়াল সাপোর্ট ও এসক্রো সিকিউরিটি',
-      badge: 'Verified Official',
-      rating: 5.0,
-      ordersCount: 999,
-      lastMessage: 'অর্ডার #PT-8942 এর এস্ক্রো পেমেন্ট ভেরিফিকেশন সফল হয়েছে।',
-      time: '২ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: true,
-      category: 'orders'
-    },
-    {
-      id: 'chat-shahinur-rahman',
-      name: 'Shahinur Rahman',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
-      role: 'Pro Seller • React & Node Specialist',
-      badge: 'Verified Pro',
-      rating: 5.0,
-      ordersCount: 65,
-      lastMessage: 'পেমেন্ট গেটওয়ে এবং ডাটাবেস এপিআই ইন্টিগ্রেশন সম্পন্ন।',
-      time: '৩ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: false,
-      onlineTimeAgo: '৩ ঘণ্টা আগে',
-      category: 'sellers'
-    },
-    {
-      id: 'chat-zubair-hossain',
-      name: 'Zubair Hossain',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=120&q=80',
-      role: 'Level 2 • Mobile App Dev',
-      badge: 'Level 2',
-      rating: 4.9,
-      ordersCount: 78,
-      lastMessage: 'Android APK ও iOS টেস্টফ্লাইট বিল্ড ডাউনলোড লিংক পাঠানো হয়েছে।',
-      time: '৫ ঘণ্টা আগে',
-      unreadCount: 0,
-      isOnline: false,
-      onlineTimeAgo: '৫ ঘণ্টা আগে',
-      category: 'sellers'
-    },
-    {
-      id: 'chat-sadia-afrin',
-      name: 'Sadia Afrin',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-      role: 'Top Rated • SEO & Marketing',
-      badge: 'Top Rated',
-      rating: 4.8,
-      ordersCount: 54,
-      lastMessage: 'অন-পেজ এসইও ও কিওয়ার্ড র‍্যাংকিং অডিট রিপোর্ট পাঠানো হয়েছে।',
-      time: '১ দিন আগে',
-      isOnline: true,
-      category: 'sellers'
-    },
-    {
-      id: 'chat-mouson-art',
-      name: 'Mouson Branding Studio',
-      avatar: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=120&q=80',
-      role: 'Level 2 • Logo & Graphics',
-      badge: 'Level 2',
-      rating: 5.0,
-      ordersCount: 112,
-      lastMessage: 'লোগো ভেক্টর ফাইল ও ব্র্যান্ডিং কিট প্যাকেজ রেডি।',
-      time: '১ দিন আগে',
-      isOnline: false,
-      onlineTimeAgo: '১ দিন আগে',
-      category: 'sellers'
-    }
-  ];
+  const buyerDefaultHistory: ConversationItem[] = [];
 
   const defaultHistory = isSellerMode ? sellerDefaultHistory : buyerDefaultHistory;
 
@@ -435,11 +292,29 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
 
   const allConversationsMap = new Map<string, ConversationItem>();
   activeWindowsAsConversations.forEach(c => allConversationsMap.set(c.id, c));
-  defaultHistory.forEach(c => {
-    if (!allConversationsMap.has(c.id)) {
-      allConversationsMap.set(c.id, c);
-    }
-  });
+
+  // Add real direct messages
+  if (directMessages && directMessages.length > 0) {
+    directMessages.forEach(dm => {
+      if (!allConversationsMap.has(dm.id)) {
+        allConversationsMap.set(dm.id, {
+          id: dm.id,
+          name: dm.senderName || 'ইউজার',
+          avatar: dm.senderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
+          role: dm.senderRole || (isSellerMode ? 'বায়ার' : 'সেলার'),
+          badge: isSellerMode ? 'Buyer' : 'Seller',
+          rating: 5.0,
+          ordersCount: 1,
+          lastMessage: dm.message,
+          time: dm.time || 'এইমাত্র',
+          unreadCount: dm.read ? 0 : (dm.unreadCount || 1),
+          isOnline: true,
+          category: dm.category || (isSellerMode ? 'orders' : 'sellers'),
+          orderId: dm.orderId
+        });
+      }
+    });
+  }
 
   const conversationList = Array.from(allConversationsMap.values())
     .map(c => {
@@ -2524,7 +2399,17 @@ const SingleChatWindow: React.FC<SingleChatWindowProps> = ({
   onCreateMeet,
   onExpandFullScreen
 }) => {
-  const { marketplaceOrders, openInAppMeet } = useData();
+  const { 
+    marketplaceOrders, 
+    openInAppMeet,
+    createCustomerProject,
+    acceptDirectOffer,
+    declineDirectOffer,
+    publishDirectProjectToPublicFeed,
+    resendDirectOffer24h,
+    currentUser,
+    sendChatMessage
+  } = useData();
   const linkedOrder = marketplaceOrders?.find(o => 
     (win.orderId && (o.id === win.orderId || o.id.endsWith(win.orderId))) ||
     (win.senderName && (o.buyerName === win.senderName || o.sellerName === win.senderName))
@@ -2533,6 +2418,7 @@ const SingleChatWindow: React.FC<SingleChatWindowProps> = ({
 
   const [inputText, setInputText] = useState('');
   const [showEmojis, setShowEmojis] = useState(false);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -2545,6 +2431,95 @@ const SingleChatWindow: React.FC<SingleChatWindowProps> = ({
     if (!inputText.trim()) return;
     onSend(inputText.trim());
     setInputText('');
+  };
+
+  const handleSendCustomOfferData = (data: {
+    title: string;
+    category: string;
+    budget: number;
+    budgetRange?: string;
+    budgetMode?: 'range' | 'fixed';
+    minBudget?: number;
+    maxBudget?: number;
+    deliveryDays: number;
+    description: string;
+    skills?: string;
+    requirements?: string[];
+    attachmentName?: string;
+    attachmentUrl?: string;
+    coverImage?: string;
+    offerType?: 'work_first' | 'paid';
+  }) => {
+    const offerId = `offer-${Date.now()}`;
+    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    const projId = `proj-${Date.now()}`;
+
+    let fullDescription = data.description.trim();
+    if (data.requirements && data.requirements.length > 0) {
+      fullDescription += `\n\n📌 প্রজেক্ট রিকোয়ারমেন্টস ও ডেলিভারেবলস:\n` + data.requirements.map((r, i) => `${i + 1}. ${r}`).join('\n');
+    }
+    if (data.skills && data.skills.trim()) {
+      fullDescription += `\n\n🏷️ স্কিলস ও কীওয়ার্ড: ${data.skills.trim()}`;
+    }
+
+    const computedRange = data.budgetRange || `৳${data.budget.toLocaleString('bn-BD')}`;
+
+    const offerMeta: DirectOfferMeta = {
+      id: offerId,
+      projectId: projId,
+      title: data.title,
+      category: data.category,
+      budget: data.budget,
+      budgetRange: computedRange,
+      deliveryDays: data.deliveryDays,
+      description: fullDescription,
+      skills: data.skills,
+      requirements: data.requirements,
+      attachmentName: data.attachmentName,
+      attachmentUrl: data.attachmentUrl,
+      coverImage: data.coverImage,
+      offerType: data.offerType || 'work_first',
+      createdAt: new Date().toISOString(),
+      expiresAt: expiresAt,
+      status: 'pending',
+      targetSellerId: win.targetUserId || win.id.replace('chat-', ''),
+      targetSellerName: win.senderName,
+      buyerId: currentUser?.id,
+      buyerName: currentUser?.name
+    };
+
+    // Create 24h private direct CustomerProject
+    createCustomerProject({
+      customerId: currentUser?.id || `cust-${Date.now()}`,
+      customerName: currentUser?.name || 'সম্মানিত বায়ার',
+      customerEmail: currentUser?.email || 'buyer@ptenit.com',
+      customerPhone: currentUser?.mobile || '01700000000',
+      serviceTitle: data.title,
+      category: data.category,
+      description: fullDescription,
+      budgetRange: computedRange,
+      priceEstimate: data.budget,
+      deadline: new Date(Date.now() + data.deliveryDays * 86400000).toISOString().split('T')[0],
+      isDirectOffer: true,
+      targetSellerId: win.targetUserId || win.id.replace('chat-', ''),
+      targetSellerName: win.senderName,
+      expiresAt: expiresAt,
+      attachmentName: data.attachmentName || (data.coverImage ? 'কভার ছবি সংযুক্ত' : undefined),
+      attachmentUrl: data.attachmentUrl || data.coverImage || undefined,
+      offerType: data.offerType || 'work_first',
+      isWorkFirst: (data.offerType || 'work_first') === 'work_first'
+    });
+
+    try {
+      const stored = JSON.parse(localStorage.getItem('ptenit_my_buyer_post_ids') || '[]');
+      const updated = Array.from(new Set([...stored, projId, `ord-${projId}`, `ord-ptenit-${projId}`]));
+      localStorage.setItem('ptenit_my_buyer_post_ids', JSON.stringify(updated));
+    } catch {}
+
+    const displayMsg = `💼 [ডিরেক্ট ২৪-ঘণ্টা প্রজেক্ট অফার]\n📌 প্রজেক্ট: ${data.title}\n🏷️ ক্যাটাগরি: ${data.category}\n💰 বাজেট: ${computedRange}\n⏱️ ডেলিভারি সময়: ${data.deliveryDays} দিন\n⏳ ভ্যালিডিটি: ২৪ ঘণ্টা (অটো-রিটার্ন প্রযোজ্য)\n\n👉 সেলার ২৪ ঘণ্টার মধ্যে রিসিভ না করলে অফারটি স্বয়ংক্রিয়ভাবে বায়ারের কাছে ফেরত আসবে।`;
+
+    sendChatMessage(win.id, displayMsg, undefined, offerMeta);
+    setIsOfferModalOpen(false);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2651,7 +2626,24 @@ const SingleChatWindow: React.FC<SingleChatWindowProps> = ({
                       : 'bg-white dark:bg-[#243447] text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/80 rounded-tl-xs'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap break-words">{m.text}</p>
+                  {(() => {
+                    const directOffer = (m as any).directOffer || getDirectOfferFromMessage(m, win.senderName, win.targetUserId || win.id.replace('chat-', ''));
+                    if (directOffer) {
+                      return (
+                        <DirectProjectOfferChatCard
+                          offer={directOffer}
+                          isSelf={m.isSelf}
+                          currentUserId={currentUser?.id}
+                          currentUserRole={currentUser?.role}
+                          onAccept={(off) => acceptDirectOffer(off.projectId || off.orderId || win.id)}
+                          onDecline={(off) => declineDirectOffer(off.projectId || off.orderId || win.id)}
+                          onPublishToPublic={(off) => publishDirectProjectToPublicFeed(off.projectId || off.orderId || win.id)}
+                          onResend={(off) => resendDirectOffer24h(off.projectId || off.orderId || win.id)}
+                        />
+                      );
+                    }
+                    return <p className="whitespace-pre-wrap break-words">{m.text}</p>;
+                  })()}
 
                   {m.meetLink && (
                     <div className="mt-2 p-2.5 bg-slate-900 text-white rounded-xl border border-emerald-500/50 space-y-1.5 shadow-lg">
@@ -2750,6 +2742,15 @@ const SingleChatWindow: React.FC<SingleChatWindowProps> = ({
                 <Smile className="w-4 h-4" />
               </button>
 
+              <button
+                type="button"
+                onClick={() => setIsOfferModalOpen(true)}
+                className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-full transition cursor-pointer shrink-0"
+                title="২৪ ঘণ্টার কাস্টম প্রজেক্ট অফার পাঠান"
+              >
+                <Briefcase className="w-4 h-4" />
+              </button>
+
               <input
                 type="text"
                 value={inputText}
@@ -2779,6 +2780,16 @@ const SingleChatWindow: React.FC<SingleChatWindowProps> = ({
               </button>
             </form>
           )}
+
+          {/* 24-HOUR DIRECT CUSTOM PROJECT OFFER MODAL */}
+          <SendDirectOfferModal
+            isOpen={isOfferModalOpen}
+            onClose={() => setIsOfferModalOpen(false)}
+            recipientName={win.senderName}
+            recipientRole={win.senderRole}
+            recipientAvatar={win.senderAvatar}
+            onSubmit={handleSendCustomOfferData}
+          />
         </>
       )}
     </div>
@@ -2824,13 +2835,19 @@ const FullScreenChatThread: React.FC<FullScreenChatThreadProps> = ({
   onCreateMeet,
   onStartVoiceCall
 }) => {
-  const { openInAppMeet } = useData();
+  const { 
+    openInAppMeet,
+    createCustomerProject,
+    acceptDirectOffer,
+    declineDirectOffer,
+    publishDirectProjectToPublicFeed,
+    resendDirectOffer24h,
+    currentUser,
+    sendChatMessage
+  } = useData();
   const [inputText, setInputText] = useState('');
   const [showEmojis, setShowEmojis] = useState(false);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
-  const [offerTitle, setOfferTitle] = useState('ওয়েবসাইট ডিজাইন ও ডেভেলপমেন্ট সার্ভিস');
-  const [offerPrice, setOfferPrice] = useState('৫০০০');
-  const [offerDelivery, setOfferDelivery] = useState('৩ দিন');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2854,9 +2871,93 @@ const FullScreenChatThread: React.FC<FullScreenChatThreadProps> = ({
     if (e.target) e.target.value = '';
   };
 
-  const handleSendCustomOffer = () => {
-    if (!offerTitle.trim() || !offerPrice.trim()) return;
-    onSend(`💼 [কাস্টম প্রজেক্ট অফার]\n📦 সার্ভিস: ${offerTitle}\n💰 বাজেট: ৳${offerPrice}\n⏱️ ডেলিভারি সময়: ${offerDelivery}\n\n👉 অর্ডার নিশ্চিত করতে বায়ার একসেপ্ট বাটনে ট্যাপ করতে পারেন।`);
+  const handleSendCustomOfferData = (data: {
+    title: string;
+    category: string;
+    budget: number;
+    budgetRange?: string;
+    budgetMode?: 'range' | 'fixed';
+    minBudget?: number;
+    maxBudget?: number;
+    deliveryDays: number;
+    description: string;
+    skills?: string;
+    requirements?: string[];
+    attachmentName?: string;
+    attachmentUrl?: string;
+    coverImage?: string;
+    offerType?: 'work_first' | 'paid';
+  }) => {
+    const offerId = `offer-${Date.now()}`;
+    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    const projId = `proj-${Date.now()}`;
+
+    let fullDescription = data.description.trim();
+    if (data.requirements && data.requirements.length > 0) {
+      fullDescription += `\n\n📌 প্রজেক্ট রিকোয়ারমেন্টস ও ডেলিভারেবলস:\n` + data.requirements.map((r, i) => `${i + 1}. ${r}`).join('\n');
+    }
+    if (data.skills && data.skills.trim()) {
+      fullDescription += `\n\n🏷️ স্কিলস ও কীওয়ার্ড: ${data.skills.trim()}`;
+    }
+
+    const computedRange = data.budgetRange || `৳${data.budget.toLocaleString('bn-BD')}`;
+
+    const offerMeta: DirectOfferMeta = {
+      id: offerId,
+      projectId: projId,
+      title: data.title,
+      category: data.category,
+      budget: data.budget,
+      budgetRange: computedRange,
+      deliveryDays: data.deliveryDays,
+      description: fullDescription,
+      skills: data.skills,
+      requirements: data.requirements,
+      attachmentName: data.attachmentName,
+      attachmentUrl: data.attachmentUrl,
+      coverImage: data.coverImage,
+      offerType: data.offerType || 'work_first',
+      createdAt: new Date().toISOString(),
+      expiresAt: expiresAt,
+      status: 'pending',
+      targetSellerId: win.id.replace('chat-', ''),
+      targetSellerName: win.senderName,
+      buyerId: currentUser?.id,
+      buyerName: currentUser?.name
+    };
+
+    // 1. Create 24h direct private project
+    createCustomerProject({
+      customerId: currentUser?.id || `cust-${Date.now()}`,
+      customerName: currentUser?.name || 'সম্মানিত বায়ার',
+      customerEmail: currentUser?.email || 'buyer@ptenit.com',
+      customerPhone: currentUser?.mobile || '01700000000',
+      serviceTitle: data.title,
+      category: data.category,
+      description: fullDescription,
+      budgetRange: computedRange,
+      priceEstimate: data.budget,
+      deadline: new Date(Date.now() + data.deliveryDays * 86400000).toISOString().split('T')[0],
+      isDirectOffer: true,
+      targetSellerId: win.id.replace('chat-', ''),
+      targetSellerName: win.senderName,
+      expiresAt: expiresAt,
+      attachmentName: data.attachmentName || (data.coverImage ? 'কভার ছবি সংযুক্ত' : undefined),
+      attachmentUrl: data.attachmentUrl || data.coverImage || undefined,
+      offerType: data.offerType || 'work_first',
+      isWorkFirst: (data.offerType || 'work_first') === 'work_first'
+    });
+
+    try {
+      const stored = JSON.parse(localStorage.getItem('ptenit_my_buyer_post_ids') || '[]');
+      const updated = Array.from(new Set([...stored, projId, `ord-${projId}`, `ord-ptenit-${projId}`]));
+      localStorage.setItem('ptenit_my_buyer_post_ids', JSON.stringify(updated));
+    } catch {}
+
+    // 2. Send structured message
+    const displayMsg = `💼 [ডিরেক্ট ২৪-ঘণ্টা প্রজেক্ট অফার]\n📌 প্রজেক্ট: ${data.title}\n🏷️ ক্যাটাগরি: ${data.category}\n💰 বাজেট: ${computedRange}\n⏱️ ডেলিভারি সময়: ${data.deliveryDays} দিন\n⏳ ভ্যালিডিটি: ২৪ ঘণ্টা (অটো-রিটার্ন প্রযোজ্য)\n\n👉 সেলার ২৪ ঘণ্টার মধ্যে রিসিভ না করলে অফারটি স্বয়ংক্রিয়ভাবে বায়ারের কাছে ফেরত আসবে।`;
+
+    sendChatMessage(win.id, displayMsg, undefined, offerMeta);
     setIsOfferModalOpen(false);
   };
 
@@ -3002,47 +3103,24 @@ const FullScreenChatThread: React.FC<FullScreenChatThreadProps> = ({
                     : 'bg-white dark:bg-[#243447] text-slate-900 dark:text-slate-100 border border-slate-200/70 dark:border-slate-700/60 rounded-2xl rounded-bl-xs'
                 }`}
               >
-                {m.text.includes('💼') || m.text.includes('অফার') || m.text.includes('অর্ডার') ? (
-                  <div className="my-1 p-3.5 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-md space-y-3 font-bengali">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-xl bg-emerald-100 text-[#006A4E]">
-                          <Briefcase className="w-4 h-4" />
-                        </span>
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-[#006A4E] block">
-                            ডাইরেক্ট প্রজেক্ট অর্ডার কার্ড
-                          </span>
-                          <span className="text-xs font-bold text-slate-800">
-                            {win.senderName}-এর জন্য ব্যক্তিগত প্রস্তাব
-                          </span>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-[#006A4E] text-[10px] font-black border border-emerald-200">
-                        অপেক্ষমাণ (Pending)
-                      </span>
-                    </div>
-
-                    <div className="text-xs space-y-1 text-slate-700">
-                      <p className="whitespace-pre-wrap font-medium">{m.text}</p>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          alert('অভিনন্দন! ডাইরেক্ট প্রজেক্ট অর্ডার কনফার্ম করা হয়েছে এবং এস্ক্রো গেটওয়েতে ফান্ড সিকিউরড করা হয়েছে।');
-                        }}
-                        className="w-full py-2 px-3 bg-[#006A4E] hover:bg-[#047857] text-white font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition active:scale-95"
-                      >
-                        <ShoppingBag className="w-4 h-4" />
-                        <span>অর্ডার একসেপ্ট ও সিকিউরড পেমেন্ট</span>
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="whitespace-pre-wrap break-words">{m.text}</p>
-                )}
+                {(() => {
+                  const directOffer = (m as any).directOffer || getDirectOfferFromMessage(m, win.senderName, win.id.replace('chat-', ''));
+                  if (directOffer) {
+                    return (
+                      <DirectProjectOfferChatCard
+                        offer={directOffer}
+                        isSelf={m.isSelf}
+                        currentUserId={currentUser?.id}
+                        currentUserRole={currentUser?.role}
+                        onAccept={(off) => acceptDirectOffer(off.projectId || off.orderId || win.id)}
+                        onDecline={(off) => declineDirectOffer(off.projectId || off.orderId || win.id)}
+                        onPublishToPublic={(off) => publishDirectProjectToPublicFeed(off.projectId || off.orderId || win.id)}
+                        onResend={(off) => resendDirectOffer24h(off.projectId || off.orderId || win.id)}
+                      />
+                    );
+                  }
+                  return <p className="whitespace-pre-wrap break-words">{m.text}</p>;
+                })()}
 
                 {m.meetLink && (
                   <div className="mt-2.5 p-3.5 bg-slate-900 text-white rounded-2xl border border-emerald-500/40 space-y-2.5 shadow-xl">
@@ -3191,90 +3269,15 @@ const FullScreenChatThread: React.FC<FullScreenChatThreadProps> = ({
         </form>
       )}
 
-      {/* CUSTOM OFFER MODAL */}
-      {isOfferModalOpen && (
-        <div 
-          onClick={() => setIsOfferModalOpen(false)}
-          className="fixed inset-0 z-[100000] pointer-events-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 font-bengali animate-in fade-in duration-150"
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white dark:bg-[#1C2733] border border-slate-200 dark:border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-4 sm:p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-blue-500" />
-                <span>কাস্টম প্রজেক্ট অফার পাঠান</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsOfferModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                  সার্ভিস / প্রজেক্টের বিবরণ
-                </label>
-                <input
-                  type="text"
-                  value={offerTitle}
-                  onChange={(e) => setOfferTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#006A4E]"
-                  placeholder="যেমন: ফুল স্ট্যাক ওয়েবসাইট ডেভেলপমেন্ট"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                    বাজেট (টাকা ৳)
-                  </label>
-                  <input
-                    type="number"
-                    value={offerPrice}
-                    onChange={(e) => setOfferPrice(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#006A4E]"
-                    placeholder="৫০০০"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
-                    ডেলিভারি সময়
-                  </label>
-                  <input
-                    type="text"
-                    value={offerDelivery}
-                    onChange={(e) => setOfferDelivery(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#006A4E]"
-                    placeholder="৩ দিন"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsOfferModalOpen(false)}
-                className="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold"
-              >
-                বাতিল
-              </button>
-              <button
-                type="button"
-                onClick={handleSendCustomOffer}
-                className="flex-1 py-2 rounded-xl bg-[#047857] hover:bg-blue-500 text-white text-xs font-black shadow-md transition cursor-pointer"
-              >
-                অফার পাঠান
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 24-HOUR DIRECT CUSTOM PROJECT OFFER MODAL */}
+      <SendDirectOfferModal
+        isOpen={isOfferModalOpen}
+        onClose={() => setIsOfferModalOpen(false)}
+        recipientName={win.senderName}
+        recipientRole={win.senderRole}
+        recipientAvatar={win.senderAvatar}
+        onSubmit={handleSendCustomOfferData}
+      />
     </div>
   );
 };

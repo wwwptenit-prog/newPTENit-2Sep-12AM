@@ -1,0 +1,168 @@
+[
+  {
+    "id": "default",
+    "youtubeUrl": "https://youtube.com/ptenit",
+    "bankBranch": "Uttara Branch, Dhaka",
+    "taxRegistrationNumber": "BIN-1928374651029",
+    "nagadNumber": "01700000000",
+    "bkashAccountType": "Personal",
+    "rocketAccountType": "Personal",
+    "privacyPolicyText": "আপনার ব্যক্তিগত তথ্য যেমন নাম, ইমেইল, ফোন নম্বর এবং পেমেন্ট ট্রানজ্যাকশন আইডি সম্পূর্ণ সুরক্ষিত রাখা হয়। আমরা কোনো তৃতীয় পক্ষের কাছে আপনার গোপনীয় তথ্য শেয়ার করি না।",
+    "subAdminMembers": [
+      {
+        "permissions": [
+          "support_chat",
+          "client_tickets",
+          "live_queries"
+        ],
+        "name": "তানভীর আহমেদ (সাপোর্ট হেড)",
+        "id": "sub-1",
+        "status": "active",
+        "phone": "01711223344",
+        "assignedAt": "2026-01-10",
+        "email": "tanvir.support@ptenit.com",
+        "role": "Support Specialist"
+      },
+      {
+        "phone": "01822334455",
+        "status": "active",
+        "assignedAt": "2026-02-01",
+        "id": "sub-2",
+        "name": "রাফসান জামি (অর্ডার এক্সিকিউটিভ)",
+        "role": "Order Manager",
+        "permissions": [
+          "orders_manage",
+          "client_deliveries",
+          "billing_verify"
+        ],
+        "email": "rafsan.orders@ptenit.com"
+      }
+    ],
+    "aboutUsText": "PTEN IT Solutions হলো বাংলাদেশের শীর্ষস্থানীয় ডিজিটাল সার্ভিস ও আইটি স্কিল ডেভেলপমেন্ট প্ল্যাটফর্ম। আমরা ক্লায়েন্টদের বিশ্বমানের সফটওয়্যার, ওয়েব ডেভেলপমেন্ট, ডিজিটাল মার্কেটিং সার্ভিস এবং তরুণদের প্রফেশনাল স্কিল ট্রেনিং প্রদান করি।",
+    "googleTagManagerId": "GTM-PTENIT1",
+    "defaultTrainerRevShare": 90,
+    "bankName": "Dutch-Bangla Bank PLC",
+    "ogType": "website",
+    "twitterCard": "summary_large_image",
+    "ogImageUrl": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80",
+    "serviceTaxPercent": 10,
+    "heroBannerUrl": "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=80",
+    "moneyBackGuaranteeText": "১০-দিনের মানি ব্যাক ও এস্ক্রো গ্যারান্টি",
+    "email": "info@ptenit.com",
+    "moneyBackGuaranteeDays": 10,
+    "bankAccountName": "PTENIT IT SOLUTIONS",
+    "statsSatisfaction": "95%",
+    "footerCopyrightText": "© ২০২৬ PTEN IT Solutions. সর্বস্বত্ব সংরক্ষিত।",
+    "announcementNoticeText": "📢 ঈদ মেগা ধামাকা অফার! প্রিমিয়াম সার্ভিস ও ডিজিটাল প্রোডাক্ট কোর্সে বিশেষ ছাড় চলছে!",
+    "upayAccountType": "Personal",
+    "whatsapp": "+8801700000000",
+    "bkashNumber": "01712345678",
+    "googleAnalyticsId": "G-PTENIT8890",
+    "platformTaxPercent": 5,
+    "bkashLogoUrl": "https://upload.wikimedia.org/wikipedia/commons/7/77/BKash_logo.png",
+    "linkedinUrl": "https://linkedin.com/company/ptenit",
+    "metaPixelId": "7891234567890",
+    "customScalePercent": 100,
+    "tiktokPixelId": "C1234567890TIK",
+    "rocketLogoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Rocket_mobile_banking_logo.svg/640px-Rocket_mobile_banking_logo.svg.png",
+    "robotsTxt": "User-agent: *\nAllow: /\nDisallow: /admin\nSitemap: https://ptenit.com/sitemap.xml",
+    "seoTitle": "PTENit – IT Services, Web Development, Digital Marketing & IT Training Academy",
+    "ogDescription": "Grow your career & business with PTENit's expert software development, digital marketing services, and IT courses.",
+    "instagramUrl": "https://instagram.com/ptenit",
+    "heroHeading": "ডিজিটাল ক্যারিয়ার ও বিজনেস গড়ুন",
+    "heroPhotoUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+    "invoiceTaxNote": "সকল মূল্যের সাথে সরকারি ভ্যাট ও ট্যাক্স প্রযোজ্য।",
+    "metaKeywords": "PTENit, IT Services Bangladesh, Web Development, Digital Marketing, SEO Course, Graphic Design, Freelancing, IT Training Uttara",
+    "heroSubtext": "আধুনিক IT সেবাসমূহ, কাস্টম সফটওয়্যার, ডিজিটাল মার্কেটিং ও প্রফেশনাল ট্রেনিং।",
+    "rocketNumber": "01900000000",
+    "metaDescription": "PTENit offers professional web design, software development, digital marketing, graphic design, and IT courses with lifetime support in Bangladesh.",
+    "twitterHandle": "@ptenit_bd",
+    "paymentLogos": [
+      {
+        "logoUrl": "https://upload.wikimedia.org/wikipedia/commons/7/77/BKash_logo.png",
+        "name": "bKash",
+        "isActive": true,
+        "id": "pay-bkash",
+        "type": "mobile"
+      },
+      {
+        "id": "pay-nagad",
+        "isActive": true,
+        "logoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Nagad_Logo.png/800px-Nagad_Logo.png",
+        "type": "mobile",
+        "name": "Nagad"
+      },
+      {
+        "id": "pay-rocket",
+        "logoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Rocket_mobile_banking_logo.svg/640px-Rocket_mobile_banking_logo.svg.png",
+        "type": "mobile",
+        "isActive": true,
+        "name": "DBBL Rocket"
+      },
+      {
+        "isActive": true,
+        "type": "mobile",
+        "id": "pay-upay",
+        "name": "Upay",
+        "logoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Upay_logo.png/640px-Upay_logo.png"
+      },
+      {
+        "isActive": true,
+        "type": "card",
+        "id": "pay-visa",
+        "name": "Visa",
+        "logoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Visa_Inc._logo.svg/640px-Visa_Inc._logo.svg.png"
+      },
+      {
+        "id": "pay-mastercard",
+        "isActive": true,
+        "logoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/640px-Mastercard-logo.svg.png",
+        "type": "card",
+        "name": "MasterCard"
+      },
+      {
+        "name": "Dutch-Bangla Bank / Nexus",
+        "logoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Dutch-Bangla_Bank_Logo.svg/640px-Dutch-Bangla_Bank_Logo.svg.png",
+        "type": "bank",
+        "isActive": true,
+        "id": "pay-dbbl"
+      },
+      {
+        "name": "Islami Bank Bangladesh",
+        "isActive": true,
+        "type": "bank",
+        "logoUrl": "https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Islami_Bank_Bangladesh_Limited_Logo.svg/640px-Islami_Bank_Bangladesh_Limited_Logo.svg.png",
+        "id": "pay-ibbl"
+      }
+    ],
+    "googleSiteVerification": "google-site-verification-ptenit-12345",
+    "conversionApiToken": "EAAG...CONVERSION_API_TOKEN",
+    "upayLogoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Upay_logo.png/640px-Upay_logo.png",
+    "refundPolicyText": "১০ দিনের মানি ব্যাক গ্যারান্টি শর্ত সাপেক্ষে প্রযোজ্য। যদি সার্ভিস বা কোর্স আপনার প্রত্যাশা অনুযায়ী না হয়, তবে আমাদের সাপোর্ট টিমে যোগাযোগ করে রিফান্ড রিকোয়েস্ট দিতে পারবেন।",
+    "upayNumber": "01800000000",
+    "nagadLogoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Nagad_Logo.png/800px-Nagad_Logo.png",
+    "statsCourses": "50+",
+    "statsProjects": "100+",
+    "statsStudents": "500+",
+    "structuredDataJson": "{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"Organization\",\n  \"name\": \"PTENit Solutions\",\n  \"url\": \"https://ptenit.com\",\n  \"contactPoint\": {\n    \"@type\": \"ContactPoint\",\n    \"telephone\": \"+8801700000000\",\n    \"contactType\": \"customer service\",\n    \"areaServed\": \"BD\",\n    \"availableLanguage\": [\n      \"en\",\n      \"bn\"\n    ]\n  },\n  \"sameAs\": [\n    \"https://facebook.com/ptenit\",\n    \"https://youtube.com/ptenit\",\n    \"https://linkedin.com/company/ptenit\"\n  ]\n}",
+    "officeAddress": "House #12, Road #04, Sector #07, Uttara, Dhaka, Bangladesh",
+    "courseVatPercent": 15,
+    "ogTitle": "PTENit – Complete IT Solutions & Skill Development Platform",
+    "_lastUpdated": "2026-09-27T15:17:05.757Z",
+    "facebookUrl": "https://facebook.com/ptenit",
+    "defaultWithdrawalFee": 1.5,
+    "mobileResponsiveMode": "fluid_100",
+    "defaultCommissionRate": 10,
+    "nagadAccountType": "Personal",
+    "enableMoneyBackGuarantee": true,
+    "canonicalUrl": "https://ptenit.com",
+    "heroVisualType": "photo",
+    "defaultClientFee": 0,
+    "termsAndConditionsText": "১. আমাদের সকল ডিজিটাল সার্ভিস এবং কোর্স ব্যবহারের ক্ষেত্রে প্রফেশনাল পলিসি প্রযোজ্য। ২. পেমেন্ট সম্পন্ন করার পর অর্ডার স্ট্যাটাস ট্র্যাকিং প্যানেলে দেখা যাবে। ৩. অনৈতিক বা কপিরাইট লঙ্ঘনে সার্ভিস সাময়িক স্থগিত হতে পারে।",
+    "freelancerTaxDeductionPercent": 5,
+    "enableFullWidth100Percent": true,
+    "phone": "+880 1700-000000",
+    "containerMaxWidth": "100%",
+    "bankAccountNumber": "2181100098765"
+  }
+]

@@ -40,7 +40,8 @@ interface AdminTaskTabsProps {
 export const AVAILABLE_TASKS: { id: string; label: string; desc: string; category: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'dashboard', label: 'ড্যাশবোর্ড ওভারভিউ', desc: 'সার্বিক প্ল্যাটফর্ম রেভিনিউ, অ্যানালিটিক্স ও মেট্রিক্স', category: 'কোর', icon: LayoutDashboard },
   { id: 'support', label: 'কাস্টমার কেয়ার হাব', desc: 'স্মার্ট অটো-রাউটিং টিকেট ও সাপোর্ট এজেন্ট দায়িত্ব বণ্টন', category: 'সাপোর্ট', icon: Headphones },
-  { id: 'users_teacher_seller', label: 'ইউজার ডিরেক্টরি ও কমপ্লেইন', desc: 'টিচার, সেলার, শিক্ষার্থী, বায়ার মনিটরিং ও রেস্ট্রিক্ট', category: 'ইউজার', icon: Users },
+  { id: 'users', label: 'সকল ইউজার ও ডিরেক্টরি', desc: 'টিচার, সেলার, শিক্ষার্থী, বায়ার সার্বিক মনিটরিং ও কন্ট্রোল', category: 'ইউজার', icon: Users },
+  { id: 'users_teacher_seller', label: 'টিচার ও সেলার ডিরেক্টরি', desc: 'টিচার ও ফ্রিল্যান্সার সেলার অডিট ও অ্যাক্সেস', category: 'ইউজার', icon: Users },
   { id: 'ai_core', label: 'ফাইন্যান্সিয়াল ও বিলিং কোর', desc: 'সকল পেমেন্ট সংক্রান্ত কাজ, বিল ভাউচার, পেআউট অনুরোধ ও অডিট হিসাব', category: 'ফাইন্যান্স', icon: CreditCard },
   { id: 'sub_admins', label: 'সাব-এডমিন রোল ও এক্সেস (RBAC)', desc: 'পদবীভিত্তিক ডিপার্টমেন্ট ম্যানেজার ও পারমিশন কন্ট্রোল', category: 'টিম', icon: ShieldCheck },
   { id: 'billing_verify', label: 'বিল জমা ও পেমেন্ট ভেরিফাই', desc: 'বিকাশ, নগদ, রকেট ও ব্যাংক পেমেন্ট অনুমোদন', category: 'পেমেন্ট', icon: CreditCard },
@@ -88,8 +89,8 @@ export const AdminTaskTabs: React.FC<AdminTaskTabsProps> = ({
         
         {/* Left: Interactive Tabs List */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none flex-1 min-w-0">
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-slate-400 text-xs shrink-0 font-medium">
-            <Layers className="w-3.5 h-3.5 text-amber-400" />
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-slate-400 text-xs lg:text-sm shrink-0 font-medium">
+            <Layers className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-amber-400" />
             <span>টাস্কস:</span>
           </div>
 
@@ -100,18 +101,18 @@ export const AdminTaskTabs: React.FC<AdminTaskTabsProps> = ({
             return (
               <div
                 key={tab.id}
-                className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer select-none shrink-0 ${
+                className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs lg:text-sm font-bold transition-all cursor-pointer select-none shrink-0 ${
                   isActive
                     ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md ring-1 ring-amber-400/50'
                     : 'bg-slate-800/90 text-slate-300 border-slate-700 hover:bg-slate-800 hover:text-white'
                 }`}
                 onClick={() => onSelectTab(tab.id)}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-slate-950' : 'text-amber-400'}`} />
-                <span className="truncate max-w-[130px] sm:max-w-[180px]">{tab.label}</span>
+                <Icon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 ${isActive ? 'text-slate-950' : 'text-amber-400'}`} />
+                <span className="truncate max-w-[130px] sm:max-w-[200px]">{tab.label}</span>
 
                 {!!tab.badge && tab.badge > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold ${
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] lg:text-[11px] font-mono font-bold ${
                     isActive ? 'bg-slate-950 text-amber-300' : 'bg-rose-500 text-white'
                   }`}>
                     {tab.badge}
@@ -141,19 +142,19 @@ export const AdminTaskTabs: React.FC<AdminTaskTabsProps> = ({
           <button
             type="button"
             onClick={() => setTaskPickerOpen(true)}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-dashed border-amber-500/40 text-amber-300 hover:bg-amber-500/15 hover:border-amber-400 transition text-xs font-bold flex items-center gap-1 shrink-0 cursor-pointer"
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800/80 border border-dashed border-amber-500/40 text-amber-300 hover:bg-amber-500/15 hover:border-amber-400 transition text-xs lg:text-sm font-bold flex items-center gap-1.5 shrink-0 cursor-pointer"
             title="নতুন কোনো টাস্ক ওপেন করুন"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
             <span className="hidden sm:inline">নতুন টাস্ক</span>
           </button>
         </div>
 
         {/* Right: Quick Active Status indicator */}
         <div className="flex items-center gap-2 shrink-0 justify-end">
-          <div className="px-3 py-1.5 rounded-xl bg-slate-800/80 text-slate-300 border border-slate-700/80 text-xs font-medium flex items-center gap-2 shadow-xs">
+          <div className="px-3 py-1.5 rounded-xl bg-slate-800/80 text-slate-300 border border-slate-700/80 text-xs lg:text-sm font-medium flex items-center gap-2 shadow-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="text-slate-300 text-xs">ওয়ার্কস্পেস অ্যাক্টিভ</span>
+            <span className="text-slate-300 text-xs lg:text-sm">ওয়ার্কস্পেস অ্যাক্টিভ</span>
           </div>
         </div>
       </div>

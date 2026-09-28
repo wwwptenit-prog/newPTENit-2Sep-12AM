@@ -1,0 +1,71 @@
+{
+  "id": "course-uiux-figma",
+  "liveClassLink": "https://meet.google.com/figma-uiux-live",
+  "offerStatus": "accepted",
+  "requirements": [
+    "কম্পিউটার ও ইন্টারনেট কানেকশন"
+  ],
+  "isFree": false,
+  "lessonsCount": 16,
+  "instructorRole": "Lead Product Designer & UX Researcher",
+  "description": "ফিগমা ব্যবহার করে আধুনিক মোবাইল অ্যাপ এবং ওয়েব অ্যাপ্লিকেশন UI/UX ডিজাইন, ওয়্যারফ্রেম, ইন্টারেক্টিভ প্রোটোটাইপিং ও ডিজাইন সিস্টেম তৈরি।",
+  "isPublicOffer": true,
+  "published": true,
+  "price": 5500,
+  "targetModules": 4,
+  "liveClassModuleNo": "০২",
+  "duration": "6 Weeks (20 Hours)",
+  "targetAssignments": 16,
+  "whatYouWillLearn": [
+    "Figma Auto-layout & Components",
+    "Design System & Variables",
+    "Interactive Micro-interactions & Prototyping"
+  ],
+  "discountPrice": 3800,
+  "rating": 4.9,
+  "liveClassTime": "20:00",
+  "createdAt": "2026-02-15",
+  "level": "advanced",
+  "tags": [
+    "#UIUX",
+    "#Figma",
+    "#ProductDesign"
+  ],
+  "assignedInstructorId": "teacher-1",
+  "instructor": "তানভীর আহমেদ (ইনস্ট্রাক্টর)",
+  "liveSchedule": "০৬ সেপ্টেম্বর ২০২৬, রাত ০৮:০০ টা",
+  "teacherCommissionRate": 40,
+  "_lastSynced": "2026-09-22T19:15:07.692Z",
+  "liveClassLessonNo": "০১",
+  "thumbnail": "https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=800&q=80",
+  "liveClassTopic": "Figma Auto-layout, Components ও Design System",
+  "title": "UI/UX Design & Figma Prototyping Masterclass 2026",
+  "liveClassDate": "2026-09-06",
+  "category": "Graphic Design",
+  "enrolledCount": 185,
+  "liveClassSerialNo": "০৩",
+  "liveClassStatus": "scheduled",
+  "modules": [
+    {
+      "order": 1,
+      "courseId": "course-uiux-figma",
+      "title": "ফিগমা ফান্ডামেন্টালস ও অটো লেআউট",
+      "lessons": [
+        {
+          "title": "লেসন ০১: ফিগমা ইন্টারফেস ও ভেক্টর টুলস পরিচিতি",
+          "videoUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ",
+          "order": 1,
+          "courseId": "course-uiux-figma",
+          "id": "l-figma-1",
+          "isFreePreview": true,
+          "moduleId": "m-figma-1",
+          "content": "ফাইল সেটআপ ও বেসিক শেপ আর্কিটেকচার।",
+          "duration": "২৫ মিনিট"
+        }
+      ],
+      "id": "m-figma-1"
+    }
+  ],
+  "reviewsCount": 42,
+  "targetLessons": 16
+}

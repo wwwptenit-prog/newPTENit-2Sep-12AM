@@ -11,9 +11,11 @@ import {
   AlertCircle, 
   Eye, 
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Globe
 } from 'lucide-react';
 import { MarketplaceOrder } from '../types';
+import { useData } from '../context/DataContext';
 
 interface MarketplaceCenterBuyerOrdersProps {
   orders: MarketplaceOrder[];
@@ -36,6 +38,7 @@ export const MarketplaceCenterBuyerOrders: React.FC<MarketplaceCenterBuyerOrders
   onViewOrderDetails,
   onBrowseGigs
 }) => {
+  const { publishDirectProjectToPublicFeed, resendDirectOffer24h } = useData();
   const [statusFilter, setStatusFilter] = useState<'in_progress' | 'in_review' | 'completed'>('in_progress');
 
   // Filter orders by status
@@ -54,8 +57,25 @@ export const MarketplaceCenterBuyerOrders: React.FC<MarketplaceCenterBuyerOrders
     });
   }, [orders, statusFilter]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (order: MarketplaceOrder) => {
+    if (order.isExpiredReturned) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[11px] font-bold border border-amber-300 dark:border-amber-800 animate-pulse">
+          <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+          ২৪h উত্তীর্ণ • অটো ফেরত
+        </span>
+      );
+    }
+    if (order.isDirectOffer && (order.status === 'pending' || order.status === 'pending_approval')) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 text-[11px] font-bold border border-sky-300 dark:border-sky-800">
+          <Clock className="w-3 h-3 text-sky-600 dark:text-sky-400 animate-spin" />
+          প্রাইভেট অফার (২৪h)
+        </span>
+      );
+    }
+
+    switch (order.status as string) {
       case 'in_progress':
       case 'active':
         return (
@@ -91,7 +111,7 @@ export const MarketplaceCenterBuyerOrders: React.FC<MarketplaceCenterBuyerOrders
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-bold border border-slate-300 dark:border-slate-700">
-            {status}
+            {order.status}
           </span>
         );
     }
@@ -244,9 +264,42 @@ export const MarketplaceCenterBuyerOrders: React.FC<MarketplaceCenterBuyerOrders
                       <ShieldCheck className="w-3.5 h-3.5" />
                       ৳{(order.totalAmount || order.price || 0).toLocaleString()} এসক্রো
                     </span>
-                    {getStatusBadge(order.status)}
+                    {getStatusBadge(order)}
                   </div>
                 </div>
+
+                {/* 24-Hour Auto-Returned Direct Offer Action Bar */}
+                {order.isExpiredReturned && (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="text-xs text-amber-900 dark:text-amber-200 space-y-0.5">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        ২৪ ঘণ্টার মধ্যে সেলার রিসিভ না করায় অফারটি ফেরত এসেছে
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        এখনই সবার জন্য পাবলিক ফিডে উন্মুক্ত করুন অথবা নতুন করে পাঠান।
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => publishDirectProjectToPublicFeed(order.id)}
+                        className="px-3 py-1.5 bg-[#006A4E] hover:bg-[#047857] text-white text-xs font-black rounded-xl transition cursor-pointer active:scale-95 flex items-center gap-1.5 shadow-xs"
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        <span>পাবলিক ফিডে পোস্ট করুন 📢</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => resendDirectOffer24h(order.id)}
+                        className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition cursor-pointer"
+                        title="নতুন ২৪ ঘণ্টার জন্য পুনরায় পাঠান"
+                      >
+                        পুনরায় পাঠান
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Gig Title & Package */}
                 <div className="space-y-1">

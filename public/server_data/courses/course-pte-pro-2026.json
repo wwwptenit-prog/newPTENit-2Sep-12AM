@@ -1,0 +1,49 @@
+{
+  "id": "course-pte-pro-2026",
+  "offerStatus": "offered",
+  "title": "PTE Academic - Professional Level (Trainer Certification & AI Scoring)",
+  "instructorRole": "PTE Master Trainer",
+  "lessonsCount": 24,
+  "liveClassLessonNo": "০১",
+  "isPublicOffer": true,
+  "description": "মেইন এডমিন কর্তৃক অফারকৃত প্রফেশনাল কোর্স। PTE ফুল মক টেস্ট, স্পেশাল এআই স্কোরিং এনালাইসিস এবং ট্রেইনার লেভেল মাস্টারি।",
+  "liveClassLink": "https://meet.google.com/pte-pro-mock",
+  "requirements": [
+    "PTE Advanced level experience"
+  ],
+  "thumbnail": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80",
+  "level": "professional",
+  "whatYouWillLearn": [
+    "Full Mock Test with AI Band Breakdown",
+    "1-on-1 Trainer Evaluation & Accent Training",
+    "Advanced Fast Scoring Hacks"
+  ],
+  "duration": "8 Weeks (32 Hours)",
+  "discountPrice": 6800,
+  "liveClassTime": "20:00",
+  "targetModules": 8,
+  "instructor": "তানভীর আহমেদ (ইনস্ট্রাক্টর)",
+  "liveClassSerialNo": "০৬",
+  "rating": 5,
+  "price": 9500,
+  "liveSchedule": "০৪ সেপ্টেম্বর ২০২৬, রাত ০৮:০০ টা",
+  "liveClassTopic": "PTE AI Band Breakdown & 1-on-1 Accent Evaluation",
+  "teacherCommissionRate": 50,
+  "_lastSynced": "2026-09-22T19:15:07.692Z",
+  "published": true,
+  "isFree": false,
+  "tags": [
+    "#PTEPro",
+    "#PTEMastery"
+  ],
+  "targetLessons": 24,
+  "reviewsCount": 0,
+  "category": "PTE Academic",
+  "assignedInstructorId": "teacher-1",
+  "liveClassModuleNo": "০৩",
+  "modules": [],
+  "liveClassDate": "2026-09-04",
+  "createdAt": "2026-02-18",
+  "enrolledCount": 0,
+  "liveClassStatus": "scheduled"
+}

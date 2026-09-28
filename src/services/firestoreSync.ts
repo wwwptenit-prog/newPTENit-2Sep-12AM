@@ -188,3 +188,23 @@ export async function syncCollectionToFirestore(collectionName: string, items: a
     return false;
   }
 }
+
+/**
+ * Direct one-time fetch of an entire collection from Firestore
+ */
+export async function fetchServerCollection<T>(collectionName: string): Promise<T[]> {
+  try {
+    const colRef = collection(db, collectionName);
+    const snapshot = await getDocs(colRef);
+    if (!snapshot.empty) {
+      return snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+      } as unknown as T));
+    }
+    return [];
+  } catch (error) {
+    console.warn(`[Firestore fetchServerCollection] Failed to fetch ${collectionName}:`, error);
+    return [];
+  }
+}

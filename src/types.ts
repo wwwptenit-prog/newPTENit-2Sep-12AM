@@ -135,6 +135,11 @@ export interface CustomerProject {
   assignedStaff?: string;
   offerType?: string;
   isWorkFirst?: boolean;
+  isDirectOffer?: boolean;
+  targetSellerId?: string;
+  targetSellerName?: string;
+  expiresAt?: string;
+  isExpiredReturned?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -478,6 +483,7 @@ export interface NotificationItem {
   read: boolean;
   type: 'info' | 'success' | 'warning' | 'error';
   category?: 'seller' | 'mentor' | 'message' | 'payout' | 'system' | 'buyer' | 'course' | 'enrollment' | string;
+  recipientId?: string;
   recipientRole?: 'seller' | 'buyer' | 'all';
   mode?: 'buying' | 'selling' | 'all' | string;
   targetTab?: string;
@@ -514,6 +520,31 @@ export interface DirectMessageItem {
   targetTab?: string;
 }
 
+export interface DirectOfferMeta {
+  id: string;
+  orderId?: string;
+  projectId?: string;
+  title: string;
+  category?: string;
+  budget: number;
+  budgetRange?: string;
+  deliveryDays: number;
+  description: string;
+  skills?: string;
+  requirements?: string[];
+  attachmentName?: string;
+  attachmentUrl?: string;
+  coverImage?: string;
+  offerType?: 'work_first' | 'paid';
+  createdAt: string;
+  expiresAt: string; // ISO 24h
+  status: 'pending' | 'accepted' | 'declined' | 'expired_returned';
+  targetSellerId?: string;
+  targetSellerName?: string;
+  buyerId?: string;
+  buyerName?: string;
+}
+
 export interface ChatMessage {
   id: string;
   senderName: string;
@@ -522,6 +553,7 @@ export interface ChatMessage {
   text: string;
   time: string;
   meetLink?: string;
+  directOffer?: DirectOfferMeta;
 }
 
 export interface ActiveChatWindow {
@@ -530,6 +562,8 @@ export interface ActiveChatWindow {
   senderName: string;
   senderRole?: string;
   senderAvatar?: string;
+  targetUserId?: string;
+  targetUserEmail?: string;
   messages: ChatMessage[];
   minimized?: boolean;
 }
@@ -641,6 +675,11 @@ export interface MarketplaceJob {
   assignedStaffName?: string;
   proposalsCount: number;
   status: 'open' | 'assigned' | 'in_progress' | 'delivered' | 'completed' | 'cancelled';
+  isDirectOffer?: boolean;
+  targetSellerId?: string;
+  targetSellerName?: string;
+  expiresAt?: string;
+  isExpiredReturned?: boolean;
   createdAt: string;
 }
 
@@ -704,6 +743,10 @@ export interface MarketplaceOrder {
   deadlineDate: string;
   unreadMessageCount?: number;
   isPublicOffer?: boolean;
+  isDirectOffer?: boolean;
+  targetSellerId?: string;
+  expiresAt?: string;
+  isExpiredReturned?: boolean;
   assignedExpert?: string;
   reachCount?: number;
   likesCount?: number;

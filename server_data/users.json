@@ -1,0 +1,14 @@
+[
+  {
+    "id": "admin-1",
+    "name": "Mds Kazi Sohag (Admin)",
+    "email": "mdskazisohag@gmail.com",
+    "mobile": "01700000000",
+    "role": "admin",
+    "isSeller": true,
+    "sellerStatus": "approved",
+    "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+    "title": "Founder, CEO & Lead Admin",
+    "createdAt": "2026-01-01"
+  }
+]

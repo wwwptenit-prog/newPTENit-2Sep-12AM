@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   User,
   Course,
@@ -26,7 +26,8 @@ import {
   MarketplaceOrder,
   DigitalProduct,
   LiveClassSession,
-  CompanyBillItem
+  CompanyBillItem,
+  DirectOfferMeta
 } from '../types';
 import {
   initialSiteSettings,
@@ -52,6 +53,8 @@ import {
   createUserWithEmailAndPassword, 
   signOut, 
   sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithPopup,
   User as FirebaseUser
 } from 'firebase/auth';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
@@ -59,7 +62,8 @@ import {
   syncDocToFirestore, 
   deleteDocFromFirestore, 
   subscribeToCollection, 
-  syncCollectionToFirestore 
+  syncCollectionToFirestore,
+  fetchServerCollection
 } from '../services/firestoreSync';
 
 interface DataContextType {
@@ -99,7 +103,7 @@ interface DataContextType {
   isMessengerInboxOpen: boolean;
   setIsMessengerInboxOpen: (open: boolean) => void;
   initialMessengerTab: 'messages' | 'notifications' | 'courses';
-  openMessengerInbox: (conversationId?: string, initialTab?: 'messages' | 'notifications' | 'courses' | string, orderId?: string) => void;
+  openMessengerInbox: (conversationId?: string, initialTab?: 'messages' | 'notifications' | 'courses', orderId?: string) => void;
   closeMessengerInbox: () => void;
   marketplaceMode: 'buying' | 'selling';
   setMarketplaceMode: (mode: 'buying' | 'selling') => void;
@@ -159,6 +163,8 @@ interface DataContextType {
   
   // Auth & Profile
   login: (emailOrPhone: string, pass: string) => boolean;
+  loginWithGoogle: (preferredRole?: 'customer' | 'specialist' | 'both') => Promise<boolean>;
+  loginWithGoogleDirect: (email: string, displayName: string, preferredRole?: 'customer' | 'specialist' | 'both') => boolean;
   signup: (userData: Omit<User, 'id' | 'createdAt'>, pass: string) => boolean;
   logout: () => void;
   demoLogin: (role: 'student' | 'instructor' | 'customer' | 'admin') => void;
@@ -248,18 +254,16 @@ interface DataContextType {
   // Direct Messages & Popovers
   rightColumnView: 'default' | 'messages' | 'notifications';
   setRightColumnView: React.Dispatch<React.SetStateAction<'default' | 'messages' | 'notifications'>>;
-  unreadMarketplaceMsgCount: number;
-  roleScopedNotifications: NotificationItem[];
   readConversationIds: string[];
   markConversationRead: (id: string) => void;
-  markAllConversationsRead: (role?: string) => void;
+  markAllConversationsRead: () => void;
   markDirectMessageRead: (id: string) => void;
-  markAllDirectMessagesRead: (role?: string) => void;
+  markAllDirectMessagesRead: () => void;
   sendDirectMessage: (msg: Omit<DirectMessageItem, 'id' | 'read'>) => void;
-  openChatWindow: (contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; isClosed?: boolean; isReadOnly?: boolean; initialMessage?: string }) => void;
+  openChatWindow: (contact: { id?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string }) => void;
   closeChatWindow: (id: string) => void;
   toggleMinimizeChatWindow: (id: string) => void;
-  sendChatMessage: (windowId: string, text: string, meetLink?: string) => void;
+  sendChatMessage: (windowId: string, text: string, meetLink?: string, directOffer?: DirectOfferMeta) => void;
   createGoogleMeetCall: (windowId: string, customMeetLink?: string) => void;
   inAppMeetState: {
     isOpen: boolean;
@@ -296,6 +300,10 @@ interface DataContextType {
   deleteJob: (id: string) => void;
   deleteMarketplaceOrder: (id: string) => void;
   updateMarketplaceOrder: (id: string, updates: Partial<MarketplaceOrder>) => void;
+  acceptDirectOffer: (orderIdOrProjectId: string) => void;
+  declineDirectOffer: (orderIdOrProjectId: string, reason?: string) => void;
+  publishDirectProjectToPublicFeed: (orderIdOrProjectId: string) => void;
+  resendDirectOffer24h: (orderIdOrProjectId: string) => void;
   deleteTeacherPayout: (id: string) => void;
   deleteTeacherNotice: (id: string) => void;
 
@@ -333,6 +341,22 @@ export const checkAndAutoCancelOverdueOrders = (orders: MarketplaceOrder[]): { u
         return { ...ord, overdueDelayText: delayText };
       }
       return ord;
+    }
+
+    // 24-Hour Direct Private Offer check (If direct offer to specific seller/admin is not accepted within 24 hours, auto-return to buyer)
+    if (ord.isDirectOffer && (ord.status === 'pending' || ord.status === 'pending_approval')) {
+      const createdTime = ord.createdAt ? new Date(ord.createdAt).getTime() : 0;
+      const expiresAtMs = ord.expiresAt ? new Date(ord.expiresAt).getTime() : (createdTime ? createdTime + 24 * 3600 * 1000 : 0);
+      if (expiresAtMs > 0 && now > expiresAtMs) {
+        hasChanges = true;
+        return {
+          ...ord,
+          status: 'cancelled' as const,
+          isExpiredReturned: true,
+          cancelledReason: 'সেলার ২৪ ঘণ্টার মধ্যে অফারটি রিসিভ না করায় স্বয়ংক্রিয়ভাবে ফেরত এসেছে (Auto-Returned)',
+          cancelledAt: new Date().toISOString()
+        };
+      }
     }
 
     // If order is in_review or revision_requested (Buyer 24h review grace + 48h penalty cycle)
@@ -640,7 +664,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return JSON.parse(saved);
       } catch {}
     }
-    return initialUsers[5] || null;
+    return null;
   });
 
   // Marketplace Freelancing Platform User Account (Buyer or Seller) - Unified with ptenitUser
@@ -653,7 +677,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return JSON.parse(saved);
       } catch {}
     }
-    return initialUsers[5] || null;
+    return null;
   });
 
   // Unified currentUser across PTENit and Marketplace
@@ -695,23 +719,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [orders, setOrders] = useState<PaymentOrder[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_orders`);
-    return saved ? JSON.parse(saved) : [
-      {
-        id: "ord-101",
-        userId: "student-1",
-        userName: "সাব্বির রহমান",
-        userEmail: "student@ptenit.com",
-        userMobile: "01812345678",
-        courseId: "course-canva",
-        courseTitle: "Canva Design & Freelancing Masterclass",
-        amount: 850,
-        paymentMethod: "bKash",
-        transactionId: "BK9X82M1A7",
-        senderPhone: "01812345678",
-        status: "Paid",
-        createdAt: "2026-02-05 14:30"
-      }
-    ];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed.filter(o => o.id !== 'ord-101');
+      } catch {}
+    }
+    return [];
   });
 
   const [companyBills, setCompanyBills] = useState<CompanyBillItem[]>(() => {
@@ -753,18 +767,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_messages`);
-    return saved ? JSON.parse(saved) : [
-      {
-        id: "msg-1",
-        name: "তানজিল আহমেদ",
-        phone: "01711223344",
-        email: "tanjil@gmail.com",
-        serviceOrCourse: "Web Design & Development",
-        message: "আমার একটি ই-কমার্স ফার্মের জন্য কাস্টম ওয়েবসাইট বানাতে চাই, কোটেশন প্রয়োজন।",
-        createdAt: "2026-02-20 10:15",
-        read: false
-      }
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
@@ -776,88 +779,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // fallback
       }
     }
-    return [
-      {
-        id: "notif-1",
-        title: "ক্লাইন্ট অর্ডার #ORD-8821 আপডেট",
-        message: "আপনার ই-কমার্স প্রজেক্টের এস্ক্রো ওয়ালেটে ৳১২,০০০ জমা হয়েছে। প্রজেক্ট স্ট্যাটাস দেখতে ক্লিক করুন।",
-        time: "১০ মিনিট আগে",
-        read: false,
-        type: "success",
-        targetTab: "marketplace",
-        mode: "selling",
-        recipientRole: "seller",
-        targetId: "ord-mkt-1"
-      },
-      {
-        id: "notif-buyer-1",
-        title: "সার্ভিস অর্ডার #ORD-8821 আপডেট",
-        message: "আপনার 'ই-কমার্স ওয়েবসাইট' প্রজেক্টের কাজ সফলভাবে চলমান রয়েছে। অগ্রগতি দেখতে ক্লিক করুন।",
-        time: "৫ মিনিট আগে",
-        read: false,
-        type: "success",
-        targetTab: "marketplace",
-        mode: "buying",
-        recipientRole: "buyer",
-        targetId: "ord-mkt-1"
-      },
-      {
-        id: "notif-buyer-2",
-        title: "আপনার সার্ভিস অর্ডার গৃহীত হয়েছে",
-        message: "সোহাগ কাজী আপনার সার্ভিস অর্ডারটি গ্রহণ করেছেন এবং কাজ শুরু করেছেন।",
-        time: "২০ মিনিট আগে",
-        read: false,
-        type: "success",
-        targetTab: "marketplace",
-        mode: "buying",
-        recipientRole: "buyer",
-        targetId: "ord-mkt-4"
-      },
-      {
-        id: "notif-2",
-        title: "React Assignment রিভিউ সমাপ্ত",
-        message: "আপনার জমা দেওয়া 'e-Commerce Frontend' অ্যাসাইনমেন্ট গ্রাডিং সম্পন্ন (95/100)।",
-        time: "৪৫ মিনিট আগে",
-        read: false,
-        type: "info",
-        targetTab: "student-dashboard",
-        mode: "buying",
-        recipientRole: "buyer"
-      },
-      {
-        id: "notif-3",
-        title: "কোর্স মডিউল ৫ লাইভ আনলক!",
-        message: "Full Stack Masterclass - Module 5 Live API Streaming আপডেট প্রকাশিত হয়েছে।",
-        time: "২ ঘন্টা আগে",
-        read: false,
-        type: "info",
-        targetTab: "courses",
-        mode: "buying",
-        recipientRole: "buyer"
-      },
-      {
-        id: "notif-4",
-        title: "মার্কেটপ্লেস গিগ প্রস্তাবনা",
-        message: "সোহাগ কাজী আপনার সার্ভিস অর্ডারে মেসেজ ও কাজ সংক্রান্ত আপডেট পাঠিয়েছেন।",
-        time: "৩ ঘন্টা আগে",
-        read: false,
-        type: "success",
-        targetTab: "marketplace",
-        mode: "selling",
-        recipientRole: "seller"
-      },
-      {
-        id: "notif-5",
-        title: "ইনস্ট্যান্ট পেমেন্ট ওয়ালেট বোনাস",
-        message: "আপনার PTENit ওয়ালেটে ৳৫,০০০ বোনাস ক্রেডিট জমা হয়েছে।",
-        time: "৪ ঘন্টা আগে",
-        read: false,
-        type: "success",
-        targetTab: "financials",
-        mode: "both",
-        recipientRole: "all"
-      }
-    ];
+    return [];
   });
 
   const [directMessages, setDirectMessages] = useState<DirectMessageItem[]>(() => {
@@ -867,63 +789,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return JSON.parse(saved);
       } catch {}
     }
-    return [
-      {
-        id: "dmsg-1",
-        senderName: "সোহাগ কাজী (বায়ার)",
-        senderRole: "customer",
-        senderAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80",
-        recipientRole: "instructor",
-        text: "ভাইয়া, আমার ই-কমার্স প্রজেক্টের ডিজাইন ডেমো কি তৈরি হয়েছে? একটু আপডেট দিবেন।",
-        time: "১০ মিনিট আগে",
-        read: false,
-        targetTab: "marketplace"
-      },
-      {
-        id: "dmsg-2",
-        senderName: "তানজিম আহমেদ (সেবাগ্রহীতা)",
-        senderRole: "customer",
-        senderAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80",
-        recipientRole: "instructor",
-        text: "আপনার গিগ সার্ভিস অর্ডার করেছি, এস্ক্রো ওয়ালেটে টাকা জমা হয়েছে। কোড শুরু করুন।",
-        time: "৪৫ মিনিট আগে",
-        read: false,
-        targetTab: "marketplace"
-      },
-      {
-        id: "dmsg-3",
-        senderName: "PTENit সাপোর্ট ও এজেন্সী",
-        senderRole: "admin",
-        senderAvatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80",
-        recipientRole: "all",
-        text: "অভিনন্দন! আপনার বায়ার/সেলার প্রোফাইল ৫ তারকা ভেরিফাইড হিসেবে লেভেল ২ ব্যাজ পেয়েছে।",
-        time: "২ ঘন্টা আগে",
-        read: false,
-        targetTab: "admin"
-      },
-      {
-        id: "dmsg-4",
-        senderName: "রাশেদুল ইসলাম (এক্সপার্ট ডেভেলপার)",
-        senderRole: "teacher",
-        senderAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80",
-        recipientRole: "all",
-        text: "আপনার প্রজেক্ট কোড রিভিউ সম্পন্ন। ইনবক্সে ফাইল চেক করে নিন।",
-        time: "৩ ঘন্টা আগে",
-        read: false,
-        targetTab: "student-dashboard"
-      },
-      {
-        id: "dmsg-5",
-        senderName: "মার্কেটপ্লেস সাপোর্ট হেল্পডেস্ক",
-        senderRole: "admin",
-        senderAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80",
-        recipientRole: "all",
-        text: "আপনার কাস্টম সার্ভিস অর্ডার ভেরিফাইড হয়েছে এবং ডেলিভারি মেসেজ আপডেট প্রসেসিংয়ে।",
-        time: "৫ ঘন্টা আগে",
-        read: false,
-        targetTab: "marketplace"
-      }
-    ];
+    return [];
   });
 
   const [activeChatWindows, setActiveChatWindows] = useState<ActiveChatWindow[]>([]);
@@ -1164,25 +1030,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [customerProjects, setCustomerProjects] = useState<CustomerProject[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_customer_projects`);
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(p => p.id !== 'proj-1' && p.customerId !== 'user-cust-1');
+        }
+      } catch {}
     }
-    return [
-      {
-        id: "proj-1",
-        customerId: "user-cust-1",
-        customerName: "কামরুল হাসান (মেসার্স ট্রেডিং)",
-        customerEmail: "client@ptenit.com",
-        customerPhone: "01812345678",
-        serviceTitle: "কাস্টম ই-কমার্স ওয়েবসাইট ডেভেলপমেন্ট",
-        category: "Web Development",
-        description: "আমাদের প্রতিষ্ঠানের জন্য পেমেন্ট গেটওয়েসহ পূর্ণাঙ্গ ই-কমার্স সাইট তৈরি দরকার।",
-        budgetRange: "৳৪৫,০০০ - ৳৬০,০০০",
-        status: "In Progress",
-        priceEstimate: 50000,
-        assignedStaff: "ইঞ্জি. সাব্বির আহমেদ",
-        createdAt: "2026-07-28"
-      }
-    ];
+    return [];
   });
 
   const [payouts, setPayouts] = useState<TeacherPayout[]>(() => {
@@ -1245,31 +1100,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          const officialIds = [
-            'gig-workfirst-web',
-            'gig-premium-erp',
-            'gig-workfirst-marketing',
-            'gig-premium-mobile',
-            'gig-workfirst-design',
-            'gig-premium-ai',
-            'web-dev',
-            'digital-marketing',
-            'graphics-design',
-            'app-development',
-            'seo-optimization',
-            'video-editing',
-            'cyber-security',
-            'software-dev'
-          ];
-          const missingOfficial = initialGigs.filter(g => officialIds.includes(g.id) && !parsed.some(p => p.id === g.id));
-          if (missingOfficial.length > 0) {
-            return [...missingOfficial, ...parsed];
-          }
           return parsed;
         }
       } catch {}
     }
-    return initialGigs;
+    return [];
   });
 
   const [jobs, setJobs] = useState<MarketplaceJob[]>(() => {
@@ -1324,38 +1159,87 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   const [marketplaceOrders, setMarketplaceOrders] = useState<MarketplaceOrder[]>(() => {
-    let initialList = initialMarketplaceOrders;
     const saved = localStorage.getItem(`${STORAGE_KEY}_marketplace_orders`);
     if (saved) {
       try {
         const parsed: MarketplaceOrder[] = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const hasPendingApproval = parsed.some(o => o.status === 'pending_approval');
-          if (!hasPendingApproval) {
-            const demoOrd = initialMarketplaceOrders.find(o => o.id === 'ord-mkt-4');
-            if (demoOrd) {
-              const without4 = parsed.filter(o => o.id !== 'ord-mkt-4');
-              initialList = [demoOrd, ...without4];
-            } else {
-              initialList = parsed;
-            }
-          } else {
-            initialList = parsed;
-          }
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter(o => 
+            o.id !== 'ord-mkt-4' && 
+            o.id !== 'ord-ptenit-1789742851626' &&
+            o.id !== 'live-ord-101' &&
+            o.id !== 'live-ord-102' &&
+            o.id !== 'live-ord-103' &&
+            o.id !== 'live-ord-104' &&
+            o.id !== 'proj-1' &&
+            o.id !== 'ord-101'
+          );
+          return checkAndAutoCancelOverdueOrders(cleaned).updatedOrders;
         }
       } catch {}
     }
-    const { updatedOrders } = checkAndAutoCancelOverdueOrders(initialList);
-    return updatedOrders;
+    return [];
   });
 
-  // Periodically check and auto-cancel any overdue orders in real-time
+  // Periodically check and auto-cancel any overdue orders and 24h direct offers in real-time
   useEffect(() => {
     const checkOverdueInterval = setInterval(() => {
+      const now = Date.now();
+
+      // 1. Marketplace orders overdue and 24h auto-return
       setMarketplaceOrders(prev => {
         const { updatedOrders, hasChanges } = checkAndAutoCancelOverdueOrders(prev);
         if (hasChanges) {
           return updatedOrders;
+        }
+        return prev;
+      });
+
+      // 2. Customer Projects 24h direct offer auto-return
+      setCustomerProjects(prev => {
+        let cpChanged = false;
+        const updated = prev.map(cp => {
+          if (cp.isDirectOffer && !cp.isExpiredReturned && (cp.status === 'Pending Review' || (cp.status as string) === 'pending')) {
+            const expiresAtMs = cp.expiresAt ? new Date(cp.expiresAt).getTime() : (cp.createdAt ? new Date(cp.createdAt).getTime() + 24 * 3600 * 1000 : 0);
+            if (expiresAtMs > 0 && now > expiresAtMs) {
+              cpChanged = true;
+              return {
+                ...cp,
+                isExpiredReturned: true,
+                status: 'Cancelled' as const,
+                updatedAt: new Date().toISOString()
+              };
+            }
+          }
+          return cp;
+        });
+        if (cpChanged) {
+          localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(updated));
+          return updated;
+        }
+        return prev;
+      });
+
+      // 3. Jobs 24h direct offer auto-return
+      setJobs(prev => {
+        let jobsChanged = false;
+        const updated = prev.map(j => {
+          if (j.isDirectOffer && !j.isExpiredReturned && j.status === 'open') {
+            const expiresAtMs = j.expiresAt ? new Date(j.expiresAt).getTime() : 0;
+            if (expiresAtMs > 0 && now > expiresAtMs) {
+              jobsChanged = true;
+              return {
+                ...j,
+                isExpiredReturned: true,
+                status: 'cancelled' as const
+              };
+            }
+          }
+          return j;
+        });
+        if (jobsChanged) {
+          localStorage.setItem(`${STORAGE_KEY}_jobs`, JSON.stringify(updated));
+          return updated;
         }
         return prev;
       });
@@ -1584,6 +1468,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }));
 
+    unsubs.push(subscribeToCollection<Enrollment>('enrollments', (items) => {
+      if (items && items.length > 0) {
+        setEnrollments(items);
+        localStorage.setItem(`${STORAGE_KEY}_enrollments`, JSON.stringify(items));
+      }
+    }));
+
+    unsubs.push(subscribeToCollection<LiveClassSession>('liveSessions', (items) => {
+      if (items && items.length > 0) {
+        setLiveSessions(items);
+        localStorage.setItem(`${STORAGE_KEY}_live_sessions`, JSON.stringify(items));
+      }
+    }));
+
     // Site settings real-time listener
     try {
       const settingsDocRef = doc(db, 'siteSettings', 'default');
@@ -1597,7 +1495,75 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubs.push(unsubSettings);
     } catch {}
 
-    // First-run database initialization (seeds Firestore if newly created)
+    // Immediate Server Storage fetch (instant load for mobile & cPanel environments)
+    const loadServerBackups = async () => {
+      try {
+        const [srvSettings, srvOrders, srvUsers, srvMktOrders, srvCourses, srvNotifs] = await Promise.all([
+          fetchServerCollection<SiteSettings>('siteSettings'),
+          fetchServerCollection<PaymentOrder>('orders'),
+          fetchServerCollection<User>('users'),
+          fetchServerCollection<MarketplaceOrder>('marketplaceOrders'),
+          fetchServerCollection<Course>('courses'),
+          fetchServerCollection<NotificationItem>('notifications'),
+        ]);
+
+        if (srvSettings && srvSettings.length > 0) {
+          const defaultSettings = (srvSettings as any).find((s: any) => s.id === 'default') || srvSettings[0];
+          if (defaultSettings) setSiteSettings(prev => ({ ...prev, ...defaultSettings }));
+        }
+        if (srvOrders && srvOrders.length > 0) {
+          setOrders(prev => {
+            const map = new Map<string, PaymentOrder>();
+            prev.forEach(p => map.set(p.id, p));
+            srvOrders.forEach(o => map.set(o.id, o));
+            return Array.from(map.values());
+          });
+        }
+        if (srvUsers && srvUsers.length > 0) {
+          setUsers(prev => {
+            const map = new Map<string, User>();
+            prev.forEach(u => map.set(u.id, u));
+            srvUsers.forEach(u => map.set(u.id, u));
+            return Array.from(map.values());
+          });
+        }
+        if (srvNotifs && srvNotifs.length > 0) {
+          setNotifications(prev => {
+            const map = new Map<string, NotificationItem>();
+            prev.forEach(n => map.set(n.id, n));
+            srvNotifs.forEach(n => map.set(n.id, n));
+            return Array.from(map.values());
+          });
+        }
+        if (srvMktOrders && srvMktOrders.length > 0) {
+          setMarketplaceOrders(prev => {
+            const map = new Map<string, MarketplaceOrder>();
+            prev.forEach(m => map.set(m.id, m));
+            srvMktOrders.forEach(m => map.set(m.id, m));
+            return Array.from(map.values());
+          });
+        }
+        if (srvCourses && srvCourses.length > 0) {
+          setCourses(prev => {
+            const map = new Map<string, Course>();
+            prev.forEach(c => map.set(c.id, c));
+            srvCourses.forEach(c => map.set(c.id, c));
+            return Array.from(map.values());
+          });
+        }
+      } catch (e) {
+        // Non-blocking fallback
+      }
+    };
+    loadServerBackups();
+
+    // Auto sync server backup data every 10 seconds for real-time sync across devices/cPanel
+    const autoSyncInterval = setInterval(() => {
+      loadServerBackups();
+    }, 10000);
+    unsubs.push(() => clearInterval(autoSyncInterval));
+
+    // First-run database initialization (seeds Firestore & server storage if empty)
     const seedDatabaseIfNeeded = async () => {
       try {
         const settingsSnap = await getDoc(doc(db, 'siteSettings', 'default'));
@@ -1647,11 +1613,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // If typing teacher or alamin credentials
     if (!user && (cleanInput === 'alamin@ptenit.com' || cleanInput === 'teacher@ptenit.com' || cleanInput.includes('alamin') || cleanInput.includes('teacher'))) {
-      user = users.find(u => u.role === 'instructor') || initialUsers[1];
+      user = users.find(u => u.role === 'instructor') || initialUsers.find(u => u.role === 'instructor') || initialUsers[0];
     }
 
     if (!user && cleanInput.includes("customer")) {
-      user = users.find(u => u.role === 'customer') || initialUsers[2];
+      user = users.find(u => u.role === 'customer') || initialUsers.find(u => u.role === 'customer') || initialUsers[0];
     }
 
     // If typing admin credentials
@@ -1827,6 +1793,95 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
+  // Common handler for registering or logging in a Google user (from popup or direct fallback)
+  const handleRegisterOrLoginGoogleUser = (
+    email: string,
+    displayName: string,
+    photoURL?: string,
+    uid?: string,
+    phoneNumber?: string,
+    preferredRole: 'customer' | 'specialist' | 'both' = 'customer'
+  ): boolean => {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanName = (displayName || '').trim() || cleanEmail.split('@')[0] || 'Google User';
+    const avatar = photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=0284c7&color=fff`;
+
+    // 1. If user already exists, log them in immediately!
+    let existing = users.find(u => u.email && u.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      if (existing.blocked) {
+        alert("আপনার একাউন্টটি সাময়িকভাবে স্থগিত করা হয়েছে। এডমিনের সাথে যোগাযোগ করুন।");
+        return false;
+      }
+      const updatedUser: User = {
+        ...existing,
+        avatar: existing.avatar || avatar,
+      };
+      setCurrentUser(updatedUser);
+      setPtenitUser(updatedUser);
+      setMarketplaceUser(updatedUser);
+      localStorage.setItem(`${STORAGE_KEY}_current_user`, JSON.stringify(updatedUser));
+      syncDocToFirestore('users', updatedUser.id, updatedUser);
+      return true;
+    }
+
+    // 2. New Google user registration
+    const isAdminUser = cleanEmail === 'mdskazisohag@gmail.com' || cleanEmail === 'admin@ptenit.com';
+    const isSpec = preferredRole === 'specialist' || preferredRole === 'both';
+    const assignedRole = isAdminUser ? 'admin' : (preferredRole === 'specialist' ? 'instructor' : 'customer');
+    const assignedRoles: ('customer' | 'specialist' | 'instructor' | 'admin')[] = isAdminUser
+      ? ['admin', 'customer', 'specialist', 'instructor']
+      : preferredRole === 'specialist'
+      ? ['specialist', 'instructor']
+      : preferredRole === 'both'
+      ? ['customer', 'specialist', 'instructor']
+      : ['customer'];
+
+    const newId = uid || `usr-g-${Date.now()}`;
+    const newUser: User = {
+      id: newId,
+      name: cleanName,
+      email: cleanEmail,
+      mobile: phoneNumber || '',
+      role: assignedRole as any,
+      roles: assignedRoles,
+      activeRole: isAdminUser ? 'admin' : (preferredRole === 'specialist' ? 'specialist' : 'customer'),
+      isSpecialist: isSpec,
+      specialistStatus: isSpec ? 'pending' : 'not_applied',
+      avatar,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    // Store instantly in users list (put at very beginning so admin sees it instantly!)
+    setUsers(prev => {
+      const next = [newUser, ...prev.filter(u => u.id !== newUser.id && (newUser.email ? u.email?.toLowerCase() !== newUser.email.toLowerCase() : true))];
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+      return next;
+    });
+    setCurrentUser(newUser);
+    setPtenitUser(newUser);
+    setMarketplaceUser(newUser);
+    localStorage.setItem(`${STORAGE_KEY}_current_user`, JSON.stringify(newUser));
+
+    // Persist to server_data/users.json and Firebase
+    syncDocToFirestore('users', newUser.id, newUser);
+
+    // Notify admin
+    const adminNotif: NotificationItem = {
+      id: `notif-user-${Date.now()}`,
+      title: `নতুন গুগল ইউজার রেজিস্ট্রেশন: ${newUser.name}`,
+      message: `${newUser.name} (${newUser.email}) গুগল দিয়ে সাইন-ইন করে সফলভাবে যোগ দিয়েছেন। রোল: ${newUser.role === 'admin' ? 'এডমিন' : newUser.role === 'instructor' ? 'টিচার/মেন্টর' : newUser.isSpecialist ? 'সেলার/স্পেশালিস্ট' : 'ক্লায়েন্ট/বায়ার'}`,
+      time: 'এইমাত্র',
+      read: false,
+      type: 'info',
+      targetTab: 'admin'
+    };
+    setNotifications(prev => [adminNotif, ...prev]);
+    syncDocToFirestore('notifications', adminNotif.id, adminNotif);
+
+    return true;
+  };
+
   const signup = (userData: Omit<User, 'id' | 'createdAt'>, pass: string): boolean => {
     const newId = `usr-${Date.now()}`;
     const newUser: User = {
@@ -1835,31 +1890,92 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: new Date().toISOString().split('T')[0]
     };
 
+    const notifyAdminNewUser = (userCreated: User) => {
+      const adminNotif: NotificationItem = {
+        id: `notif-user-${Date.now()}`,
+        title: `নতুন ইউজার রেজিস্ট্রেশন: ${userCreated.name}`,
+        message: `${userCreated.name} (${userCreated.email || userCreated.mobile}) সফলভাবে ${userCreated.role === 'admin' ? 'এডমিন' : userCreated.role === 'instructor' ? 'টিচার/মেন্টর' : userCreated.isSpecialist ? 'সেলার/স্পেশালিস্ট' : 'ক্লায়েন্ট/শিক্ষার্থী'} হিসেবে যোগ দিয়েছেন।`,
+        time: 'এইমাত্র',
+        read: false,
+        type: 'info',
+        targetTab: 'admin'
+      };
+      setNotifications(prev => [adminNotif, ...prev]);
+      syncDocToFirestore('notifications', adminNotif.id, adminNotif);
+    };
+
+    // 1. Immediately store in users state and localStorage so admin and user have instant access
+    setUsers(prev => {
+      const exists = prev.some(u => u.id === newId || (newUser.email && u.email.toLowerCase() === newUser.email.toLowerCase()));
+      const next = exists
+        ? prev.map(u => (u.id === newId || (newUser.email && u.email.toLowerCase() === newUser.email.toLowerCase()) ? newUser : u))
+        : [newUser, ...prev];
+      localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+      return next;
+    });
+    setCurrentUser(newUser);
+    setPtenitUser(newUser);
+    setMarketplaceUser(newUser);
+    localStorage.setItem(`${STORAGE_KEY}_current_user`, JSON.stringify(newUser));
+
+    // 2. Synchronize to cPanel server_data/users.json AND Firebase Firestore
+    syncDocToFirestore('users', newId, newUser);
+    notifyAdminNewUser(newUser);
+
+    // 3. Connect to Firebase Auth if email provided
     if (userData.email && userData.email.includes('@')) {
       createUserWithEmailAndPassword(auth, userData.email, pass)
         .then((cred) => {
           const fbUser = { ...newUser, id: cred.user.uid };
           syncDocToFirestore('users', cred.user.uid, fbUser);
+          setUsers(prev => {
+            const next = prev.map(u => (u.id === newId ? fbUser : u));
+            localStorage.setItem(`${STORAGE_KEY}_users`, JSON.stringify(next));
+            return next;
+          });
           setCurrentUser(fbUser);
           setPtenitUser(fbUser);
           setMarketplaceUser(fbUser);
+          localStorage.setItem(`${STORAGE_KEY}_current_user`, JSON.stringify(fbUser));
         })
         .catch((err) => {
           console.warn('[Firebase Auth Signup]', err.code);
-          syncDocToFirestore('users', newId, newUser);
-          setCurrentUser(newUser);
-          setPtenitUser(newUser);
-          setMarketplaceUser(newUser);
         });
-    } else {
-      syncDocToFirestore('users', newId, newUser);
-      setCurrentUser(newUser);
-      setPtenitUser(newUser);
-      setMarketplaceUser(newUser);
     }
 
-    setUsers(prev => [...prev, newUser]);
     return true;
+  };
+
+  // Google Sign-In with Firebase Auth & Firestore Persistence
+  const loginWithGoogle = async (preferredRole: 'customer' | 'specialist' | 'both' = 'customer'): Promise<boolean> => {
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const fbUser = result.user;
+      if (!fbUser) return false;
+
+      return handleRegisterOrLoginGoogleUser(
+        fbUser.email || '',
+        fbUser.displayName || '',
+        fbUser.photoURL || undefined,
+        fbUser.uid,
+        fbUser.phoneNumber || '',
+        preferredRole
+      );
+    } catch (err: any) {
+      console.warn('[Firebase Auth Google Sign-in error]', err?.code, err?.message);
+      throw err;
+    }
+  };
+
+  // Direct Google Sign-In Fallback (when popup is blocked by browser or domain not whitelisted yet in Firebase)
+  const loginWithGoogleDirect = (
+    email: string,
+    displayName: string,
+    preferredRole: 'customer' | 'specialist' | 'both' = 'customer'
+  ): boolean => {
+    return handleRegisterOrLoginGoogleUser(email, displayName, undefined, undefined, '', preferredRole);
   };
 
   // Marketplace Auth Functions - Fully unified with PTENit
@@ -1887,10 +2003,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const demoLoginMarketplace = (role: 'customer' | 'instructor') => {
     if (role === 'instructor') {
-      const seller = users.find(u => u.id === 'mkt-seller-1') || initialUsers.find(u => u.id === 'mkt-seller-1') || initialUsers[4];
+      const seller = users.find(u => u.role === 'instructor' || u.isSeller) || initialUsers[0];
       setCurrentUser(seller);
     } else {
-      const buyer = users.find(u => u.id === 'mkt-buyer-1') || initialUsers.find(u => u.id === 'mkt-buyer-1') || initialUsers[5];
+      const buyer = users.find(u => u.role === 'customer') || initialUsers[0];
       setCurrentUser(buyer);
     }
   };
@@ -2663,7 +2779,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  const markAllConversationsRead = useCallback((_role?: string) => {
+  const markAllConversationsRead = useCallback(() => {
     setDirectMessages(prev => {
       const anyUnread = prev.some(m => !m.read || m.unreadCount !== 0);
       if (!anyUnread) return prev;
@@ -2685,15 +2801,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  const unreadMarketplaceMsgCount = useMemo(() => {
-    return directMessages.filter(m => !m.read).length;
-  }, [directMessages]);
-
-  const roleScopedNotifications = useMemo(() => {
-    return notifications;
-  }, [notifications]);
-
-  const markAllDirectMessagesRead = useCallback((_role?: string) => {
+  const markAllDirectMessagesRead = useCallback(() => {
     setDirectMessages(prev => {
       const anyUnread = prev.some(m => !m.read);
       if (!anyUnread) return prev;
@@ -2711,7 +2819,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     playAppSound('message');
   };
 
-  const openChatWindow = (contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; isClosed?: boolean; isReadOnly?: boolean; initialMessage?: string }) => {
+  const openChatWindow = (contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string }) => {
     const windowId = contact.id || `chat-${contact.senderName.replace(/\s+/g, '-').toLowerCase()}`;
     setActiveMessengerConversationId(windowId);
     
@@ -2759,12 +2867,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveChatWindows(prev => prev.filter(w => w.id !== id));
   };
 
-  const openMessengerInbox = (conversationId?: string, initialTab: 'messages' | 'notifications' | 'courses' | string = 'messages', orderId?: string) => {
-    if (initialTab === 'messages' || initialTab === 'notifications' || initialTab === 'courses') {
-      setInitialMessengerTab(initialTab);
-    } else {
-      setInitialMessengerTab('messages');
-    }
+  const openMessengerInbox = (conversationId?: string, initialTab: 'messages' | 'notifications' | 'courses' = 'messages', orderId?: string) => {
+    setInitialMessengerTab(initialTab);
     if (conversationId) {
       setActiveMessengerConversationId(conversationId);
       setActiveMessengerOrderId(orderId || null);
@@ -2785,23 +2889,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Clear floating popup windows so full messenger is focused
     setActiveChatWindows([]);
     setIsNotificationCenterOpen(false);
-
-    // On PC (desktop): when general messenger or notification icon is clicked, show as a list in the last column
-    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-    if (isDesktop && !conversationId) {
-      setIsMessengerInboxOpen(false);
-      setRightColumnView(initialTab === 'notifications' ? 'notifications' : 'messages');
-      setTimeout(() => {
-        const col3 = document.getElementById('marketplace-column-3-seller')
-          || document.getElementById('marketplace-column-3-agency')
-          || document.getElementById('marketplace-column-3');
-        if (col3) {
-          col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 100);
-      return;
-    }
-
     setIsMessengerInboxOpen(true);
   };
 
@@ -2810,32 +2897,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveMessengerOrderId(null);
     setIsMessengerInboxOpen(false);
     setIsNotificationCenterOpen(false);
+    setRightColumnView('default');
   };
 
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
 
   const openNotificationCenter = () => {
-    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-    if (isDesktop) {
-      setIsNotificationCenterOpen(false);
-      setIsMessengerInboxOpen(false);
-      setRightColumnView('notifications');
-      setTimeout(() => {
-        const col3 = document.getElementById('marketplace-column-3-seller')
-          || document.getElementById('marketplace-column-3-agency')
-          || document.getElementById('marketplace-column-3');
-        if (col3) {
-          col3.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 100);
-      return;
-    }
     openMessengerInbox(undefined, 'notifications');
   };
 
   const closeNotificationCenter = () => {
     setIsNotificationCenterOpen(false);
     setIsMessengerInboxOpen(false);
+    setRightColumnView('default');
   };
 
   const [marketplaceMode, setMarketplaceModeState] = useState<'buying' | 'selling'>(() => {
@@ -2865,7 +2939,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveChatWindows(prev => prev.map(w => w.id === id ? { ...w, minimized: !w.minimized } : w));
   };
 
-  const sendChatMessage = (windowId: string, text: string, meetLink?: string) => {
+  const sendChatMessage = (windowId: string, text: string, meetLink?: string, directOffer?: DirectOfferMeta) => {
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       senderName: currentUser?.name || 'আমি',
@@ -2873,7 +2947,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isSelf: true,
       text,
       time: 'এখন',
-      meetLink
+      meetLink,
+      directOffer
     };
 
     // Find the target chat window to associate with order and decrement unread counter on reply
@@ -2906,6 +2981,58 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return w;
     }));
     playAppSound('message');
+
+    // Auto response for ongoing active messaging thread (only if not a direct offer or meet call)
+    if (!meetLink && !directOffer) {
+      setTimeout(() => {
+        setActiveChatWindows(prev => prev.map(w => {
+          if (w.id === windowId) {
+            const autoReplies = [
+              "ধন্যবাদ ভাইয়া! আপনার মেসেজটি পেয়েছি, কাজ দ্রুত এগিয়ে নিচ্ছি।",
+              "জি অবশ্যই! আমি বিষয়টি ড্যাশবোর্ডে ফাইলসহ আপডেট করে দেবো।",
+              "কোনো সংশোধনী থাকলে বলুন, আমরা এখনই গুগল মিটে লাইভ ডিসকাশন করতে পারি!"
+            ];
+            const randomReply = autoReplies[Math.floor(Math.random() * autoReplies.length)];
+            const autoReply: ChatMessage = {
+              id: `msg-reply-${Date.now()}`,
+              senderName: w.senderName,
+              senderAvatar: w.senderAvatar,
+              isSelf: false,
+              text: randomReply,
+              time: 'এখন'
+            };
+            return {
+              ...w,
+              messages: [...w.messages, autoReply]
+            };
+          }
+          return w;
+        }));
+        playAppSound('message');
+      }, 1200);
+    } else {
+      // Immediate acknowledgment from receiver when Google Meet link is shared
+      setTimeout(() => {
+        setActiveChatWindows(prev => prev.map(w => {
+          if (w.id === windowId) {
+            const autoReply: ChatMessage = {
+              id: `msg-reply-${Date.now()}`,
+              senderName: w.senderName,
+              senderAvatar: w.senderAvatar,
+              isSelf: false,
+              text: "ধন্যবাদ! আমি গুগল মিট (Google Meet) আমন্ত্রণটি পেয়েছি, এখনই লিংকে ক্লিক করে মিটিংয়ে যুক্ত হচ্ছি।",
+              time: 'এখন'
+            };
+            return {
+              ...w,
+              messages: [...w.messages, autoReply]
+            };
+          }
+          return w;
+        }));
+        playAppSound('message');
+      }, 1200);
+    }
   };
 
   // In-App Video/Audio/Screen Meet Studio State (Our site's native conference engine)
@@ -3291,21 +3418,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     syncDocToFirestore('customerProjects', newProj.id, newProj);
 
-    // Also automatically create a MarketplaceOrder for PTEN IT Agency Service
+    // Also automatically create a MarketplaceOrder for PTEN IT Agency Service or Direct Order
     const orderAmount = projData.priceEstimate || 5000;
+    const isDirect = !!projData.isDirectOffer;
+    const directExpiresAt = isDirect ? (projData.expiresAt || new Date(Date.now() + 24 * 3600 * 1000).toISOString()) : undefined;
+
     const agencyOrder: MarketplaceOrder = {
       id: `ord-ptenit-${Date.now()}`,
       type: 'custom_agency_order',
-      title: projData.serviceTitle || 'PTEN IT এজেন্সির কাস্টম প্রজেক্ট',
+      title: projData.serviceTitle || (isDirect ? 'ডিরেক্ট পার্সোনাল প্রজেক্ট অফার' : 'PTEN IT এজেন্সির কাস্টম প্রজেক্ট'),
       category: projData.category || 'PTEN IT Agency',
       buyerId: projData.customerId || currentUser?.id || `guest-${Date.now()}`,
       buyerName: projData.customerName || currentUser?.name || 'সম্মানিত ক্লায়েন্ট',
       buyerEmail: projData.customerEmail || currentUser?.email || 'client@ptenit.com',
       buyerPhone: projData.customerPhone || currentUser?.mobile || '01700000000',
-      sellerId: 'pending_expert',
-      sellerName: 'এক্সপার্ট রিসিভড অপেক্ষমান',
+      sellerId: isDirect && projData.targetSellerId ? projData.targetSellerId : 'pending_expert',
+      sellerName: isDirect && projData.targetSellerName ? projData.targetSellerName : 'এক্সপার্ট রিসিভড অপেক্ষমান',
       sellerAvatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80',
-      isInternalStaff: true,
+      isInternalStaff: !isDirect,
       packageType: 'Custom',
       amount: orderAmount,
       adminCommission: Math.round(orderAmount * 0.1),
@@ -3313,10 +3443,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       paymentMethod: 'PTEN IT Official Escrow',
       transactionId: `TRX-PTENIT-${Math.floor(100000 + Math.random() * 900000)}`,
       status: 'pending_approval',
-      isPublicOffer: true,
+      isPublicOffer: !isDirect,
+      isDirectOffer: isDirect,
+      targetSellerId: isDirect ? projData.targetSellerId : undefined,
+      expiresAt: directExpiresAt,
       reachCount: Math.floor(Math.random() * 40) + 20,
       likesCount: Math.floor(Math.random() * 10) + 2,
-      budgetRange: projData.budgetRange || '৳১৫,০০০ - ৳৩০,০০০',
+      budgetRange: projData.budgetRange || `৳${orderAmount.toLocaleString('bn-BD')}`,
       deliveryNote: projData.description,
       createdAt: createdAtIso,
       deadlineDate: projData.deadline || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
@@ -3351,23 +3484,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       syncDocToFirestore('users', buyerId, newBuyerUser);
     }
 
-    // Admin Notification
-    const notifItem: NotificationItem = {
-      id: `notif-${Date.now()}`,
-      title: `💼 নতুন কাস্টম প্রজেক্ট অর্ডার #${newProj.id}`,
-      message: `${newProj.customerName} "${newProj.serviceTitle}" জমা দিয়েছেন।`,
-      time: 'এখনই',
-      read: false,
-      type: 'info',
-      targetTab: 'agency_projects',
-      targetId: newProj.id
-    };
-    setNotifications(prev => {
-      const next = [notifItem, ...prev];
-      localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(next));
-      return next;
-    });
-    syncDocToFirestore('notifications', notifItem.id, notifItem);
+    // Notification handling (Direct vs. Public)
+    if (isDirect && projData.targetSellerId) {
+      const directNotif: NotificationItem = {
+        id: `notif-${Date.now()}`,
+        title: `🔒 নতুন ডিরেক্ট পার্সোনাল প্রজেক্ট অফার (২৪ ঘণ্টা)`,
+        message: `${newProj.customerName} আপনাকে সরাসরি "৳${orderAmount}" বাজেটের "${newProj.serviceTitle}" পাঠিয়েছেন। ২৪ ঘণ্টার মধ্যে রিসিভ করুন।`,
+        time: 'এখনই',
+        read: false,
+        type: 'info',
+        recipientId: projData.targetSellerId,
+        recipientRole: 'seller',
+        mode: 'selling',
+        targetTab: 'orders',
+        targetId: agencyOrder.id
+      };
+      setNotifications(prev => {
+        const next = [directNotif, ...prev];
+        localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(next));
+        return next;
+      });
+      syncDocToFirestore('notifications', directNotif.id, directNotif);
+    } else {
+      const notifItem: NotificationItem = {
+        id: `notif-${Date.now()}`,
+        title: `💼 নতুন কাস্টম প্রজেক্ট অর্ডার #${newProj.id}`,
+        message: `${newProj.customerName} "${newProj.serviceTitle}" জমা দিয়েছেন।`,
+        time: 'এখনই',
+        read: false,
+        type: 'info',
+        recipientRole: 'all',
+        targetTab: 'agency_projects',
+        targetId: newProj.id
+      };
+      setNotifications(prev => {
+        const next = [notifItem, ...prev];
+        localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(next));
+        return next;
+      });
+      syncDocToFirestore('notifications', notifItem.id, notifItem);
+    }
     playAppSound('order');
   };
 
@@ -4071,6 +4227,248 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
+  const acceptDirectOffer = (orderIdOrProjectId: string) => {
+    // 1. Update marketplaceOrders
+    setMarketplaceOrders(prev => {
+      const next = prev.map(o => {
+        if (o.id === orderIdOrProjectId || o.jobId === orderIdOrProjectId || (orderIdOrProjectId.startsWith('proj-') && o.id.includes(orderIdOrProjectId.replace('proj-', '')))) {
+          const updated = {
+            ...o,
+            status: 'in_progress' as const,
+            isAccepted: true
+          };
+          syncDocToFirestore('marketplaceOrders', o.id, updated);
+          return updated;
+        }
+        return o;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+      return next;
+    });
+
+    // 2. Update customerProjects
+    setCustomerProjects(prev => {
+      const next = prev.map(p => {
+        if (p.id === orderIdOrProjectId || (orderIdOrProjectId.startsWith('ord-') && orderIdOrProjectId.includes(p.id.replace('proj-', '')))) {
+          const updated = {
+            ...p,
+            status: 'In Progress' as const,
+            updatedAt: new Date().toISOString()
+          };
+          syncDocToFirestore('customerProjects', p.id, updated);
+          return updated;
+        }
+        return p;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(next));
+      return next;
+    });
+
+    // 3. Update jobs if any
+    setJobs(prev => {
+      const next = prev.map(j => {
+        if (j.id === orderIdOrProjectId) {
+          const updated = {
+            ...j,
+            status: 'in_progress' as const
+          };
+          syncDocToFirestore('jobs', j.id, updated);
+          return updated;
+        }
+        return j;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_jobs`, JSON.stringify(next));
+      return next;
+    });
+
+    // Notify buyer
+    const notif: NotificationItem = {
+      id: `notif-acc-${Date.now()}`,
+      title: '🎉 ডিরেক্ট প্রজেক্ট অফার গৃহীত হয়েছে!',
+      message: 'সেলার আপনার পাঠানো ২৪ ঘণ্টার ব্যক্তিগত অফারটি গ্রহণ করেছেন এবং কাজ শুরু করেছেন। ফান্ড এস্ক্রোতে সুরক্ষিত।',
+      time: 'এখনই',
+      read: false,
+      type: 'success',
+      recipientRole: 'buyer',
+      mode: 'buying',
+      targetTab: 'my-orders'
+    };
+    setNotifications(prev => [notif, ...prev]);
+    playAppSound('order');
+  };
+
+  const declineDirectOffer = (orderIdOrProjectId: string, reason?: string) => {
+    setMarketplaceOrders(prev => {
+      const next = prev.map(o => {
+        if (o.id === orderIdOrProjectId || o.jobId === orderIdOrProjectId || (orderIdOrProjectId.startsWith('proj-') && o.id.includes(orderIdOrProjectId.replace('proj-', '')))) {
+          const updated = {
+            ...o,
+            status: 'cancelled' as const,
+            isExpiredReturned: true,
+            cancelledReason: reason || 'সেলার অফারটি প্রত্যাখ্যান করেছেন (Declined)',
+            cancelledAt: new Date().toISOString()
+          };
+          syncDocToFirestore('marketplaceOrders', o.id, updated);
+          return updated;
+        }
+        return o;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+      return next;
+    });
+
+    setCustomerProjects(prev => {
+      const next = prev.map(p => {
+        if (p.id === orderIdOrProjectId || (orderIdOrProjectId.startsWith('ord-') && orderIdOrProjectId.includes(p.id.replace('proj-', '')))) {
+          const updated = {
+            ...p,
+            status: 'Cancelled' as const,
+            isExpiredReturned: true,
+            updatedAt: new Date().toISOString()
+          };
+          syncDocToFirestore('customerProjects', p.id, updated);
+          return updated;
+        }
+        return p;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(next));
+      return next;
+    });
+
+    playAppSound('notification');
+  };
+
+  const publishDirectProjectToPublicFeed = (orderIdOrProjectId: string) => {
+    // 1. Update customerProjects: remove targetSellerId, set isDirectOffer: false, isPublicOffer: true, isExpiredReturned: false, status: 'Pending Review'
+    setCustomerProjects(prev => {
+      const next = prev.map(p => {
+        if (p.id === orderIdOrProjectId || (orderIdOrProjectId.startsWith('ord-') && orderIdOrProjectId.includes(p.id.replace('proj-', '')))) {
+          const updated = {
+            ...p,
+            isDirectOffer: false,
+            isPublicOffer: true,
+            isExpiredReturned: false,
+            status: 'Pending Review' as const,
+            targetSellerId: undefined,
+            targetSellerName: undefined,
+            updatedAt: new Date().toISOString()
+          };
+          syncDocToFirestore('customerProjects', p.id, updated);
+          return updated;
+        }
+        return p;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(next));
+      return next;
+    });
+
+    // 2. Update marketplaceOrders: set isDirectOffer: false, isPublicOffer: true, isExpiredReturned: false, status: 'pending_approval'
+    setMarketplaceOrders(prev => {
+      const next = prev.map(o => {
+        if (o.id === orderIdOrProjectId || o.jobId === orderIdOrProjectId || (orderIdOrProjectId.startsWith('proj-') && o.id.includes(orderIdOrProjectId.replace('proj-', '')))) {
+          const updated = {
+            ...o,
+            isDirectOffer: false,
+            isPublicOffer: true,
+            isExpiredReturned: false,
+            status: 'pending_approval' as const,
+            targetSellerId: undefined,
+            targetSellerName: undefined,
+            cancelledReason: undefined,
+            cancelledAt: undefined
+          };
+          syncDocToFirestore('marketplaceOrders', o.id, updated);
+          return updated;
+        }
+        return o;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+      return next;
+    });
+
+    // 3. Update jobs if any
+    setJobs(prev => {
+      const next = prev.map(j => {
+        if (j.id === orderIdOrProjectId) {
+          const updated = {
+            ...j,
+            isDirectOffer: false,
+            visibility: 'public' as const,
+            isExpiredReturned: false,
+            status: 'open' as const,
+            targetSellerId: undefined,
+            targetSellerName: undefined
+          };
+          syncDocToFirestore('jobs', j.id, updated);
+          return updated;
+        }
+        return j;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_jobs`, JSON.stringify(next));
+      return next;
+    });
+
+    // 4. Create public broadcast notification for all sellers
+    const publicNotif: NotificationItem = {
+      id: `notif-pub-${Date.now()}`,
+      title: '📢 নতুন পাবলিক অফার পোস্ট লাইভ',
+      message: 'একজন বায়ারের প্রজেক্ট পাবলিক নিউজ ফিডে এবং লাইভ অফার রাডারে উন্মুক্ত হয়েছে!',
+      time: 'এখনই',
+      read: false,
+      type: 'info',
+      recipientRole: 'seller',
+      mode: 'selling',
+      targetTab: 'seller_feed'
+    };
+    setNotifications(prev => [publicNotif, ...prev]);
+    playAppSound('order');
+  };
+
+  const resendDirectOffer24h = (orderIdOrProjectId: string) => {
+    const newExpiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    setMarketplaceOrders(prev => {
+      const next = prev.map(o => {
+        if (o.id === orderIdOrProjectId || o.jobId === orderIdOrProjectId || (orderIdOrProjectId.startsWith('proj-') && o.id.includes(orderIdOrProjectId.replace('proj-', '')))) {
+          const updated = {
+            ...o,
+            status: 'pending_approval' as const,
+            expiresAt: newExpiresAt,
+            isExpiredReturned: false,
+            createdAt: new Date().toISOString(),
+            cancelledReason: undefined,
+            cancelledAt: undefined
+          };
+          syncDocToFirestore('marketplaceOrders', o.id, updated);
+          return updated;
+        }
+        return o;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_marketplace_orders`, JSON.stringify(next));
+      return next;
+    });
+
+    setCustomerProjects(prev => {
+      const next = prev.map(p => {
+        if (p.id === orderIdOrProjectId || (orderIdOrProjectId.startsWith('ord-') && orderIdOrProjectId.includes(p.id.replace('proj-', '')))) {
+          const updated = {
+            ...p,
+            status: 'Pending Review' as const,
+            expiresAt: newExpiresAt,
+            isExpiredReturned: false,
+            createdAt: new Date().toISOString().split('T')[0]
+          };
+          syncDocToFirestore('customerProjects', p.id, updated);
+          return updated;
+        }
+        return p;
+      });
+      localStorage.setItem(`${STORAGE_KEY}_customer_projects`, JSON.stringify(next));
+      return next;
+    });
+
+    playAppSound('order');
+  };
+
   const addDigitalProduct = (product: Omit<DigitalProduct, 'id' | 'createdAt' | 'salesCount'>) => {
     const newProd: DigitalProduct = {
       ...product,
@@ -4314,6 +4712,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addMarketplaceOrder,
         dispatchJobToStaff,
         login,
+        loginWithGoogle,
+        loginWithGoogleDirect,
         signup,
         logout,
         demoLogin,
@@ -4326,6 +4726,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteJob,
         deleteMarketplaceOrder,
         updateMarketplaceOrder,
+        acceptDirectOffer,
+        declineDirectOffer,
+        publishDirectProjectToPublicFeed,
+        resendDirectOffer24h,
         deleteTeacherPayout,
         deleteTeacherNotice,
         requestTeacherPayout,
@@ -4369,8 +4773,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         rejectMentorApplication,
         rightColumnView,
         setRightColumnView,
-        unreadMarketplaceMsgCount,
-        roleScopedNotifications,
         readConversationIds,
         markConversationRead,
         markAllConversationsRead,
