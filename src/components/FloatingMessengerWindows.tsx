@@ -296,6 +296,15 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
   // Add real direct messages
   if (directMessages && directMessages.length > 0) {
     directMessages.forEach(dm => {
+      // Check recipient targeting by role and mode
+      if (dm.recipientRole && dm.recipientRole !== 'all') {
+        if (isSellerMode && dm.recipientRole !== 'seller') return;
+        if (!isSellerMode && dm.recipientRole !== 'buyer' && dm.recipientRole !== 'customer') return;
+      }
+      if (dm.mode && dm.mode !== 'all') {
+        if (isSellerMode && dm.mode !== 'selling') return;
+        if (!isSellerMode && dm.mode !== 'buying') return;
+      }
       if (!allConversationsMap.has(dm.id)) {
         allConversationsMap.set(dm.id, {
           id: dm.id,
@@ -305,7 +314,7 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
           badge: isSellerMode ? 'Buyer' : 'Seller',
           rating: 5.0,
           ordersCount: 1,
-          lastMessage: dm.message,
+          lastMessage: dm.text || (dm as any).message || 'চ্যাট শুরু হয়েছে...',
           time: dm.time || 'এইমাত্র',
           unreadCount: dm.read ? 0 : (dm.unreadCount || 1),
           isOnline: true,
@@ -364,8 +373,25 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
       return 0;
     });
 
-  // Filter notifications scoped to the current active mode
+  // Filter notifications scoped to the current active user and mode
   const roleScopedNotifications = (notifications || []).filter(n => {
+    // If targeted to a specific user ID or email, check against currentUser
+    if (n.recipientId && n.recipientId !== 'all') {
+      const currentId = currentUser?.id;
+      const currentEmail = currentUser?.email;
+      if (currentId || currentEmail) {
+        if (n.recipientId !== currentId && n.recipientId !== currentEmail) {
+          return false;
+        }
+      }
+    }
+
+    // Filter by recipientRole
+    if (n.recipientRole && n.recipientRole !== 'all') {
+      if (isSellerMode && n.recipientRole !== 'seller') return false;
+      if (!isSellerMode && n.recipientRole !== 'buyer') return false;
+    }
+
     if (n.mode === 'selling') return isSellerMode;
     if (n.mode === 'buying') return !isSellerMode;
     if (n.mode === 'both') return true;
@@ -1072,11 +1098,6 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
                         <div>
                           <div className="flex items-center gap-1.5">
                             <h2 className="text-sm font-black text-white tracking-tight leading-none">Notifications</h2>
-                            {roleScopedNotifications.filter(n => !n.read).length > 0 && (
-                              <span className="bg-white/20 text-white text-[10px] font-black rounded-full px-1.5 py-0.2 shrink-0">
-                                {roleScopedNotifications.filter(n => !n.read).length}
-                              </span>
-                            )}
                           </div>
                           <p className={`text-[10px] font-semibold ${isSellerMode ? 'text-rose-100' : 'text-emerald-100'} tracking-wide leading-tight mt-0.5 font-sans`}>
                             PTENit Marketplace Updates
@@ -1105,8 +1126,8 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
                       </div>
                     </div>
 
-                    {/* SUB-TAB BAR FOR NOTIFICATIONS (NO CARDS, SIMPLE, UNDERLINE INDICATOR) */}
-                    <div className="grid grid-cols-4 w-full border-t border-white/10 mt-1 -mx-3 px-1">
+                    {/* SUB-TAB BAR FOR NOTIFICATIONS (HIDDEN IN PHONE VIEW) */}
+                    <div className="hidden sm:grid grid-cols-4 w-full border-t border-white/10 mt-1 -mx-3 px-1">
                       <button
                         type="button"
                         onClick={() => setActiveNotifFilter('all')}

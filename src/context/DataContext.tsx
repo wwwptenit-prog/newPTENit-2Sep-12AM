@@ -733,36 +733,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const saved = localStorage.getItem('ptenit_company_bills');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(b => b.id !== 'BILL-1001' && b.id !== 'BILL-1002');
+        }
       }
     } catch (e) {}
-    return [
-      {
-        id: 'BILL-1001',
-        payerName: 'মোঃ শফিকুল ইসলাম',
-        payerPhone: '01712345678',
-        gateway: 'bKash',
-        transactionId: '8N7X9K2P',
-        amount: 4750,
-        category: 'এডভান্স পেমেন্ট - React App',
-        status: 'pending',
-        date: '2026-08-05 10:30 AM',
-        note: '5% ছাড় অফার অর্ডারের বিল'
-      },
-      {
-        id: 'BILL-1002',
-        payerName: 'আরিফ উল্লাহ',
-        payerPhone: '01898765432',
-        gateway: 'Nagad',
-        transactionId: 'NGD982310',
-        amount: 999,
-        category: 'কোর্স পেমেন্ট - Digital Marketing',
-        status: 'verified',
-        verifiedAt: '2026-08-05 09:15 AM',
-        date: '2026-08-05 09:00 AM',
-        note: 'অটো-রিড ও ইনস্ট্যান্ট ভেরিফাইড'
-      }
-    ];
+    return [];
   });
 
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>(() => {
@@ -1043,36 +1019,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [payouts, setPayouts] = useState<TeacherPayout[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_payouts`);
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(p => p.id !== 'pay-101' && p.id !== 'pay-102');
+        }
+      } catch {}
     }
-    return [
-      {
-        id: "pay-101",
-        teacherId: "teacher-1",
-        teacherName: "তানভীর আহমেদ (ইনস্ট্রাক্টর)",
-        teacherEmail: "teacher@ptenit.com",
-        amount: 8500,
-        paymentMethod: "bKash",
-        accountNumber: "01711122233",
-        note: "জুলাই মাসের কোর্স কমিশন ও মডিউল অ্যাসেসড বোনাস",
-        status: "Pending",
-        requestedAt: "2026-07-31 16:20"
-      },
-      {
-        id: "pay-102",
-        teacherId: "teacher-1",
-        teacherName: "তানভীর আহমেদ (ইনস্ট্রাক্টর)",
-        teacherEmail: "teacher@ptenit.com",
-        amount: 5000,
-        paymentMethod: "Nagad",
-        accountNumber: "01711122233",
-        note: "জুন মাসের ইনস্ট্রাকশন পেমেন্ট",
-        status: "Paid",
-        transactionId: "NG7721X90",
-        requestedAt: "2026-06-30 11:00",
-        processedAt: "2026-07-01 10:30"
-      }
-    ];
+    return [];
   });
 
   const [teacherNotices, setTeacherNotices] = useState<TeacherNotice[]>(() => {
@@ -1874,9 +1828,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       time: 'এইমাত্র',
       read: false,
       type: 'info',
-      targetTab: 'admin'
+      targetTab: 'admin',
+      recipientRole: 'admin'
     };
-    setNotifications(prev => [adminNotif, ...prev]);
+    if (newUser.role === 'admin') {
+      setNotifications(prev => [adminNotif, ...prev]);
+    }
     syncDocToFirestore('notifications', adminNotif.id, adminNotif);
 
     return true;
@@ -1898,9 +1855,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         time: 'এইমাত্র',
         read: false,
         type: 'info',
-        targetTab: 'admin'
+        targetTab: 'admin',
+        recipientRole: 'admin'
       };
-      setNotifications(prev => [adminNotif, ...prev]);
+      if (userCreated.role === 'admin') {
+        setNotifications(prev => [adminNotif, ...prev]);
+      }
       syncDocToFirestore('notifications', adminNotif.id, adminNotif);
     };
 
@@ -1995,6 +1955,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(`${STORAGE_KEY}_current_user`);
     localStorage.removeItem(`${STORAGE_KEY}_ptenit_user`);
     localStorage.removeItem(`${STORAGE_KEY}_marketplace_user`);
+    localStorage.removeItem('ptenit_my_buyer_post_ids');
   };
 
   const logoutMarketplace = () => {

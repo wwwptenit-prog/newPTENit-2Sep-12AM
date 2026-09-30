@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Eye, EyeOff, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { X, Eye, EyeOff, ArrowLeft, CheckCircle2, UserPlus } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../services/firebase';
@@ -15,15 +15,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  const { login, loginWithGoogle, loginWithGoogleDirect, signup, siteSettings } = useData();
-  const [showGoogleDirect, setShowGoogleDirect] = useState(false);
-  const [googleEmail, setGoogleEmail] = useState('');
-  const [googleName, setGoogleName] = useState('');
-  const [googleDirectLoading, setGoogleDirectLoading] = useState(false);
+  const { login, loginWithGoogle, signup, siteSettings, users } = useData();
 
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [imageError, setImageError] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [signupLoading, setSignupLoading] = useState(false);
   
   // Login Fields
   const [loginEmailOrPhone, setLoginEmailOrPhone] = useState(() => {
@@ -40,10 +37,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [signupPassword, setSignupPassword] = useState('');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [selectedRoleType, setSelectedRoleType] = useState<'customer' | 'specialist' | 'both'>('customer');
-  
+
   // Forgot Password Fields
   const [resetEmailOrPhone, setResetEmailOrPhone] = useState('');
-  const [resetSupportMsg, setResetSupportMsg] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
@@ -74,8 +70,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  // Direct, Instant & Frictionless Signup
+  const handleDirectSignup = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
+
     if (!fullName.trim()) {
       setErrorMsg('অনুগ্রহ করে আপনার পূর্ণ নাম লিখুন।');
       return;
@@ -86,6 +85,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
     if (!signupEmail.trim()) {
       setErrorMsg('অনুগ্রহ করে ইমেইল লিখুন।');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(signupEmail.trim())) {
+      setErrorMsg('অনুগ্রহ করে একটি সঠিক ও সক্রিয় ইমেইল/জিমেইল অ্যাড্রেস লিখুন।');
+      return;
+    }
+    if (!signupPassword || signupPassword.length < 6) {
+      setErrorMsg('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।');
+      return;
+    }
+
+    // Check if email already registered
+    const emailLower = signupEmail.trim().toLowerCase();
+    const existing = (users || []).find(u => u.email && u.email.toLowerCase() === emailLower);
+    if (existing) {
+      setErrorMsg('এই ইমেইলে ইতোমধ্যে একটি অ্যাকাউন্ট রয়েছে। দয়া করে লগইন করুন।');
       return;
     }
 
@@ -103,22 +119,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       userRoles = ['customer', 'specialist', 'instructor'];
     }
 
+    const nowIso = new Date().toISOString();
     const userData = {
-      name: fullName,
-      email: signupEmail,
-      mobile: signupPhone,
+      name: fullName.trim(),
+      email: signupEmail.trim(),
+      mobile: signupPhone.trim(),
       role: primaryRole as any,
       roles: userRoles,
       activeRole: 'customer' as const,
       isSpecialist: selectedRoleType === 'specialist' || selectedRoleType === 'both',
-      specialistStatus: (selectedRoleType === 'specialist' || selectedRoleType === 'both') ? 'pending' : 'not_applied'
+      specialistStatus: (selectedRoleType === 'specialist' || selectedRoleType === 'both') ? 'pending' : 'not_applied',
+      createdAt: nowIso
     };
 
-    const ok = signup(userData as any, signupPassword || '123456');
-    if (ok) {
-      setErrorMsg('');
-      onSuccess();
-      onClose();
+    setSignupLoading(true);
+    try {
+      const ok = signup(userData as any, signupPassword || '123456');
+      if (ok) {
+        setErrorMsg('');
+        onSuccess();
+        onClose();
+      } else {
+        setErrorMsg('অ্যাকাউন্ট তৈরিতে সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+      }
+    } catch (err: any) {
+      setErrorMsg('অ্যাকাউন্ট তৈরি করতে সমস্যা হয়েছে।');
+    } finally {
+      setSignupLoading(false);
     }
   };
 
@@ -143,7 +170,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             setResetLoading(false);
             return;
           }
-          // If it's another code (e.g. invalid-email), notify user
           if (firebaseErr?.code === 'auth/invalid-email') {
             setErrorMsg('অনুগ্রহ করে সঠিক জিমেইল অ্যাড্রেস লিখুন।');
             setResetLoading(false);
@@ -175,39 +201,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (err?.code === 'auth/popup-closed-by-user') {
         setErrorMsg('গুগল লগইন উইন্ডো বন্ধ করা হয়েছে।');
       } else {
-        // Automatically reveal direct Google Sign-in box so user is never stuck
-        setShowGoogleDirect(true);
-        setErrorMsg('ব্রাউজারে গুগল পপআপ ব্লক থাকলে নিচে আপনার জিমেইল লিখে সরাসরি প্রবেশ করুন:');
+        setErrorMsg('গুগল সাইন-ইন সম্পন্ন করতে ব্যর্থ হয়েছে। দয়া করে নিচের ফর্ম পূরণ করে সাইন আপ করুন।');
       }
     } finally {
       setGoogleLoading(false);
     }
   };
 
-  const handleGoogleDirectSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!googleEmail.trim() || !googleEmail.includes('@')) {
-      setErrorMsg('অনুগ্রহ করে সঠিক জিমেইল অ্যাড্রেস লিখুন।');
-      return;
-    }
-    setGoogleDirectLoading(true);
-    try {
-      const ok = loginWithGoogleDirect(googleEmail.trim(), googleName.trim() || googleEmail.split('@')[0], selectedRoleType);
-      if (ok) {
-        setErrorMsg('');
-        onSuccess();
-        onClose();
-      }
-    } catch (err: any) {
-      setErrorMsg('লগইন করতে সমস্যা হয়েছে।');
-    } finally {
-      setGoogleDirectLoading(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.12)] border border-slate-100 max-w-[400px] w-full p-6 sm:p-7 font-bengali relative my-auto animate-in zoom-in-95 duration-150 text-slate-900">
+      <div className="bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.12)] border border-slate-100 max-w-[420px] w-full p-6 sm:p-7 font-bengali relative my-auto animate-in zoom-in-95 duration-150 text-slate-900">
         
         {/* Close Button */}
         <button
@@ -246,7 +249,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {mode === 'login'
               ? 'লগইন'
               : mode === 'signup'
-              ? 'নতুন অ্যাকাউন্ট'
+              ? 'নতুন অ্যাকাউন্ট তৈরি'
               : 'পাসওয়ার্ড রিসেট'}
           </h2>
         </div>
@@ -257,8 +260,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* ONE-CLICK GOOGLE SIGN IN */}
-        {mode !== 'forgot' && (
+        {/* GOOGLE SIGN IN (LOGIN & SIGNUP MODES ONLY) */}
+        {(mode === 'login' || mode === 'signup') && (
           <div className="space-y-3.5 mb-4">
             {/* If in signup mode, role choice is upfront */}
             {mode === 'signup' && (
@@ -320,105 +323,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {googleLoading
                   ? 'সংযোগ হচ্ছে...'
                   : mode === 'signup'
-                  ? 'Google দিয়ে সাইনআপ'
+                  ? 'Google দিয়ে ১-ক্লিক সাইনআপ'
                   : 'Google দিয়ে লগইন'}
               </span>
             </button>
-
-            {/* Direct Google Login Box (Zero-Failure Fallback) */}
-            {showGoogleDirect && (
-              <div className="bg-sky-50/80 border border-sky-200/90 rounded-xl p-3.5 space-y-2.5 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
-                    <span>Google দিয়ে সরাসরি প্রবেশ</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowGoogleDirect(false)}
-                    className="text-[11px] text-sky-700 hover:text-sky-900 underline cursor-pointer"
-                  >
-                    বন্ধ করুন
-                  </button>
-                </div>
-                <form onSubmit={handleGoogleDirectSubmit} className="space-y-2">
-                  <input
-                    type="email"
-                    required
-                    value={googleEmail}
-                    onChange={(e) => setGoogleEmail(e.target.value)}
-                    placeholder="আপনার Gmail (যেমন: name@gmail.com)"
-                    className="w-full h-9 px-3 rounded-lg border border-sky-300 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500"
-                  />
-                  {mode === 'signup' && (
-                    <input
-                      type="text"
-                      value={googleName}
-                      onChange={(e) => setGoogleName(e.target.value)}
-                      placeholder="আপনার পুরো নাম"
-                      className="w-full h-9 px-3 rounded-lg border border-sky-300 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500"
-                    />
-                  )}
-                  <button
-                    type="submit"
-                    disabled={googleDirectLoading}
-                    className="w-full h-8.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98 cursor-pointer disabled:opacity-50"
-                  >
-                    {googleDirectLoading ? 'প্রবেশ হচ্ছে...' : '১-ক্লিকে নিশ্চিত করুন'}
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* Direct Google Login Box (Zero-Failure Fallback) */}
-            {showGoogleDirect && (
-              <div className="bg-sky-50/80 border border-sky-200/90 rounded-xl p-3.5 space-y-2.5 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
-                    <span>Google দিয়ে সরাসরি প্রবেশ</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowGoogleDirect(false)}
-                    className="text-[11px] text-sky-700 hover:text-sky-900 underline cursor-pointer"
-                  >
-                    বন্ধ করুন
-                  </button>
-                </div>
-                <form onSubmit={handleGoogleDirectSubmit} className="space-y-2">
-                  <input
-                    type="email"
-                    required
-                    value={googleEmail}
-                    onChange={(e) => setGoogleEmail(e.target.value)}
-                    placeholder="আপনার Gmail (যেমন: name@gmail.com)"
-                    className="w-full h-9 px-3 rounded-lg border border-sky-300 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500"
-                  />
-                  {mode === 'signup' && (
-                    <input
-                      type="text"
-                      value={googleName}
-                      onChange={(e) => setGoogleName(e.target.value)}
-                      placeholder="আপনার পুরো নাম"
-                      className="w-full h-9 px-3 rounded-lg border border-sky-300 bg-white text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-sky-500"
-                    />
-                  )}
-                  <button
-                    type="submit"
-                    disabled={googleDirectLoading}
-                    className="w-full h-8.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98 cursor-pointer disabled:opacity-50"
-                  >
-                    {googleDirectLoading ? 'প্রবেশ হচ্ছে...' : '১-ক্লিকে নিশ্চিত করুন'}
-                  </button>
-                </form>
-              </div>
-            )}
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-200" />
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="bg-white px-3 text-slate-400">অথবা</span>
+                <span className="bg-white px-3 text-slate-400">অথবা ফর্ম পূরণ করুন</span>
               </div>
             </div>
           </div>
@@ -433,30 +348,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-slate-900">
-                  রিসেট লিঙ্ক পাঠানো হয়েছে
+                  পাসওয়ার্ড রিসেট নির্দেশিকা পাঠানো হয়েছে!
                 </h3>
                 <p className="text-xs text-slate-600">
-                  ইনবক্স (<span className="font-semibold text-slate-900">{resetEmailOrPhone}</span>) চেক করুন।
+                  <span className="font-semibold text-slate-900">{resetEmailOrPhone}</span> ঠিকানায় পাসওয়ার্ড রিসেট নির্দেশিকা পাঠানো হয়েছে। ইনবক্স ও স্প্যাম ফোল্ডার চেক করুন।
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => { setMode('login'); setResetSuccess(false); setErrorMsg(''); }}
-                className="w-full h-10 bg-[#006A4E] hover:bg-[#047857] text-white font-semibold text-xs rounded-xl transition cursor-pointer active:scale-95"
+                onClick={() => {
+                  setMode('login');
+                  setResetSuccess(false);
+                }}
+                className="w-full py-2 bg-[#006A4E] text-white text-xs font-bold rounded-lg cursor-pointer hover:bg-[#00543e] transition"
               >
                 লগইন করুন
               </button>
             </div>
           ) : (
             <form onSubmit={handleForgotPasswordSubmit} className="space-y-3.5">
+              <p className="text-xs text-slate-600">
+                আপনার রেজিস্টার্ড জিমেইল বা মোবাইল নম্বরটি দিন। আমরা পাসওয়ার্ড রিসেট নির্দেশিকা পাঠিয়ে দিব।
+              </p>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  ইমেইল বা ফোন নম্বর
+                  ইমেইল বা মোবাইল নম্বর
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="name@gmail.com বা 017..."
+                  placeholder="yourname@gmail.com বা 01XXXXXXXXX"
                   value={resetEmailOrPhone}
                   onChange={e => setResetEmailOrPhone(e.target.value)}
                   className="w-full h-11 px-3.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm placeholder:text-slate-400 font-medium focus:outline-none focus:border-[#006A4E] focus:ring-3 focus:ring-[#006A4E]/10 transition"
@@ -485,7 +407,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )
         ) : mode === 'signup' ? (
           /* SIGNUP FORM */
-          <form onSubmit={handleSignup} className="space-y-3">
+          <form onSubmit={handleDirectSignup} className="space-y-3">
             {/* Full Name */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -559,9 +481,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full h-11 bg-[#006A4E] hover:bg-[#047857] text-white font-semibold text-sm rounded-xl shadow-xs transition active:scale-[0.99] cursor-pointer mt-1"
+              disabled={signupLoading}
+              className="w-full h-11 bg-[#006A4E] hover:bg-[#047857] text-white font-semibold text-sm rounded-xl shadow-xs transition active:scale-[0.99] cursor-pointer mt-1 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              সাইনআপ সম্পন্ন করুন
+              <UserPlus className="w-4 h-4" />
+              <span>{signupLoading ? 'অ্যাকাউন্ট তৈরি হচ্ছে...' : 'অ্যাকাউন্ট তৈরি করুন'}</span>
             </button>
 
             {/* Switch to Login Link */}
@@ -655,12 +579,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 onClick={() => { setMode('signup'); setErrorMsg(''); }}
                 className="font-bold text-[#006A4E] hover:underline cursor-pointer"
               >
-                সাইনআপ করুন
+                নতুন অ্যাকাউন্ট খুলুন
               </button>
             </div>
           </form>
         )}
-
       </div>
     </div>
   );

@@ -1049,6 +1049,18 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
     return (enrollments || []).filter(e => e.userId === currentUser.id || e.studentId === currentUser.id || (currentUser.email && (e as any).userEmail && (e as any).userEmail.toLowerCase() === currentUser.email.toLowerCase()));
   }, [enrollments, currentUser]);
 
+  const userCreatedDateFormatted = useMemo(() => {
+    if (currentUser?.createdAt) {
+      try {
+        const d = new Date(currentUser.createdAt);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+      } catch {}
+    }
+    return new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' });
+  }, [currentUser]);
+
   // লোকাল সেশনে বায়ারের ক্রিয়েট করা পোস্ট আইডিসমূহ
   const [myCreatedPostIds, setMyCreatedPostIds] = useState<string[]>(() => {
     try {
@@ -1063,15 +1075,14 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
 
   const isMyBuyerOrder = useCallback((o: MarketplaceOrder) => {
     if (currentUser) {
-      if (o.buyerId && (o.buyerId === currentUser.id || o.buyerId === 'buyer-self')) return true;
-      if ((o as any).customerId && ((o as any).customerId === currentUser.id || (o as any).customerId === 'buyer-self')) return true;
+      if (o.buyerId && o.buyerId === currentUser.id) return true;
+      if ((o as any).customerId && (o as any).customerId === currentUser.id) return true;
       if (currentUser.email && o.buyerEmail && o.buyerEmail.toLowerCase().trim() === currentUser.email.toLowerCase().trim()) return true;
-      if (currentUser.name && o.buyerName && o.buyerName.toLowerCase().trim() === currentUser.name.toLowerCase().trim()) return true;
       if (currentUser.mobile && (o as any).buyerPhone && (o as any).buyerPhone.trim() === currentUser.mobile.trim()) return true;
       if (myCreatedPostIds.includes(o.id)) return true;
       return false;
     }
-    return myCreatedPostIds.includes(o.id) || o.buyerId === 'buyer-self';
+    return myCreatedPostIds.includes(o.id);
   }, [currentUser, myCreatedPostIds]);
 
   const buyerDigitalOrders = useMemo(() => {
@@ -1110,16 +1121,14 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
 
     // ২. লগইন করা ইউজার থাকলে তার আইডি, ইমেইল বা ফোন নম্বরের সাথে ম্যাচিং
     if (currentUser) {
-      if (o.buyerId && (o.buyerId === currentUser.id || o.buyerId === 'buyer-self')) return true;
-      if ((o as any).customerId && ((o as any).customerId === currentUser.id || (o as any).customerId === 'buyer-self')) return true;
+      if (o.buyerId && o.buyerId === currentUser.id) return true;
+      if ((o as any).customerId && (o as any).customerId === currentUser.id) return true;
       if (currentUser.email && o.buyerEmail && o.buyerEmail.toLowerCase().trim() === currentUser.email.toLowerCase().trim()) return true;
-      if (currentUser.name && o.buyerName && o.buyerName.toLowerCase().trim() === currentUser.name.toLowerCase().trim()) return true;
       if (currentUser.mobile && (o as any).buyerPhone && (o as any).buyerPhone.trim() === currentUser.mobile.trim()) return true;
       return false;
     }
 
-    // ৩. লগইন করা না থাকলে শুধুমাত্র এই সেশনে তৈরি পোস্টই বায়ারের নিজের পোস্ট
-    return o.buyerId === 'buyer-self';
+    return false;
   }, [currentUser, myCreatedPostIds]);
 
   // বায়ারের ওপেন পাবলিক পোস্টসমূহ (যেগুলো এখনো কোনো সেলার বা এক্সপার্ট রিসিভ/এক্সেপ্ট করেনি এবং শুধুমাত্র নিজের পোস্ট)
@@ -1134,8 +1143,8 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
   }, [allBuyerOrders, isBuyerOpenPost, isMyBuyerPost]);
 
   const buyerServiceOrders = useMemo(() => {
-    return (allBuyerOrders || []).filter(o => !isBuyerOpenPost(o));
-  }, [allBuyerOrders, isBuyerOpenPost]);
+    return (allBuyerOrders || []).filter(o => !isBuyerOpenPost(o) && isMyBuyerOrder(o));
+  }, [allBuyerOrders, isBuyerOpenPost, isMyBuyerOrder]);
 
   const buyerActiveOrders = useMemo(() => {
     return buyerServiceOrders.filter(o => o.status === 'in_progress' || o.status === 'in_review');
@@ -1210,210 +1219,25 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
         };
       });
 
-    if (listFromDb.length > 0) {
-      return listFromDb;
-    }
-
-    const standardProCourses = [
-      {
-        id: 'course-canva',
-        title: 'Canva Design & Freelancing Masterclass',
-        coverImage: courses.find(c => c.id === 'course-canva')?.thumbnail || 'https://images.unsplash.com/photo-1626785774573-4b799315345d?auto=format&fit=crop&w=800&q=80',
-        instructor: 'তানভীর আহমেদ',
-        instructorRole: 'Senior Graphic Designer & Freelancer',
-        batch: 'ব্যাচ-০১ (সম্পন্ন)',
-        progress: 100,
-        completedLessons: 16,
-        totalLessons: 16,
-        badge: 'Graphic Design',
-        enrolledDate: '১২ জানুয়ারি ২০২৬',
-        isLive: false,
-        liveClassStatus: 'completed' as const,
-        liveSchedule: 'কোর্স সম্পন্ন (আর্কাইভ লাইভ রেকর্ডিং)',
-        liveClassTopic: 'ক্যানভা প্রো ও ফ্রিল্যান্সিং কমপ্লিট সেশন (আর্কাইভ রেকর্ডিং)',
-        liveClassModuleNo: '০২',
-        liveClassModuleTitle: 'প্র্যাক্টিক্যাল প্রজেক্টস ও ফ্রিল্যান্সিং গাইড',
-        liveClassLessonNo: '০৩',
-        liveClassLessonTitle: 'ভাইরাল থাম্বনেইল ও রিলস ডিজাইন',
-        liveClassSerialNo: '০৫',
-        liveClassDate: '2026-02-28',
-        liveClassTime: '21:00',
-        liveClassLink: 'https://meet.google.com/new',
-        durationMinutes: 90
-      },
-      {
-        id: 'course-yt-seo',
-        title: 'YouTube SEO & Channel Growth Blueprint',
-        coverImage: courses.find(c => c.id === 'course-yt-seo')?.thumbnail || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=800&q=80',
-        instructor: 'কাজী সোহাগ',
-        instructorRole: 'Digital Marketing & SEO Specialist',
-        batch: 'ব্যাচ-০২ (চলমান)',
-        progress: 72,
-        completedLessons: 15,
-        totalLessons: 22,
-        badge: 'SEO & Growth',
-        enrolledDate: '১২ ফেব্রুয়ারি ২০২৬',
-        isLive: true,
-        liveClassStatus: 'scheduled' as const,
-        liveSchedule: 'আজ রাত ৯:০০ টা',
-        liveClassTopic: 'TubeBuddy ও VidIQ দিয়ে হাই-র‍্যাংক কিওয়ার্ড সিলেকশন ও রিয়েলটাইম র‍্যাংকিং',
-        liveClassModuleNo: '০৩',
-        liveClassModuleTitle: 'কিওয়ার্ড রিসার্চ ও অ্যালগরিদম হ্যাক',
-        liveClassLessonNo: '০১',
-        liveClassLessonTitle: 'শীর্ষ সার্চ ভলিউম ট্যাগ নির্ধারণ',
-        liveClassSerialNo: '০৮',
-        liveClassDate: new Date().toISOString().split('T')[0],
-        liveClassTime: '21:00',
-        liveClassLink: 'https://meet.google.com/new',
-        durationMinutes: 90
-      },
-      {
-        id: 'course-mern-pro',
-        title: 'Full-Stack MERN & Next.js Pro Web Development',
-        coverImage: courses.find(c => c.id === 'course-mern-pro')?.thumbnail || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=800&q=80',
-        instructor: 'প্রকৌশলী আল-আমিন',
-        instructorRole: 'Lead Full-Stack Architect',
-        batch: 'ব্যাচ-০৮ (লাইভ)',
-        progress: 80,
-        completedLessons: 16,
-        totalLessons: 20,
-        badge: 'MERN Stack',
-        enrolledDate: '১০ জুলাই ২০২৬',
-        isLive: true,
-        liveClassStatus: 'scheduled' as const,
-        liveSchedule: 'আগামীকাল রাত ৯:৩০ টা',
-        liveClassTopic: 'Next.js 15 Server Components ও MongoDB Live Data Architecture',
-        liveClassModuleNo: '০৪',
-        liveClassModuleTitle: 'প্রোডাকশন গ্রেড আর্কিটেকচার',
-        liveClassLessonNo: '০২',
-        liveClassLessonTitle: 'সার্ভার অ্যাকশনস ও ক্যাশিং স্ট্র্যাটেজি',
-        liveClassSerialNo: '১২',
-        liveClassDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-        liveClassTime: '21:30',
-        liveClassLink: 'https://meet.google.com/new',
-        durationMinutes: 90
-      }
-    ];
-
-    return standardProCourses;
+    return listFromDb;
   }, [userEnrollments, courses, liveSessions]);
 
   const studentCertificatesList = useMemo(() => {
     const userCerts = (certificates || []).filter(c => currentUser ? (c.studentId === currentUser.id || c.studentEmail === currentUser.email) : false);
-    const defaultCerts = [
-      {
-        id: 'cert-1',
-        title: 'ফুল স্ট্যাক MERN ডেভেলপমেন্ট মাস্টারক্লাস',
-        certId: 'CERT-PTEN-MERN-8891',
-        issueDate: '১৫ আগস্ট ২০২৬',
-        grade: 'High Distinction (৯৮%)'
-      },
-      {
-        id: 'cert-2',
-        title: 'পাইথন ড্যাঙ্গো (Django) ও AI ব্যাকএন্ড ইঞ্জিনিয়ারিং',
-        certId: 'CERT-PTEN-PY-4402',
-        issueDate: '১০ জুলাই ২০২৬',
-        grade: 'Distinction (৯৪%)'
-      }
-    ];
     if (userCerts.length > 0) {
-      return [
-        ...userCerts.map(c => ({
-          id: c.id,
-          title: c.courseName || 'PTENit Certified Professional Track',
-          certId: c.certificateCode || `PTEN-CERT-${c.id}`,
-          issueDate: c.issueDate || 'চলমান মাস',
-          grade: 'Grade A+ (Verified)'
-        })),
-        ...defaultCerts
-      ];
+      return userCerts.map(c => ({
+        id: c.id,
+        title: c.courseName || 'PTENit Certified Professional Track',
+        certId: c.certificateCode || `PTEN-CERT-${c.id}`,
+        issueDate: c.issueDate || 'চলমান মাস',
+        grade: 'Grade A+ (Verified)'
+      }));
     }
-    return defaultCerts;
+    return [];
   }, [certificates, currentUser]);
 
-  const [submittedTasksList, setSubmittedTasksList] = useState([
-    {
-      id: 'task-1',
-      title: 'E-Commerce REST API & Redux Toolkit Integration',
-      course: 'Full-Stack MERN & Next.js Pro',
-      courseName: 'Full-Stack MERN & Next.js Pro',
-      courseId: 'course-mern-pro',
-      marks: '৯৮/১০০ (A+ Grade)',
-      status: 'completed',
-      date: '১৮ আগস্ট ২০২৬',
-      totalMarks: '১০০ মার্কস',
-      passMarks: '৭০ মার্কস',
-      repo: 'https://github.com/student-demo/mern-ecommerce-redux',
-      note: 'সম্পূর্ণ টেস্ট কেস সহ সব এন্ডপয়েন্ট পোস্টম্যানে ভেরিফাই করা হয়েছে।',
-      description: 'রেডুএক্স টুলকিট ও এক্সপ্রেস নোড ব্যাকএন্ড দিয়ে ফুল স্ট্যাক ক্যাটাগরি, প্রোডাক্ট ও কার্ট এপিআই সমাধান।',
-      requirements: [
-        'JWT অথেন্টিকেশন ও প্রোটেক্টেড রুট ইমপ্লিমেন্টেশন।',
-        'Redux Toolkit AsyncThunk দিয়ে স্টেট সিঙ্ক্রোনাইজেশন।',
-        'মঙ্গোডিবি Aggregation Pipeline ব্যবহার করে ফিল্টারিং।'
-      ],
-      feedback: 'চমৎকার ব্যাকএন্ড আর্কিটেকচার এবং ক্লিন রিডাক্স স্লাইস মেথডোলজি ব্যবহার করা হয়েছে।'
-    },
-    {
-      id: 'task-2',
-      title: 'Real-time Socket.io Chat & Notification Service',
-      course: 'Full-Stack MERN & Next.js Pro',
-      courseName: 'Full-Stack MERN & Next.js Pro',
-      courseId: 'course-mern-pro',
-      marks: 'রিভিউর অপেক্ষায়',
-      status: 'pending',
-      date: '২০ আগস্ট ২০২৬',
-      totalMarks: '৫০ মার্কস',
-      passMarks: '৩৫ মার্কস',
-      repo: 'https://github.com/student-demo/socket-live-messaging',
-      note: 'রুম ব্রডকাস্টিং এবং মেসেজ হিস্ট্রি মঙ্গোডিবির সাথে সিঙ্ক করা হয়েছে।',
-      description: 'রিয়েলটাইম দ্বিমুখী চ্যাট ও নোটিফিকেশন সিস্টেম ইমপ্লিমেন্টেশন।',
-      requirements: [
-        'Socket.io হ্যান্ডশেক ও ইউজার রুম জয়েন হ্যান্ডলিং।',
-        'অনলাইন/অফলাইন স্ট্যাটাস ও টাইপিং ইন্ডিকেটর।',
-        'মেসেজ ব্যাকআপ ও রিয়েলটাইম অ্যালার্ট নোটিফিকেশন।'
-      ],
-      feedback: 'ইন্সট্রাকটর আল-আমিন কোড রিভিউ করছেন।'
-    }
-  ]);
-
-  const [pendingAssignmentsList, setPendingAssignmentsList] = useState([
-    {
-      id: 'pending-1',
-      title: 'মডিউল ৭: ইকমার্স শপিং কার্ট ও চেকআউট ইন্টিগ্রেশন প্রজেক্ট',
-      courseId: 'course-mern-pro',
-      courseName: 'Full Stack Web Development',
-      deadline: 'আগামীকাল রাত ১১:৫৯',
-      badge: 'জরুরি',
-      totalMarks: '৫০ মার্কস',
-      passMarks: '৩৫ মার্কস',
-      description: 'একটি সম্পূর্ণ রেসপন্সিভ ই-কমার্স শপিং কার্ট এবং চেকআউট ফ্লো তৈরি করতে হবে যেখানে ইউজার প্রোডাক্ট অ্যাড, কোয়ান্টিটি পরিবর্তন, কুপন ডিসকাউন্ট প্রয়োগ এবং ডেমো পেমেন্ট সম্পন্ন করতে পারবে।',
-      requirements: [
-        'কমপক্ষে ৫টি প্রোডাক্ট লিস্ট ভিউ এবং সিঙ্গেল প্রোডাক্ট বিবরণী তৈরি করা।',
-        'অ্যাড টু কার্ট, আইটেম সংখ্যা বৃদ্ধি/হ্রাস ও রিমুভ করার স্টেট ম্যানেজমেন্ট।',
-        'সাবটোটাল, ভ্যাট/ট্যাক্স এবং কুপন কোড ডিসকাউন্ট রিয়েলটাইম ক্যালকুলেশন।',
-        'গিটহাবে অন্তত ৩টি অর্থপূর্ণ কমিট এবং Vercel/Netlify লাইভ প্রিভিউ লিংক।'
-      ],
-      submissionGuide: 'গিটহাব পাবলিক রিপোজিটরি লিংক অথবা লাইভ হোস্টেড প্রজেক্ট লিংক প্রদান করুন।'
-    },
-    {
-      id: 'pending-2',
-      title: 'মডিউল ৪: ফেসবুক কনভার্সন পিক্সেল ও কাস্টম অডিয়েন্স ক্যাম্পেইন',
-      courseId: 'course-fb-marketing',
-      courseName: 'Facebook Marketing & Paid Ads',
-      deadline: '২৮ আগস্ট ২০২৬',
-      badge: 'নিয়মিত',
-      totalMarks: '৫০ মার্কস',
-      passMarks: '৩৫ মার্কস',
-      description: 'মেটা বিজনেস ম্যানেজারে কনভার্সন পিক্সেল ও কাস্টম অডিয়েন্স স্ট্র্যাটেজি তৈরি করে জমা দিতে হবে। বিভিন্ন ফানেল স্টেজ অনুযায়ী ক্যাম্পেইন স্ট্রাকচার সাজাতে হবে।',
-      requirements: [
-        'ওয়েবসাইটে মেটা পিক্সেল ও স্ট্যান্ডার্ড ইভেন্ট সেটআপের স্ক্রিনশট।',
-        'কাস্টম অডিয়েন্স ও ৩% লুক-অ্যালাইক অডিয়েন্স তৈরির প্রমাণপত্র।',
-        'অ্যাড কপি, হেডলাইন, ক্রিয়েটিভ ব্যানার এবং প্লেসমেন্ট স্ট্র্যাটেজি।',
-        'গুগল ডক বা ড্রাইভ ফোল্ডার লিংক (ভিউয়ার এক্সেস সহ)।'
-      ],
-      submissionGuide: 'গুগল ড্রাইভ বা ডক লিংক (সবার জন্য ভিউ পারমিশন ওপেন রেখে) জমা দিন।'
-    }
-  ]);
+  const [submittedTasksList, setSubmittedTasksList] = useState<any[]>([]);
+  const [pendingAssignmentsList, setPendingAssignmentsList] = useState<any[]>([]);
   const [assignmentStatusFilter, setAssignmentStatusFilter] = useState<'new' | 'review' | 'success'>('new');
   const [selectedAssignmentDetail, setSelectedAssignmentDetail] = useState<{
     id?: string;
@@ -2116,57 +1940,36 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
   const roleScopedNotifications = useMemo(() => {
     if (!notifications) return [];
     return notifications.filter(n => {
-      if (currentUser) {
-        if (n.recipientId && n.recipientId !== currentUser.id && n.recipientId !== "all") return false;
-        if (n.recipientEmail && currentUser.email && n.recipientEmail.toLowerCase() !== currentUser.email.toLowerCase() && n.recipientEmail !== "all") return false;
+      if (!currentUser) {
+        return n.recipientId === 'all' || n.recipientRole === 'all';
       }
-      if (n.mode === 'selling') return isSellerMode;
-      if (n.mode === 'buying') return !isSellerMode;
-      if (n.mode === 'both') return true;
 
+      // Admin sees all
+      if (currentUser.role === 'admin') return true;
+
+      // Normal users never see admin/staff alerts
+      if (n.recipientRole === 'admin' || n.targetTab === 'admin') return false;
+
+      // Direct recipient targeting
+      if (n.recipientId && n.recipientId !== 'all') {
+        return n.recipientId === currentUser.id;
+      }
+      if (n.recipientEmail && n.recipientEmail !== 'all') {
+        return Boolean(currentUser.email && n.recipientEmail.toLowerCase() === currentUser.email.toLowerCase());
+      }
+
+      // Role-based targeting
       if (n.recipientRole) {
         if (n.recipientRole === 'all') return true;
-        return isSellerMode ? n.recipientRole === 'seller' : n.recipientRole === 'buyer';
+        return isSellerMode ? n.recipientRole === 'seller' : (n.recipientRole === 'buyer' || n.recipientRole === 'customer' || n.recipientRole === 'student');
       }
-      const cat = (n.category || '').toLowerCase();
-      const title = (n.title || '').toLowerCase();
-      const msg = (n.message || '').toLowerCase();
 
-      const isSellerSpecific = 
-        cat === 'seller' || 
-        cat === 'payout' || 
-        title.includes('সেলার') || 
-        title.includes('উইথড্র') || 
-        title.includes('ক্যাশআউট') || 
-        title.includes('বোনাস') || 
-        title.includes('ব্যালেন্স') || 
-        title.includes('ord-8821') || 
-        title.includes('রেটিং') || 
-        title.includes('রিভিউ') || 
-        msg.includes('সেলার') ||
-        msg.includes('পেমেন্ট রিসিভ') ||
-        msg.includes('পেমেন্ট গ্রহণ');
+      // Mode check
+      if (n.mode === 'selling') return isSellerMode;
+      if (n.mode === 'buying') return !isSellerMode;
 
-      const isBuyerSpecific = 
-        cat === 'buyer' || 
-        cat === 'course' || 
-        title.includes('বায়ার') || 
-        title.includes('কোর্স') || 
-        title.includes('এনরোলমেন্ট') || 
-        title.includes('অর্ডার প্লেস') || 
-        title.includes('পেমেন্ট সফল') || 
-        title.includes('ক্লাস লিংক') || 
-        title.includes('মডিউল') || 
-        msg.includes('বায়ার') ||
-        msg.includes('এনরোল');
-
-      if (isSellerMode) {
-        if (isBuyerSpecific && !isSellerSpecific) return false;
-        return true;
-      } else {
-        if (isSellerSpecific && !isBuyerSpecific) return false;
-        return true;
-      }
+      // Do not leak orphan alerts to regular users
+      return false;
     });
   }, [notifications, isSellerMode]);
 
@@ -4312,44 +4115,55 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                   )}
                 </div>
 
-                {/* Right Action Controls: Profile Avatar & Menu (Uniform Circular Glass Elements) */}
-                <div className="flex items-center justify-end gap-1.5 shrink-0">
+                {/* Right Action Controls: Profile Avatar & Menu (Matching PTEN IT Style) */}
+                <div className="flex items-center justify-end gap-1 shrink-0">
                   {/* Profile Avatar / Login Button */}
                   {currentUser ? (
-                    <div
-                      className={`w-8 h-8 rounded-full ${
-                        viewMode === 'selling' ? 'bg-[#BE123C] ring-2 ring-rose-300/50' : 'bg-[#00543D] ring-2 ring-emerald-300/50'
-                      } flex items-center justify-center cursor-default select-none shrink-0 overflow-hidden shadow-xs`}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (setActiveSubTab) setActiveSubTab('my_profile');
+                        else setIsMobileMarketplaceMenuOpen(true);
+                      }}
+                      className="w-7 h-7 rounded-full bg-white border border-white/30 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer active:scale-95 transition"
                       title={`প্রোফাইল: ${currentUser.name}`}
                     >
-                      <img
-                        src={currentUser.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"}
-                        alt={currentUser.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                      {currentUser.avatar ? (
+                        <img
+                          src={currentUser.avatar}
+                          alt={currentUser.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className={`text-[11px] font-black ${viewMode === 'selling' ? 'text-rose-600' : 'text-[#006A4E]'}`}>
+                          {currentUser.name?.charAt(0).toUpperCase() || 'U'}
+                        </span>
+                      )}
+                    </button>
                   ) : (
                     <button
                       type="button"
                       onClick={openAuthModal}
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white bg-white/15 hover:bg-white/25 border border-white/20 active:scale-90 transition cursor-pointer shadow-xs"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white hover:bg-white/15 active:scale-90 transition cursor-pointer"
                       title="লগইন করুন"
                       aria-label="লগইন"
                     >
-                      <User className="w-4.5 h-4.5 text-white" />
+                      <User className="w-5 h-5 text-white" />
                     </button>
                   )}
 
-                  {/* Menu Button */}
+                  {/* Menu Button (Matching PTEN IT: rounded-lg without circular border) */}
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setIsMobileMarketplaceMenuOpen(!isMobileMarketplaceMenuOpen);
                     }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-white bg-white/15 hover:bg-white/25 border border-white/20 cursor-pointer shrink-0 active:scale-90 transition shadow-xs touch-manipulation"
-                    title="মেনুবার"
+                    className="p-1.5 text-white hover:bg-white/15 rounded-lg cursor-pointer active:scale-95 touch-manipulation"
+                    title="মেনুবার খুলুন"
+                    aria-label="মেনুবার"
                   >
-                    {isMobileMarketplaceMenuOpen ? <X className="w-4.5 h-4.5 text-rose-300 stroke-[2.5]" /> : <Menu className="w-4.5 h-4.5 text-white stroke-[2.2]" />}
+                    {isMobileMarketplaceMenuOpen ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-white" />}
                   </button>
                 </div>
               </div>
@@ -12609,7 +12423,12 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                           {currentUser?.name || 'Mds Kazi Sohag'}
                         </h3>
                         <p className="text-xs text-[#006A4E] dark:text-emerald-400 font-semibold flex items-center gap-1.5 mt-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#006A4E]" />
                           <span>ভেরিফায়েড বায়ার</span>
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                          <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span>যুক্ত হয়েছেন: {userCreatedDateFormatted}</span>
                         </p>
                       </div>
                     </div>
@@ -12851,48 +12670,23 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
                             rawDate: ord.createdAt ? new Date(ord.createdAt).getTime() : 1724400000000 - idx * 86400000
                           }));
 
-                          // 3. Courses payment records
-                          const courseTransactions = [
-                            {
-                              id: 'TRX-CRS-01',
+                          // 3. Courses payment records (Real user enrollments only)
+                          const courseTransactions = (userEnrollments || []).map((enr, idx) => {
+                            const crs = (courses || []).find(c => c.id === enr.courseId);
+                            return {
+                              id: `TRX-CRS-${enr.id ? String(enr.id).replace('enr-', '').substring(0, 8).toUpperCase() : `CRS-${idx + 1}`}`,
                               type: 'courses' as const,
                               typeName: 'কোর্স',
-                              title: 'Full-Stack Web Development (MERN + AI)',
-                              amount: 4500,
-                              method: 'bKash',
-                              date: '১২/০৮/২৬',
+                              title: crs?.title || 'এনরোল্ড প্রফেশনাল কোর্স',
+                              amount: crs?.price || 4500,
+                              method: (enr as any).paymentMethod || (idx % 2 === 0 ? 'bKash' : 'Nagad'),
+                              date: enr.enrolledAt ? new Date(enr.enrolledAt).toLocaleDateString('bn-BD') : 'চলমান',
                               status: 'পরিশোধিত',
                               isEscrow: false,
                               party: 'PTENit Academy',
-                              rawDate: 1723400000000
-                            },
-                            {
-                              id: 'TRX-CRS-02',
-                              type: 'courses' as const,
-                              typeName: 'কোর্স',
-                              title: 'Python Django & AI Backend Engineering',
-                              amount: 5500,
-                              method: 'Nagad',
-                              date: '০৫/০৭/২৬',
-                              status: 'পরিশোধিত',
-                              isEscrow: false,
-                              party: 'PTENit Academy',
-                              rawDate: 1720100000000
-                            },
-                            {
-                              id: 'TRX-CRS-03',
-                              type: 'courses' as const,
-                              typeName: 'কোর্স',
-                              title: 'Next.js 14 & Tailwind Pro Masterclass',
-                              amount: 3200,
-                              method: 'SSLCommerz',
-                              date: '২৮/০৬/২৬',
-                              status: 'পরিশোধিত',
-                              isEscrow: false,
-                              party: 'PTENit Academy',
-                              rawDate: 1719500000000
-                            }
-                          ];
+                              rawDate: enr.enrolledAt ? new Date(enr.enrolledAt).getTime() : Date.now() - idx * 86400000
+                            };
+                          });
 
                           const combined = overviewInnerTab === 'orders'
                             ? projectTransactions

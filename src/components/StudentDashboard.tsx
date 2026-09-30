@@ -160,8 +160,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [profAvatar, setProfAvatar] = useState(currentUser?.avatar || '');
   const [profSaved, setProfSaved] = useState(false);
 
-  const unreadNotifCount = notifications.filter(n => !n.read).length;
-
   if (!currentUser) {
     return (
       <div className="py-20 text-center max-w-md mx-auto space-y-4 font-bengali">
@@ -180,10 +178,39 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     );
   }
 
-  // Student's data
-  const myEnrollments = enrollments.filter(e => e.userId === currentUser.id || true);
-  const myCertificates = certificates.filter(c => c.studentId === currentUser.id || true);
-  const myOrders = orders.filter(o => o.userId === currentUser.id || true);
+  // Student's data (strictly scoped to currentUser)
+  const myEnrollments = enrollments.filter(e => 
+    e.userId === currentUser.id || 
+    (currentUser.email && (e as any).studentEmail && (e as any).studentEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+    (currentUser.email && (e as any).userEmail && (e as any).userEmail.toLowerCase() === currentUser.email.toLowerCase())
+  );
+  const myCertificates = certificates.filter(c => 
+    c.studentId === currentUser.id || 
+    (currentUser.email && (c as any).studentEmail && (c as any).studentEmail.toLowerCase() === currentUser.email.toLowerCase())
+  );
+  const myOrders = orders.filter(o => 
+    o.userId === currentUser.id || 
+    (currentUser.email && (o as any).studentEmail && (o as any).studentEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+    (currentUser.email && (o as any).email && (o as any).email.toLowerCase() === currentUser.email.toLowerCase())
+  );
+
+  // Student's scoped notifications (Strict privacy: only notifications explicitly addressed to this student)
+  const myNotifications = React.useMemo(() => {
+    if (!currentUser) return [];
+    return notifications.filter(n => {
+      if (n.recipientRole === 'admin' || n.targetTab === 'admin') return false;
+      if (n.recipientId && n.recipientId !== 'all') {
+        return n.recipientId === currentUser.id;
+      }
+      if (n.recipientEmail && n.recipientEmail !== 'all') {
+        return Boolean(currentUser.email && n.recipientEmail.toLowerCase() === currentUser.email.toLowerCase());
+      }
+      if (n.recipientRole === 'student' || n.recipientRole === 'all') return true;
+      return false;
+    });
+  }, [notifications, currentUser]);
+
+  const unreadNotifCount = myNotifications.filter(n => !n.read).length;
 
   // File Upload Handler (Base64)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setUrl: (url: string) => void, setName?: (name: string) => void) => {
@@ -419,7 +446,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
                   {/* Notification Items */}
                   <div className="p-3 space-y-2 max-h-80 sm:max-h-96 overflow-y-auto bg-slate-950/50">
-                    {notifications.filter(n => {
+                    {myNotifications.filter(n => {
                       if (n.title.includes('এডমিন') || n.title.includes('Admin')) {
                         if (!studentNotifToggles.admin) return false;
                       } else if (n.title.includes('অ্যাসাইনমেন্ট') || n.title.includes('Assignment')) {
@@ -431,7 +458,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                     }).length === 0 ? (
                       <p className="text-xs text-slate-400 text-center py-10">ফিল্টার ফিল্ড অনুযায়ী কোনো নোটিফিকেশন নেই।</p>
                     ) : (
-                      notifications
+                      myNotifications
                         .filter(n => {
                           if (n.title.includes('এডমিন') || n.title.includes('Admin')) {
                             if (!studentNotifToggles.admin) return false;

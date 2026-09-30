@@ -65,29 +65,39 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
 
   const isSeller = marketplaceMode === 'selling';
 
-  // Role-scoped notifications (Buyer only sees buyer/all; Seller sees seller/all; User sees their own notifications)
+  // Role-scoped notifications (Strict privacy: user only sees their own notifications, never default/foreign alerts)
   const scopedNotifications = notifications.filter(n => {
-    if (currentUser) {
-      if (n.recipientId && n.recipientId !== currentUser.id && n.recipientId !== 'all') return false;
-      if (n.recipientEmail && currentUser.email && n.recipientEmail.toLowerCase() !== currentUser.email.toLowerCase() && n.recipientEmail !== 'all') return false;
+    if (!currentUser) {
+      return n.recipientId === 'all' || n.recipientRole === 'all';
     }
-    if (n.mode === 'selling') return isSeller;
-    if (n.mode === 'buying') return !isSeller;
+
+    // Admin sees all system notifications
+    if (currentUser.role === 'admin') return true;
+
+    // Normal users never see admin/staff alerts
+    if (n.recipientRole === 'admin' || n.targetTab === 'admin') return false;
+
+    // Direct recipient targeting
+    if (n.recipientId && n.recipientId !== 'all') {
+      return n.recipientId === currentUser.id;
+    }
+    if (n.recipientEmail && n.recipientEmail !== 'all') {
+      return Boolean(currentUser.email && n.recipientEmail.toLowerCase() === currentUser.email.toLowerCase());
+    }
+
+    // Role-based broadcast
     if (n.recipientRole) {
       if (n.recipientRole === 'all') return true;
-      return isSeller ? n.recipientRole === 'seller' : n.recipientRole === 'buyer';
+      if (isSeller) return n.recipientRole === 'seller';
+      return n.recipientRole === 'buyer' || n.recipientRole === 'customer' || n.recipientRole === 'student';
     }
-    const cat = (n.category || '').toLowerCase();
-    const title = (n.title || '').toLowerCase();
-    const isSellerSpecific = cat === 'seller' || cat === 'payout' || title.includes('সেলার') || title.includes('উইথড্র') || title.includes('বোনাস') || title.includes('ক্লাইন্ট') || title.includes('ক্লায়েন্ট');
-    const isBuyerSpecific = cat === 'buyer' || cat === 'course' || title.includes('বায়ার') || title.includes('কোর্স') || title.includes('অ্যাসাইনমেন্ট');
-    if (isSeller) {
-      if (isBuyerSpecific && !isSellerSpecific) return false;
-      return true;
-    } else {
-      if (isSellerSpecific && !isBuyerSpecific) return false;
-      return true;
-    }
+
+    // Explicit mode check
+    if (n.mode === 'selling') return isSeller;
+    if (n.mode === 'buying') return !isSeller;
+
+    // Do not show orphan notifications without recipientId or role to normal users
+    return false;
   });
 
   const unreadCount = scopedNotifications.filter((n) => !n.read).length;

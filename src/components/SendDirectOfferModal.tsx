@@ -110,6 +110,17 @@ export const SendDirectOfferModal: React.FC<SendDirectOfferModalProps> = ({
   recipientAvatar,
   onSubmit
 }) => {
+  const cleanRecipientName = (recipientName || 'সেলার')
+    .replace(/\s*\((?:ফ্রিলা্যান্সার\s*)?সেলার\)/gi, '')
+    .replace(/\s*\((?:গ্রাহক\s*)?বায়ার\)/gi, '')
+    .replace(/\s*\((?:গ্রাহক\s*)?বায়ার\)/gi, '')
+    .replace(/\s*\(Student\s*\/\s*Buyer\)/gi, '')
+    .replace(/\s*\(ফ্রিলা্যান্সার\)/gi, '')
+    .replace(/\s*\(সেলার\)/gi, '')
+    .replace(/\s*\(বায়ার\)/gi, '')
+    .replace(/\s*\(বায়ার\)/gi, '')
+    .trim() || recipientName || 'সেলার';
+
   const [postTitle, setPostTitle] = useState('');
   const [postCategory, setPostCategory] = useState('Web Development');
   const [postTags, setPostTags] = useState('React, Tailwind, Frontend');
@@ -222,12 +233,12 @@ export const SendDirectOfferModal: React.FC<SendDirectOfferModalProps> = ({
                 <h3 className="text-sm sm:text-base font-black text-white leading-tight truncate">
                   ডিরেক্ট প্রজেক্ট অফার
                 </h3>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black border border-emerald-400/30 shrink-0">
-                  ২৪ ঘণ্টা ভ্যালিডিটি
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-400/30 shrink-0">
+                  ২৪ ঘণ্টা
                 </span>
               </div>
               <p className="text-xs text-slate-300 font-medium truncate">
-                {recipientName}-কে সরাসরি প্রেরিত (ইনবক্সে ব্যক্তিগত অফার)
+                প্রাপক: {cleanRecipientName}
               </p>
             </div>
           </div>
@@ -241,11 +252,11 @@ export const SendDirectOfferModal: React.FC<SendDirectOfferModalProps> = ({
           </button>
         </div>
 
-        {/* 24-Hour Policy Notice */}
-        <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200/80 dark:border-amber-800/60 p-3 sm:px-4 text-[11px] text-amber-900 dark:text-amber-200 flex items-start gap-2 shrink-0">
-          <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <p className="leading-relaxed">
-            <strong>২৪ ঘণ্টার ব্যক্তিগত অফার:</strong> এই অফারটি সরাসরি <strong>{recipientName}</strong>-এর মেসেজে যাবে, পাবলিক ফিডে যাবে না। সেলার ২৪ ঘণ্টার মধ্যে রিসিভ না করলে তা স্বয়ংক্রিয়ভাবে ফেরত আসবে বা আপনি চাইলে পাবলিক ফিডে প্রকাশ করতে পারবেন।
+        {/* 1-Line Clean Notice */}
+        <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200/80 dark:border-amber-800/60 px-4 py-2 text-[11px] text-amber-900 dark:text-amber-200 flex items-center gap-2 shrink-0">
+          <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+          <p className="truncate">
+            ব্যক্তিগত অফার: ২৪ ঘণ্টার মধ্যে একসেপ্ট না হলে স্বয়ংক্রিয় রিফান্ড হবে।
           </p>
         </div>
 
@@ -260,7 +271,7 @@ export const SendDirectOfferModal: React.FC<SendDirectOfferModalProps> = ({
                 ডিরেক্ট প্রজেক্ট অফার সফলভাবে পাঠানো হয়েছে!
               </h4>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                {recipientName}-এর ইনবক্সে ২৪ ঘণ্টার রিসিভ কাউন্টডাউন চালু হয়েছে।
+                {cleanRecipientName}-এর ইনবক্সে ২৪ ঘণ্টার রিসিভ কাউন্টডাউন চালু হয়েছে।
               </p>
             </div>
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300">
@@ -782,7 +793,7 @@ export const SendDirectOfferModal: React.FC<SendDirectOfferModalProps> = ({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <span className="text-xs font-bold text-[#006A4E] dark:text-[#38BDF8] block">
-                      {postCategory || "ক্যাটাগরি"} • {recipientName}-কে ডিরেক্ট
+                      {postCategory || "ক্যাটাগরি"} • {cleanRecipientName}-কে সরাসরি
                     </span>
                     <h5 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
                       {postTitle || "প্রজেক্টের শিরোনাম..."}

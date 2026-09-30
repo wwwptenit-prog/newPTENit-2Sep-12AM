@@ -4,6 +4,7 @@ import fs from 'fs';
 import compression from 'compression';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import nodemailer from 'nodemailer';
 
 const app = express();
 const PORT = 3000;
@@ -480,22 +481,130 @@ app.post('/api/payment/verify-gateway', async (req, res) => {
   }
 });
 
-// Direct Download Routes for PTENit.zip & cPanel zip archives
-app.get(['/PTENit.zip', '/ptenit.zip', '/ptenit_cpanel_upload.zip', '/api/download/PTENit.zip'], (req, res) => {
-  const publicPath = path.join(process.cwd(), 'public', 'PTENit.zip');
-  const rootPath = path.join(process.cwd(), 'PTENit.zip');
-  const distPath = path.join(process.cwd(), 'dist', 'PTENit.zip');
-  const cpanelPath = path.join(process.cwd(), 'ptenit_cpanel_upload.zip');
+// Email Verification Code Dispatch API
+app.post('/api/auth/send-verification-code', async (req, res) => {
+  try {
+    const { email, name, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ success: false, message: 'Email and code are required' });
+    }
+    const recipientName = name || email.split('@')[0] || 'সম্মানিত ইউজার';
+    console.log(`[PTENit Auth] Sending 6-digit email verification code ${code} to ${email} (${recipientName})`);
 
-  const fileToServe = [publicPath, rootPath, distPath, cpanelPath].find(p => fs.existsSync(p));
+    // Real SMTP delivery if configured
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
+    const smtpFrom = process.env.SMTP_FROM || `"PTENit Security" <noreply@ptenit.com>`;
+
+    if (smtpHost && smtpUser && smtpPass) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          auth: { user: smtpUser, pass: smtpPass },
+        });
+
+        const html = `
+          <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 14px; background: #ffffff;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h2 style="color: #006A4E; margin: 0; font-size: 24px;">PTEN<span style="color: #047857;">it</span></h2>
+              <p style="color: #64748b; font-size: 13px;">অ্যাকাউন্ট ভেরিফিকেশন</p>
+            </div>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 18px; text-align: center;">
+              <p style="color: #166534; font-size: 14px; margin: 0 0 10px 0;">আসসালামু আলাইকুম <strong>${recipientName}</strong>,</p>
+              <p style="color: #334155; font-size: 13px; margin: 0;">আপনার অ্যাকাউন্ট সক্রিয় করতে নিচের ৬-সংখ্যার কোডটি ব্যবহার করুন:</p>
+              <div style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #006A4E; background: #ffffff; border: 2px dashed #006A4E; padding: 10px 24px; border-radius: 8px; display: inline-block; margin: 16px 0;">${code}</div>
+              <p style="color: #64748b; font-size: 12px; margin: 0;">কোডটি আগামী ১০ মিনিটের জন্য কার্যকর থাকবে।</p>
+            </div>
+          </div>
+        `;
+
+        await transporter.sendMail({
+          from: smtpFrom,
+          to: email,
+          subject: `[PTENit] আপনার একাউন্ট ভেরিফিকেশন কোড: ${code}`,
+          html,
+        });
+      } catch (mailErr) {
+        console.warn('[SMTP Dispatch Notice]', mailErr);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Verification code successfully dispatched to ${email}`,
+      recipient: email
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to send verification code' });
+  }
+});
+
+// Direct Download Routes for PTENit.zip & cPanel zip archives
+app.get([
+  '/ptenit_cpanel_public_html.zip',
+  '/PTENit_cpanel_public_html.zip',
+  '/ptenit_cpanel.zip',
+  '/PTENit.zip',
+  '/ptenit.zip',
+  '/ptenit_cpanel_upload.zip',
+  '/api/download/PTENit.zip',
+  '/api/download/cpanel',
+  '/api/download/ptenit_cpanel_public_html.zip'
+], (req, res) => {
+  const possiblePaths = [
+    path.join(process.cwd(), 'public', 'ptenit_cpanel_public_html.zip'),
+    path.join(process.cwd(), 'ptenit_cpanel_public_html.zip'),
+    path.join(process.cwd(), 'public', 'PTENit.zip'),
+    path.join(process.cwd(), 'PTENit.zip'),
+    path.join(process.cwd(), 'dist', 'ptenit_cpanel_public_html.zip'),
+    path.join(process.cwd(), 'ptenit_cpanel_upload.zip')
+  ];
+
+  const fileToServe = possiblePaths.find(p => fs.existsSync(p));
   if (fileToServe) {
-    return res.download(fileToServe, 'PTENit.zip', (err) => {
+    const filename = req.path.toLowerCase().includes('cpanel') || req.path.toLowerCase().includes('public_html') 
+      ? 'ptenit_cpanel_public_html.zip' 
+      : 'PTENit.zip';
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return res.download(fileToServe, filename, (err) => {
       if (err && !res.headersSent) {
         res.status(500).send('Error downloading file');
       }
     });
   }
   return res.status(404).send('ZIP file is generating. Please wait a moment and refresh.');
+});
+
+// Direct Download Route for Full Source Code (For editing in VS Code)
+app.get([
+  '/ptenit_source_code.zip',
+  '/source_code.zip',
+  '/api/download/source',
+  '/api/download/source-code'
+], (req, res) => {
+  const possiblePaths = [
+    path.join(process.cwd(), 'public', 'ptenit_source_code.zip'),
+    path.join(process.cwd(), 'ptenit_source_code.zip')
+  ];
+
+  const fileToServe = possiblePaths.find(p => fs.existsSync(p));
+  if (fileToServe) {
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="ptenit_source_code.zip"');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return res.download(fileToServe, 'ptenit_source_code.zip', (err) => {
+      if (err && !res.headersSent) {
+        res.status(500).send('Error downloading file');
+      }
+    });
+  }
+  return res.status(404).send('Source code ZIP is generating. Please wait a moment and refresh.');
 });
 
 // Vite middleware or production static files

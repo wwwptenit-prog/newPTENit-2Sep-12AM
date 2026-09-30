@@ -190,7 +190,14 @@ export const MarketplaceMessengerView: React.FC<MarketplaceMessengerViewProps> =
   // Add real direct messages scoped to current user
   if (directMessages && directMessages.length > 0) {
     directMessages.forEach(dm => {
-      const isForMe = !currentUser || !dm.recipientId || dm.recipientId === currentUser.id || dm.senderId === currentUser.id || (dm.recipientEmail && currentUser.email && dm.recipientEmail.toLowerCase() === currentUser.email.toLowerCase());
+      const isForMe = Boolean(
+        currentUser && (
+          dm.recipientId === currentUser.id ||
+          dm.senderId === currentUser.id ||
+          (dm.recipientEmail && currentUser.email && dm.recipientEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+          (dm.senderEmail && currentUser.email && dm.senderEmail.toLowerCase() === currentUser.email.toLowerCase())
+        )
+      );
       if (isForMe && !allConversationsMap.has(dm.id)) {
         allConversationsMap.set(dm.id, {
           id: dm.id,

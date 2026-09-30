@@ -28,7 +28,8 @@ import {
   Zap,
   PlusCircle,
   Wallet,
-  Heart
+  Heart,
+  Download
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
@@ -66,8 +67,46 @@ export const Navbar: React.FC<NavbarProps> = ({
     logoutMarketplace
   } = useData();
 
-  const unreadMsgCount = (directMessages || []).filter(m => !m.read).length;
-  const unreadNotifCount = (notifications || []).filter(n => !n.read).length;
+  // Strictly scope direct messages to current user
+  const scopedDirectMessages = React.useMemo(() => {
+    if (!directMessages || !currentUser) return [];
+    return directMessages.filter(m => 
+      m.recipientId === currentUser.id ||
+      m.senderId === currentUser.id ||
+      (currentUser.email && m.recipientEmail && m.recipientEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+      (currentUser.email && m.senderEmail && m.senderEmail.toLowerCase() === currentUser.email.toLowerCase())
+    );
+  }, [directMessages, currentUser]);
+
+  // Strictly scope notifications to current user (No default/foreign alerts)
+  const scopedNotifications = React.useMemo(() => {
+    if (!notifications) return [];
+    if (!currentUser) {
+      return notifications.filter(n => n.recipientId === 'all' || n.recipientRole === 'all');
+    }
+    return notifications.filter(n => {
+      if (currentUser.role === 'admin') return true;
+      if (n.recipientRole === 'admin' || n.targetTab === 'admin') return false;
+
+      if (n.recipientId && n.recipientId !== 'all') {
+        return n.recipientId === currentUser.id;
+      }
+      if (n.recipientEmail && n.recipientEmail !== 'all') {
+        return Boolean(currentUser.email && n.recipientEmail.toLowerCase() === currentUser.email.toLowerCase());
+      }
+      if (n.recipientRole) {
+        if (n.recipientRole === 'all') return true;
+        if (n.recipientRole === 'student' && (currentUser.role === 'student' || currentUser.roles?.includes('student'))) return true;
+        if (n.recipientRole === 'instructor' && (currentUser.role === 'instructor' || currentUser.roles?.includes('instructor'))) return true;
+        if (n.recipientRole === 'customer' && (currentUser.role === 'customer' || currentUser.roles?.includes('customer'))) return true;
+        return false;
+      }
+      return false;
+    });
+  }, [notifications, currentUser]);
+
+  const unreadMsgCount = scopedDirectMessages.filter(m => !m.read).length;
+  const unreadNotifCount = scopedNotifications.filter(n => !n.read).length;
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -216,48 +255,37 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
 
-          {/* DESKTOP SEARCH BAR */}
-          <div className={`relative flex-1 ${inlineSearchOpen ? 'w-full max-w-none ml-2 mr-0' : 'max-w-md mx-2 hidden md:block'}`}>
-            {inlineSearchOpen ? (
-              <div className="relative flex items-center w-full animate-in fade-in zoom-in-95 duration-200">
-                <Search className="w-4 sm:w-5 h-4 sm:h-5 absolute left-3 text-slate-400" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && searchQuery.trim()) {
-                      setActiveTab('marketplace');
-                      setInlineSearchOpen(false);
-                    }
-                  }}
-                  placeholder={t("কোর্স বা সার্ভিস নাম লিখে খুঁজুন...", "Search courses or services...")}
-                  className="w-full bg-white border-2 border-emerald-400 rounded-xl pl-9 sm:pl-10 pr-9 py-2 text-sm sm:text-base text-slate-900 placeholder-slate-400 focus:outline-none shadow-sm font-bengali ring-2 ring-white/30"
-                />
+          {/* DESKTOP SEARCH BAR - Stretches across available empty space */}
+          <div className="relative flex-1 min-w-[200px] max-w-xl mx-2 lg:mx-4 hidden md:flex items-center">
+            <div className="relative flex items-center w-full">
+              <Search className="w-4 h-4 absolute left-3.5 text-white/70 pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    setActiveTab('marketplace');
+                  }
+                }}
+                placeholder={t("কোর্স বা সার্ভিস নাম লিখে খুঁজুন...", "Search courses or services...")}
+                className="w-full bg-white/15 hover:bg-white/20 focus:bg-white border border-white/25 focus:border-[#006A4E] rounded-xl pl-10 pr-9 py-2 text-xs lg:text-sm text-white focus:text-slate-900 placeholder-white/70 focus:placeholder-slate-400 focus:outline-none shadow-xs font-bengali transition-all ring-0 focus:ring-2 focus:ring-emerald-400/40"
+              />
+              {searchQuery ? (
                 <button
-                  onClick={() => {
-                    setInlineSearchOpen(false);
-                    setSearchQuery('');
-                  }}
-                  className="absolute right-2.5 text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100 cursor-pointer"
-                  title="সার্চ বন্ধ করুন"
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 text-white/70 hover:text-white p-1 rounded-full cursor-pointer"
+                  title="ক্লিয়ার করুন"
                 >
-                  <X className="w-5 h-5 text-slate-500 hover:text-slate-800" />
+                  <X className="w-4 h-4" />
                 </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setInlineSearchOpen(true)}
-                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-white/15 border border-white/25 hover:bg-white/25 text-white placeholder-white/70 transition-all text-xs cursor-pointer w-full max-w-[180px] lg:max-w-[220px] font-bengali"
-              >
-                <Search className="w-3.5 h-3.5 text-white/80" />
-                <span className="truncate">{t('সার্চ করুন...', 'Search here...')}</span>
-              </button>
-            )}
+              ) : null}
+            </div>
 
             {/* LIVE FLOATING SEARCH RESULTS DROPDOWN (DESKTOP) */}
-            {inlineSearchOpen && searchQuery.trim() && (
+            {searchQuery.trim() && (
               <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl p-3 z-50 text-slate-800 max-h-96 overflow-y-auto">
                 {filteredCourses.length > 0 && (
                   <div className="mb-3">
@@ -270,7 +298,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                           key={c.id}
                           onClick={() => {
                             openCourseDetail(c.id);
-                            setInlineSearchOpen(false);
                             setSearchQuery('');
                           }}
                           className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
@@ -299,7 +326,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                           key={s.id}
                           onClick={() => {
                             setActiveTab('services');
-                            setInlineSearchOpen(false);
                             setSearchQuery('');
                           }}
                           className="p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors font-bengali"
@@ -322,7 +348,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     onClick={() => {
                       setActiveTab('marketplace');
-                      setInlineSearchOpen(false);
                       setSearchQuery('');
                     }}
                     className="w-full py-2 px-3 rounded-lg bg-[#006A4E] hover:bg-[#00543e] text-white font-bold text-xs flex items-center justify-center gap-2 transition font-bengali cursor-pointer shadow-xs"
@@ -517,9 +542,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                   title="নোটিফিকেশন সেন্টার"
                 >
                   <Bell className="w-4 h-4" />
-                  {notifications && notifications.filter(n => !n.read).length > 0 && (
+                  {unreadNotifCount > 0 && (
                     <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[#E11D48] text-white text-[9px] font-black flex items-center justify-center shadow-xs">
-                      {notifications.filter(n => !n.read).length}
+                      {unreadNotifCount}
                     </span>
                   )}
                 </button>
