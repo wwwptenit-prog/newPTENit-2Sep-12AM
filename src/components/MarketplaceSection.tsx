@@ -1938,17 +1938,24 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
 
   // Filter notifications based on active mode (Seller vs. Buyer)
   const roleScopedNotifications = useMemo(() => {
-    if (!notifications) return [];
+    if (!notifications || !currentUser) return [];
     return notifications.filter(n => {
-      if (!currentUser) {
-        return n.recipientId === 'all' || n.recipientRole === 'all';
-      }
-
       // Admin sees all
       if (currentUser.role === 'admin') return true;
 
       // Normal users never see admin/staff alerts
       if (n.recipientRole === 'admin' || n.targetTab === 'admin') return false;
+
+      // Mode check: strictly separate buyer and seller
+      if (isSellerMode) {
+        if (n.mode === 'buying' || n.recipientRole === 'buyer' || n.recipientRole === 'customer' || n.recipientRole === 'student') {
+          return false;
+        }
+      } else {
+        if (n.mode === 'selling' || n.recipientRole === 'seller') {
+          return false;
+        }
+      }
 
       // Direct recipient targeting
       if (n.recipientId && n.recipientId !== 'all') {
@@ -1958,51 +1965,41 @@ export const MarketplaceSection: React.FC<MarketplaceSectionProps> = ({ setActiv
         return Boolean(currentUser.email && n.recipientEmail.toLowerCase() === currentUser.email.toLowerCase());
       }
 
-      // Role-based targeting
-      if (n.recipientRole) {
-        if (n.recipientRole === 'all') return true;
-        return isSellerMode ? n.recipientRole === 'seller' : (n.recipientRole === 'buyer' || n.recipientRole === 'customer' || n.recipientRole === 'student');
+      // Broadcast for all users
+      if (n.recipientRole === 'all' && !n.recipientId && !n.recipientEmail) {
+        return true;
       }
 
-      // Mode check
-      if (n.mode === 'selling') return isSellerMode;
-      if (n.mode === 'buying') return !isSellerMode;
-
-      // Do not leak orphan alerts to regular users
       return false;
     });
-  }, [notifications, isSellerMode]);
+  }, [notifications, isSellerMode, currentUser]);
 
   // Filter direct messages based on active mode (Seller vs. Buyer)
   const roleScopedDirectMessages = useMemo(() => {
-    if (!directMessages) return [];
+    if (!directMessages || !currentUser) return [];
     return directMessages.filter(m => {
-      if (currentUser) {
-        const isParticipant = !m.recipientId || m.recipientId === currentUser.id || m.senderId === currentUser.id || (m.recipientEmail && currentUser.email && m.recipientEmail.toLowerCase() === currentUser.email.toLowerCase());
-        if (!isParticipant) return false;
-      }
-      if (m.mode === 'selling') return isSellerMode;
-      if (m.mode === 'buying') return !isSellerMode;
-      if (m.mode === 'both') return true;
+      const isParticipant = Boolean(
+        (m.recipientId && m.recipientId === currentUser.id) ||
+        (m.senderId && m.senderId === currentUser.id) ||
+        (m.recipientEmail && currentUser.email && m.recipientEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (m.senderEmail && currentUser.email && m.senderEmail.toLowerCase() === currentUser.email.toLowerCase())
+      );
+      if (!isParticipant) return false;
 
-      if (m.recipientRole) {
-        if (m.recipientRole === 'all') return true;
-        return isSellerMode ? m.recipientRole === 'seller' : m.recipientRole === 'buyer';
-      }
-      const cat = (m.category || '').toLowerCase();
-      const sender = (m.senderName || '').toLowerCase();
-      const isSellerSpecific = cat === 'seller' || sender.includes('client') || sender.includes('buyer') || sender.includes('ক্লাইন্ট');
-      const isBuyerSpecific = cat === 'buyer' || cat === 'course' || sender.includes('seller') || sender.includes('mentor') || sender.includes('সেলার');
-      
+      // Separate messages by active mode (buyer vs seller)
       if (isSellerMode) {
-        if (isBuyerSpecific && !isSellerSpecific) return false;
-        return true;
+        if (m.mode === 'buying') return false;
+        if (m.recipientRole === 'buyer' && m.senderId === currentUser.id) return true;
+        if (m.recipientRole === 'seller' && m.recipientId === currentUser.id) return true;
+        return m.mode === 'selling' || !m.mode;
       } else {
-        if (isSellerSpecific && !isBuyerSpecific) return false;
-        return true;
+        if (m.mode === 'selling') return false;
+        if (m.recipientRole === 'seller' && m.senderId === currentUser.id) return true;
+        if (m.recipientRole === 'buyer' && m.recipientId === currentUser.id) return true;
+        return m.mode === 'buying' || !m.mode;
       }
     });
-  }, [directMessages, isSellerMode]);
+  }, [directMessages, isSellerMode, currentUser]);
 
   const unreadMarketplaceMsgCount = useMemo(() => {
     return roleScopedDirectMessages.filter(m => {

@@ -95,6 +95,9 @@ interface DataContextType {
   contactMessages: ContactMessage[];
   notifications: NotificationItem[];
   directMessages: DirectMessageItem[];
+  roleScopedNotifications: NotificationItem[];
+  roleScopedDirectMessages: DirectMessageItem[];
+  unreadMarketplaceMsgCount: number;
   activeChatWindows: ActiveChatWindow[];
   activeMessengerConversationId: string | null;
   setActiveMessengerConversationId: (id: string | null) => void;
@@ -260,10 +263,10 @@ interface DataContextType {
   markDirectMessageRead: (id: string) => void;
   markAllDirectMessagesRead: () => void;
   sendDirectMessage: (msg: Omit<DirectMessageItem, 'id' | 'read'>) => void;
-  openChatWindow: (contact: { id?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string }) => void;
+  openChatWindow: (contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string; targetUserId?: string; targetUserEmail?: string }) => void;
   closeChatWindow: (id: string) => void;
   toggleMinimizeChatWindow: (id: string) => void;
-  sendChatMessage: (windowId: string, text: string, meetLink?: string, directOffer?: DirectOfferMeta) => void;
+  sendChatMessage: (windowId: string, text: string, meetLink?: string, directOffer?: DirectOfferMeta, customRecipient?: { id?: string; name?: string; role?: string; avatar?: string; email?: string }) => void;
   createGoogleMeetCall: (windowId: string, customMeetLink?: string) => void;
   inAppMeetState: {
     isOpen: boolean;
@@ -1374,9 +1377,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
 
     unsubs.push(subscribeToCollection<DirectMessageItem>('directMessages', (items) => {
-      if (items && items.length > 0) {
+      if (items && Array.isArray(items)) {
         setDirectMessages(items);
         localStorage.setItem(`${STORAGE_KEY}_direct_messages`, JSON.stringify(items));
+
+        // Live update active chat windows with incoming messages
+        setActiveChatWindows(prev => prev.map(win => {
+          const matching = items.filter(m =>
+            m.id === win.id ||
+            m.conversationId === win.id ||
+            (win.orderId && m.orderId === win.orderId) ||
+            (win.targetUserId && (m.senderId === win.targetUserId || m.recipientId === win.targetUserId))
+          );
+          if (matching.length === 0) return win;
+
+          const existingIds = new Set(win.messages.map(m => m.id));
+          const newConverted: ChatMessage[] = matching
+            .filter(m => !existingIds.has(m.id))
+            .map(m => ({
+              id: m.id,
+              senderName: m.senderName,
+              senderAvatar: m.senderAvatar,
+              isSelf: Boolean(currentUser && (m.senderId === currentUser.id || (m.senderEmail && currentUser.email && m.senderEmail.toLowerCase() === currentUser.email.toLowerCase()))),
+              text: m.text || m.message || '',
+              time: m.time || 'এখন',
+              meetLink: m.meetLink,
+              directOffer: m.directOffer
+            }));
+
+          if (newConverted.length > 0) {
+            return {
+              ...win,
+              messages: [...win.messages, ...newConverted]
+            };
+          }
+          return win;
+        }));
       }
     }));
 
@@ -2747,20 +2783,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return prev.map(m => ({ ...m, read: true, unreadCount: 0 }));
     });
     setReadConversationIds(prev => {
-      const allIds = Array.from(new Set([
-        ...prev,
-        'chat-client-sohag',
-        'chat-client-tanjim',
-        'chat-client-sumaiya',
-        'chat-tanvir-ahmed',
-        'chat-creative-pixels',
-        'chat-piten-support'
-      ]));
+      const existingConvoIds = activeChatWindows.map(w => w.id);
+      const allIds = Array.from(new Set([...prev, ...existingConvoIds]));
       if (allIds.length === prev.length) return prev;
       localStorage.setItem(`${STORAGE_KEY}_read_convo_ids`, JSON.stringify(allIds));
       return allIds;
     });
-  }, []);
+  }, [activeChatWindows]);
 
   const markAllDirectMessagesRead = useCallback(() => {
     setDirectMessages(prev => {
@@ -2771,57 +2800,98 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const sendDirectMessage = (msg: Omit<DirectMessageItem, 'id' | 'read'>) => {
+    const timeStr = msg.time || new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' });
     const newMsg: DirectMessageItem = {
       ...msg,
-      id: `dmsg-${Date.now()}`,
+      id: `dmsg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      time: timeStr,
+      createdAt: new Date().toISOString(),
       read: false
     };
-    setDirectMessages(prev => [newMsg, ...prev]);
+    setDirectMessages(prev => [newMsg, ...prev.filter(m => m.id !== newMsg.id)]);
+    syncDocToFirestore('directMessages', newMsg.id, newMsg);
+
+    // If targeted to a recipient, send a real notification
+    if (msg.recipientId && msg.recipientId !== currentUser?.id) {
+      const notifItem: NotificationItem = {
+        id: `notif-msg-${Date.now()}`,
+        title: `💬 নতুন বার্তা: ${msg.senderName || 'মেম্বার'}`,
+        message: (msg.text || (msg as any).message || '').slice(0, 70),
+        time: 'এইমাত্র',
+        read: false,
+        type: 'info',
+        category: 'message',
+        targetTab: 'messenger',
+        targetId: newMsg.id,
+        recipientId: msg.recipientId,
+        recipientRole: msg.recipientRole === 'seller' ? 'seller' : 'buyer',
+        mode: msg.recipientRole === 'seller' ? 'selling' : 'buying',
+        senderName: msg.senderName,
+        senderAvatar: msg.senderAvatar
+      };
+      setNotifications(prev => [notifItem, ...prev]);
+      syncDocToFirestore('notifications', notifItem.id, notifItem);
+    }
+
     playAppSound('message');
   };
 
-  const openChatWindow = (contact: { id?: string; orderId?: string; senderName: string; senderRole?: string; senderAvatar?: string; initialMessage?: string }) => {
+  const openChatWindow = (contact: {
+    id?: string;
+    orderId?: string;
+    senderName: string;
+    senderRole?: string;
+    senderAvatar?: string;
+    initialMessage?: string;
+    targetUserId?: string;
+    targetUserEmail?: string;
+  }) => {
     const windowId = contact.id || `chat-${contact.senderName.replace(/\s+/g, '-').toLowerCase()}`;
     setActiveMessengerConversationId(windowId);
     
     setActiveChatWindows(prev => {
-      const existing = prev.find(w => w.id === windowId || w.senderName === contact.senderName);
+      const existing = prev.find(w => w.id === windowId || (contact.targetUserId && w.targetUserId === contact.targetUserId));
       if (existing) {
         return [...prev.filter(w => w.id !== existing.id), { ...existing, minimized: false, orderId: contact.orderId || existing.orderId }];
       }
       
+      // Load real message history from directMessages
+      const realMsgs: ChatMessage[] = (directMessages || [])
+        .filter(dm => {
+          const matchesWindow = dm.id === windowId || dm.conversationId === windowId || (contact.orderId && dm.orderId === contact.orderId);
+          const matchesParticipants = Boolean(
+            currentUser && contact.targetUserId && (
+              (dm.senderId === currentUser.id && dm.recipientId === contact.targetUserId) ||
+              (dm.senderId === contact.targetUserId && dm.recipientId === currentUser.id)
+            )
+          );
+          return matchesWindow || matchesParticipants;
+        })
+        .map(dm => ({
+          id: dm.id,
+          senderName: dm.senderName,
+          senderAvatar: dm.senderAvatar,
+          isSelf: Boolean(currentUser && (dm.senderId === currentUser.id || (dm.senderEmail && currentUser.email && dm.senderEmail.toLowerCase() === currentUser.email.toLowerCase()))),
+          text: dm.text || (dm as any).message || '',
+          time: dm.time || 'পূর্বে',
+          meetLink: dm.meetLink,
+          directOffer: dm.directOffer
+        }));
+
       const newWin: ActiveChatWindow = {
         id: windowId,
         orderId: contact.orderId,
         senderName: contact.senderName,
         senderRole: contact.senderRole || 'customer',
         senderAvatar: contact.senderAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
+        targetUserId: contact.targetUserId,
+        targetUserEmail: contact.targetUserEmail,
+        initialDraft: contact.initialMessage,
         minimized: false,
-        messages: contact.initialMessage ? [
-          {
-            id: `msg-${Date.now()}-1`,
-            senderName: contact.senderName,
-            senderAvatar: contact.senderAvatar,
-            isSelf: false,
-            text: contact.initialMessage,
-            time: 'এখন'
-          }
-        ] : [
-          {
-            id: `msg-${Date.now()}-1`,
-            senderName: contact.senderName,
-            senderAvatar: contact.senderAvatar,
-            isSelf: false,
-            text: `হ্যালো! আমি ${contact.senderName}। কাজ বা প্রজেক্ট সম্পর্কিত যেকোনো তথ্যের জন্য ইনবক্সে মেসেজ করুন।`,
-            time: '১০ মিনিট আগে'
-          }
-        ]
+        messages: realMsgs
       };
       return [...prev, newWin];
     });
-
-    // Floating mini chat popup window opens on screen directly over the current view
-    // (User can view their orders and close popup with 'X' button)
   };
 
   const closeChatWindow = (id: string) => {
@@ -2900,100 +2970,199 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveChatWindows(prev => prev.map(w => w.id === id ? { ...w, minimized: !w.minimized } : w));
   };
 
-  const sendChatMessage = (windowId: string, text: string, meetLink?: string, directOffer?: DirectOfferMeta) => {
+  const isSellerMode = marketplaceMode === 'selling';
+
+  // Role-scoped notifications strictly partitioned per user & mode - new user starts with 0
+  const roleScopedNotifications = React.useMemo(() => {
+    if (!currentUser) return [];
+    return (notifications || []).filter(n => {
+      // Admin sees all system notifications
+      if (currentUser.role === 'admin') return true;
+
+      // Normal users never see admin/staff alerts
+      if (n.recipientRole === 'admin' || n.targetTab === 'admin') return false;
+
+      // Mode check: strictly separate buyer and seller notifications
+      if (isSellerMode) {
+        if (n.mode === 'buying' || n.recipientRole === 'buyer' || n.recipientRole === 'customer' || n.recipientRole === 'student') {
+          return false;
+        }
+      } else {
+        if (n.mode === 'selling' || n.recipientRole === 'seller') {
+          return false;
+        }
+      }
+
+      // 1. Direct recipient targeting by ID
+      if (n.recipientId && n.recipientId !== 'all') {
+        return n.recipientId === currentUser.id;
+      }
+      // 2. Direct recipient targeting by Email
+      if (n.recipientEmail && n.recipientEmail !== 'all') {
+        return Boolean(currentUser.email && n.recipientEmail.toLowerCase() === currentUser.email.toLowerCase());
+      }
+
+      // 3. General announcements meant for all users (only if not addressed to a specific person)
+      if (n.recipientRole === 'all' && !n.recipientId && !n.recipientEmail) {
+        return true;
+      }
+
+      return false;
+    });
+  }, [notifications, currentUser, isSellerMode]);
+
+  // Role-scoped direct messages strictly partitioned per user & mode - new user starts with 0
+  const roleScopedDirectMessages = React.useMemo(() => {
+    if (!currentUser) return [];
+    return (directMessages || []).filter(m => {
+      const isParticipant = Boolean(
+        (m.recipientId && m.recipientId === currentUser.id) ||
+        (m.senderId && m.senderId === currentUser.id) ||
+        (m.recipientEmail && currentUser.email && m.recipientEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (m.senderEmail && currentUser.email && m.senderEmail.toLowerCase() === currentUser.email.toLowerCase())
+      );
+      if (!isParticipant) return false;
+
+      // Separate messages by active mode (buyer vs seller)
+      if (isSellerMode) {
+        if (m.mode === 'buying') return false;
+        if (m.recipientRole === 'buyer' && m.senderId === currentUser.id) return true;
+        if (m.recipientRole === 'seller' && m.recipientId === currentUser.id) return true;
+        return m.mode === 'selling' || !m.mode;
+      } else {
+        if (m.mode === 'selling') return false;
+        if (m.recipientRole === 'seller' && m.senderId === currentUser.id) return true;
+        if (m.recipientRole === 'buyer' && m.recipientId === currentUser.id) return true;
+        return m.mode === 'buying' || !m.mode;
+      }
+    });
+  }, [directMessages, currentUser, isSellerMode]);
+
+  const unreadMarketplaceMsgCount = React.useMemo(() => {
+    return roleScopedDirectMessages.filter(m => {
+      if (m.read) return false;
+      if (m.unreadCount !== undefined && m.unreadCount <= 0) return false;
+      if (readConversationIds && readConversationIds.includes(m.id)) return false;
+      return true;
+    }).length;
+  }, [roleScopedDirectMessages, readConversationIds]);
+
+  const sendChatMessage = (
+    windowId: string,
+    text: string,
+    meetLink?: string,
+    directOffer?: DirectOfferMeta,
+    customRecipient?: { id?: string; name?: string; role?: string; avatar?: string; email?: string }
+  ) => {
+    if (!text.trim() && !meetLink && !directOffer) return;
+
+    const timeStr = new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' });
     const userMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       senderName: currentUser?.name || 'আমি',
       senderAvatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80',
       isSelf: true,
       text,
-      time: 'এখন',
+      time: timeStr,
       meetLink,
       directOffer
     };
 
-    // Find the target chat window to associate with order and decrement unread counter on reply
+    // Find the target chat window to associate with order and recipient info
     const currentWindows = activeChatWindows;
     const targetWin = currentWindows.find(w => w.id === windowId);
     const targetOrderId = targetWin?.orderId;
-    const targetSenderName = targetWin?.senderName;
+    const targetSenderName = targetWin?.senderName || customRecipient?.name || 'মেম্বার';
+    const targetUserId = targetWin?.targetUserId || customRecipient?.id;
+    const targetUserEmail = targetWin?.targetUserEmail || customRecipient?.email;
 
     // Decrement unread message count for this order upon sending a reply
-    setMarketplaceOrders(prev => prev.map(o => {
-      const isMatched = (targetOrderId && o.id === targetOrderId) ||
-        (targetSenderName && (o.buyerName === targetSenderName || o.sellerName === targetSenderName));
-      if (isMatched) {
-        const currentCount = o.unreadMessageCount ?? 0;
-        return {
-          ...o,
-          unreadMessageCount: Math.max(0, currentCount - 1)
-        };
-      }
-      return o;
-    }));
-
-    setActiveChatWindows(prev => prev.map(w => {
-      if (w.id === windowId) {
-        return {
-          ...w,
-          messages: [...w.messages, userMsg]
-        };
-      }
-      return w;
-    }));
-    playAppSound('message');
-
-    // Auto response for ongoing active messaging thread (only if not a direct offer or meet call)
-    if (!meetLink && !directOffer) {
-      setTimeout(() => {
-        setActiveChatWindows(prev => prev.map(w => {
-          if (w.id === windowId) {
-            const autoReplies = [
-              "ধন্যবাদ ভাইয়া! আপনার মেসেজটি পেয়েছি, কাজ দ্রুত এগিয়ে নিচ্ছি।",
-              "জি অবশ্যই! আমি বিষয়টি ড্যাশবোর্ডে ফাইলসহ আপডেট করে দেবো।",
-              "কোনো সংশোধনী থাকলে বলুন, আমরা এখনই গুগল মিটে লাইভ ডিসকাশন করতে পারি!"
-            ];
-            const randomReply = autoReplies[Math.floor(Math.random() * autoReplies.length)];
-            const autoReply: ChatMessage = {
-              id: `msg-reply-${Date.now()}`,
-              senderName: w.senderName,
-              senderAvatar: w.senderAvatar,
-              isSelf: false,
-              text: randomReply,
-              time: 'এখন'
-            };
-            return {
-              ...w,
-              messages: [...w.messages, autoReply]
-            };
-          }
-          return w;
-        }));
-        playAppSound('message');
-      }, 1200);
-    } else {
-      // Immediate acknowledgment from receiver when Google Meet link is shared
-      setTimeout(() => {
-        setActiveChatWindows(prev => prev.map(w => {
-          if (w.id === windowId) {
-            const autoReply: ChatMessage = {
-              id: `msg-reply-${Date.now()}`,
-              senderName: w.senderName,
-              senderAvatar: w.senderAvatar,
-              isSelf: false,
-              text: "ধন্যবাদ! আমি গুগল মিট (Google Meet) আমন্ত্রণটি পেয়েছি, এখনই লিংকে ক্লিক করে মিটিংয়ে যুক্ত হচ্ছি।",
-              time: 'এখন'
-            };
-            return {
-              ...w,
-              messages: [...w.messages, autoReply]
-            };
-          }
-          return w;
-        }));
-        playAppSound('message');
-      }, 1200);
+    if (targetOrderId || targetSenderName) {
+      setMarketplaceOrders(prev => prev.map(o => {
+        const isMatched = (targetOrderId && o.id === targetOrderId) ||
+          (targetSenderName && (o.buyerName === targetSenderName || o.sellerName === targetSenderName));
+        if (isMatched) {
+          const currentCount = o.unreadMessageCount ?? 0;
+          return {
+            ...o,
+            unreadMessageCount: Math.max(0, currentCount - 1)
+          };
+        }
+        return o;
+      }));
     }
+
+    setActiveChatWindows(prev => {
+      const exists = prev.some(w => w.id === windowId);
+      if (exists) {
+        return prev.map(w => w.id === windowId ? { ...w, messages: [...w.messages, userMsg] } : w);
+      }
+      return [...prev, {
+        id: windowId,
+        orderId: targetOrderId,
+        senderName: targetSenderName,
+        senderRole: targetWin?.senderRole || customRecipient?.role || 'মেম্বার',
+        senderAvatar: targetWin?.senderAvatar || customRecipient?.avatar,
+        targetUserId,
+        targetUserEmail,
+        minimized: false,
+        messages: [userMsg]
+      }];
+    });
+
+    // Real persistence into directMessages in Firestore
+    const directMsgItem: DirectMessageItem = {
+      id: userMsg.id,
+      conversationId: windowId,
+      senderId: currentUser?.id || 'guest',
+      senderEmail: currentUser?.email,
+      senderName: currentUser?.name || 'ইউজার',
+      senderRole: isSellerMode ? 'seller' : 'buyer',
+      senderAvatar: currentUser?.avatar,
+      recipientId: targetUserId,
+      recipientEmail: targetUserEmail,
+      recipientName: targetSenderName,
+      recipientRole: isSellerMode ? 'buyer' : 'seller',
+      text,
+      message: text,
+      time: timeStr,
+      createdAt: new Date().toISOString(),
+      read: false,
+      unreadCount: 1,
+      orderId: targetOrderId,
+      targetTab: 'messenger',
+      mode: isSellerMode ? 'selling' : 'buying',
+      meetLink,
+      directOffer
+    };
+
+    setDirectMessages(prev => [directMsgItem, ...prev.filter(m => m.id !== directMsgItem.id)]);
+    syncDocToFirestore('directMessages', directMsgItem.id, directMsgItem);
+
+    // Send real notification to recipient if targeted
+    if (targetUserId && targetUserId !== currentUser?.id) {
+      const notifItem: NotificationItem = {
+        id: `notif-msg-${Date.now()}`,
+        title: `💬 নতুন বার্তা: ${currentUser?.name || 'মেম্বার'}`,
+        message: text.length > 70 ? `${text.slice(0, 67)}...` : text,
+        time: 'এইমাত্র',
+        read: false,
+        type: 'info',
+        category: 'message',
+        targetTab: 'messenger',
+        targetId: windowId,
+        recipientId: targetUserId,
+        recipientRole: isSellerMode ? 'buyer' : 'seller',
+        mode: isSellerMode ? 'buying' : 'selling',
+        senderName: currentUser?.name,
+        senderAvatar: currentUser?.avatar
+      };
+      setNotifications(prev => [notifItem, ...prev]);
+      syncDocToFirestore('notifications', notifItem.id, notifItem);
+    }
+
+    playAppSound('message');
+    // NO fake canned auto-replies or dummy setTimeout bots!
   };
 
   // In-App Video/Audio/Screen Meet Studio State (Our site's native conference engine)
@@ -4622,6 +4791,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         contactMessages,
         notifications,
         directMessages,
+        roleScopedNotifications,
+        roleScopedDirectMessages,
+        unreadMarketplaceMsgCount,
         activeChatWindows,
         activeMessengerConversationId,
         setActiveMessengerConversationId,

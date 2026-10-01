@@ -484,7 +484,8 @@ export interface NotificationItem {
   type: 'info' | 'success' | 'warning' | 'error';
   category?: 'seller' | 'mentor' | 'message' | 'payout' | 'system' | 'buyer' | 'course' | 'enrollment' | string;
   recipientId?: string;
-  recipientRole?: 'seller' | 'buyer' | 'all';
+  recipientEmail?: string;
+  recipientRole?: 'seller' | 'buyer' | 'admin' | 'all';
   mode?: 'buying' | 'selling' | 'all' | string;
   targetTab?: string;
   targetId?: string;
@@ -504,20 +505,29 @@ export interface NotificationItem {
 
 export interface DirectMessageItem {
   id: string;
+  conversationId?: string;
   senderId?: string;
+  senderEmail?: string;
   senderName: string;
   senderRole?: string;
   senderAvatar?: string;
+  recipientId?: string;
+  recipientEmail?: string;
+  recipientName?: string;
   recipientRole?: 'customer' | 'instructor' | 'admin' | 'all' | 'seller' | 'buyer';
   mode?: 'buying' | 'selling' | 'all' | string;
   category?: string;
   text: string;
+  message?: string;
   time?: string;
+  createdAt?: string;
   read: boolean;
   unreadCount?: number;
   orderId?: string;
   orderTitle?: string;
   targetTab?: string;
+  meetLink?: string;
+  directOffer?: DirectOfferMeta;
 }
 
 export interface DirectOfferMeta {
@@ -564,6 +574,7 @@ export interface ActiveChatWindow {
   senderAvatar?: string;
   targetUserId?: string;
   targetUserEmail?: string;
+  initialDraft?: string;
   messages: ChatMessage[];
   minimized?: boolean;
 }

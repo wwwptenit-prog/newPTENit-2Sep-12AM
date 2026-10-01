@@ -118,24 +118,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [studentChatInput, setStudentChatInput] = useState('');
   const [studentChatAttachedFile, setStudentChatAttachedFile] = useState<{ name: string; url: string; type: string } | null>(null);
   const studentFileInputRef = React.useRef<HTMLInputElement>(null);
-  const [studentChatList, setStudentChatList] = useState([
-    {
-      id: 'st-msg-1',
-      sender: 'PTENit সাপোর্ট',
-      text: 'আসসালামু আলাইকুম! PTENit একাডেমির স্টুডেন্ট সাপোর্টে স্বাগতম। আপনার যেকোনো জিজ্ঞাসা, কোর্স কনফিউশন বা সহায়তার জন্য মেসেজ পাঠাতে পারেন।',
-      isStudent: false,
-      time: 'আজ ১০:১৫ AM',
-      read: true
-    },
-    {
-      id: 'st-msg-2',
-      sender: 'কোর্স ইনস্ট্রাক্টর',
-      text: 'প্রিয় শিক্ষার্থী, ক্লাসের রিসোর্স ও অ্যাসাইনমেন্ট সংক্রান্ত যেকোনো সাহায্যে সরাসরি এখানে যোগাযোগ করতে পারেন।',
-      isStudent: false,
-      time: 'গতকাল ৪:৩০ PM',
-      read: true
+  const [studentChatList, setStudentChatList] = useState<any[]>(() => {
+    try {
+      const saved = currentUser ? localStorage.getItem(`ptenit_student_chats_${currentUser.id}`) : null;
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
     }
-  ]);
+  });
 
   // Assignment Submission modal state
   const [selectedAsgn, setSelectedAsgn] = useState<Assignment | null>(null);
@@ -692,7 +682,15 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
                         read: true
                       };
-                      setStudentChatList(prev => [...prev, newMsg]);
+                      setStudentChatList(prev => {
+                        const updated = [...prev, newMsg];
+                        if (currentUser) {
+                          try {
+                            localStorage.setItem(`ptenit_student_chats_${currentUser.id}`, JSON.stringify(updated));
+                          } catch {}
+                        }
+                        return updated;
+                      });
                       sendContactMessage?.({
                         name: currentUser?.name || 'স্টুডেন্ট',
                         email: currentUser?.email || 'student@ptenit.com',
@@ -703,21 +701,6 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                       });
                       setStudentChatInput('');
                       setStudentChatAttachedFile(null);
-
-                      // Simulate polite auto-acknowledgement from support after 1 second
-                      setTimeout(() => {
-                        setStudentChatList(prev => [
-                          ...prev,
-                          {
-                            id: `st-reply-${Date.now()}`,
-                            sender: activeSupportSender,
-                            text: `ধন্যবাদ! আপনার বার্তাটি প্রাপ্ত হয়েছে। ${activeSupportSender} টিম শীঘ্রই রিপ্লাই দেবেন।`,
-                            isStudent: false,
-                            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                            read: true
-                          }
-                        ]);
-                      }, 1000);
                     }}
                     className="p-2 bg-slate-900 border-t border-slate-800 flex items-center gap-2"
                   >

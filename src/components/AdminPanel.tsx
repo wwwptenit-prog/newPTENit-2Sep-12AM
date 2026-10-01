@@ -1151,33 +1151,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ setActiveTab }) => {
     support: true
   });
 
-  const [adminChatList, setAdminChatList] = useState([
-    {
-      id: 'am1',
-      sender: 'শিক্ষার্থী ইনকোয়ারি',
-      text: 'আসসালামু আলাইকুম স্যার, আইটি কোর্সের নতুন ব্যাচের শিডিউল জানতে চাচ্ছিলাম।',
-      time: '১০:১৫ AM',
-      isAdmin: false,
-      read: false
-    },
-    {
-      id: 'am2',
-      sender: 'শিক্ষার্থী ইনকোয়ারি',
-      text: 'ওয়ালাইকুম আসসালাম। আগামী সোমবার থেকে নতুন ব্যাচ শুরু হচ্ছে।',
-      time: '১০:১৮ AM',
-      isAdmin: true,
-      read: true
-    },
-    {
-      id: 'am3',
-      sender: 'টিচার সাপোর্ট',
-      text: 'এডমিন স্যার, আগামী সপ্তাহে প্রজেক্ট সাবমিশনের ডেডলাইন আপডেট করা দরকার।',
-      time: '১১:৩০ AM',
-      isAdmin: false,
-      read: false
-    }
-  ]);
-
   if (!currentUser || currentUser.role !== 'admin') {
     return <AdminLoginGate onLogin={login} onGoHome={() => setActiveTab?.('home')} />;
   }

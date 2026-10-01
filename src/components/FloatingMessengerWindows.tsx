@@ -127,6 +127,8 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
     setActiveMessengerConversationId,
     openNotificationCenter,
     notifications,
+    roleScopedNotifications,
+    roleScopedDirectMessages,
     markNotificationRead,
     markAllNotificationsRead,
     deleteNotification,
@@ -293,10 +295,17 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
   const allConversationsMap = new Map<string, ConversationItem>();
   activeWindowsAsConversations.forEach(c => allConversationsMap.set(c.id, c));
 
-  // Add real direct messages
-  if (directMessages && directMessages.length > 0) {
+  // Add real direct messages strictly scoped to currentUser
+  if (directMessages && directMessages.length > 0 && currentUser) {
     directMessages.forEach(dm => {
-      // Check recipient targeting by role and mode
+      const isParticipant = Boolean(
+        (dm.recipientId && dm.recipientId === currentUser.id) ||
+        (dm.senderId && dm.senderId === currentUser.id) ||
+        (dm.recipientEmail && currentUser.email && dm.recipientEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
+        (dm.senderEmail && currentUser.email && dm.senderEmail.toLowerCase() === currentUser.email.toLowerCase())
+      );
+      if (!isParticipant) return;
+
       if (dm.recipientRole && dm.recipientRole !== 'all') {
         if (isSellerMode && dm.recipientRole !== 'seller') return;
         if (!isSellerMode && dm.recipientRole !== 'buyer' && dm.recipientRole !== 'customer') return;
@@ -305,12 +314,19 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
         if (isSellerMode && dm.mode !== 'selling') return;
         if (!isSellerMode && dm.mode !== 'buying') return;
       }
-      if (!allConversationsMap.has(dm.id)) {
-        allConversationsMap.set(dm.id, {
-          id: dm.id,
-          name: dm.senderName || 'ইউজার',
-          avatar: dm.senderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-          role: dm.senderRole || (isSellerMode ? 'বায়ার' : 'সেলার'),
+
+      const convoKey = dm.conversationId || dm.id;
+      const isSender = dm.senderId === currentUser.id || (dm.senderEmail && currentUser.email && dm.senderEmail.toLowerCase() === currentUser.email.toLowerCase());
+      const partnerName = isSender ? (dm.recipientName || 'মেম্বার') : (dm.senderName || 'মেম্বার');
+      const partnerAvatar = isSender ? undefined : dm.senderAvatar;
+      const partnerRole = isSender ? (dm.recipientRole || 'মেম্বার') : (dm.senderRole || 'মেম্বার');
+
+      if (!allConversationsMap.has(convoKey)) {
+        allConversationsMap.set(convoKey, {
+          id: convoKey,
+          name: partnerName,
+          avatar: partnerAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
+          role: partnerRole,
           badge: isSellerMode ? 'Buyer' : 'Seller',
           rating: 5.0,
           ordersCount: 1,
@@ -329,27 +345,6 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
     .map(c => {
       if (readConvoIds.has(c.id) || readConversationIds?.includes(c.id)) {
         return { ...c, unreadCount: 0 };
-      }
-      const directMatch = directMessages?.find(m => {
-        if (m.id === c.id || m.orderId === c.id) return true;
-        const sender = (m.senderName || '').toLowerCase();
-        const cid = c.id.toLowerCase();
-        if (cid.includes('sohag') && sender.includes('সোহাগ')) return true;
-        if (cid.includes('tanjim') && sender.includes('তানজিম')) return true;
-        if (cid.includes('sumaiya') && sender.includes('সুমাইয়া')) return true;
-        if (cid.includes('ariful') && sender.includes('আরিফুল')) return true;
-        if (cid.includes('tanvir') && sender.includes('tanvir')) return true;
-        if (cid.includes('creative') && sender.includes('creative')) return true;
-        if (cid.includes('shahinur') && sender.includes('shahinur')) return true;
-        if (cid.includes('zubair') && sender.includes('zubair')) return true;
-        if (cid.includes('piten') && (sender.includes('pten') || sender.includes('piten') || sender.includes('এসক্রো'))) return true;
-        return false;
-      });
-      if (directMatch) {
-        if (directMatch.read || (directMatch.unreadCount !== undefined && directMatch.unreadCount <= 0) || (readConversationIds && readConversationIds.includes(directMatch.id))) {
-          return { ...c, unreadCount: 0 };
-        }
-        return { ...c, unreadCount: directMatch.unreadCount ?? c.unreadCount ?? 0 };
       }
       return c;
     })
@@ -373,85 +368,30 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
       return 0;
     });
 
-  // Filter notifications scoped to the current active user and mode
-  const roleScopedNotifications = (notifications || []).filter(n => {
-    // If targeted to a specific user ID or email, check against currentUser
-    if (n.recipientId && n.recipientId !== 'all') {
-      const currentId = currentUser?.id;
-      const currentEmail = currentUser?.email;
-      if (currentId || currentEmail) {
-        if (n.recipientId !== currentId && n.recipientId !== currentEmail) {
-          return false;
-        }
-      }
-    }
-
-    // Filter by recipientRole
-    if (n.recipientRole && n.recipientRole !== 'all') {
-      if (isSellerMode && n.recipientRole !== 'seller') return false;
-      if (!isSellerMode && n.recipientRole !== 'buyer') return false;
-    }
-
-    if (n.mode === 'selling') return isSellerMode;
-    if (n.mode === 'buying') return !isSellerMode;
-    if (n.mode === 'both') return true;
-
-    if (isSellerMode) {
-      if (n.recipientRole === 'seller' || n.category === 'seller' || n.category === 'payout') return true;
-      if (n.recipientRole === 'buyer' || n.category === 'buyer' || n.category === 'course') return false;
-      const t = (n.title || '').toLowerCase();
-      const m = (n.message || '').toLowerCase();
-      if (t.includes('অ্যাসাইনমেন্ট') || t.includes('কোর্স') || t.includes('মডিউল') || t.includes('ক্লাস') || m.includes('মডিউল')) return false;
-      return true;
-    } else {
-      if (n.recipientRole === 'buyer' || n.category === 'buyer' || n.category === 'course') return true;
-      if (n.recipientRole === 'seller' || n.category === 'seller' || n.category === 'payout') return false;
-      const t = (n.title || '').toLowerCase();
-      const m = (n.message || '').toLowerCase();
-      if (t.includes('ক্লাইন্ট') || t.includes('ক্লায়েন্ট') || t.includes('সেলিং') || t.includes('উইথড্র') || t.includes('পেআউট') || m.includes('পেআউট')) return false;
-      return true;
-    }
-  });
-
   const handleSelectConversation = (convoId: string) => {
     setSelectedConversationId(convoId);
     setReadConvoIds(prev => new Set(prev).add(convoId));
     if (setActiveMessengerConversationId) setActiveMessengerConversationId(convoId);
     if (markConversationRead) markConversationRead(convoId);
     
-    // Ensure the conversation exists in activeChatWindows with full history
+    // Ensure the conversation exists in activeChatWindows
     const existing = activeChatWindows?.find(w => w.id === convoId);
     if (!existing) {
       const convo = conversationList.find(c => c.id === convoId);
-      const initMsgs = initialThreadHistories[convoId] || [
-        {
-          id: `msg-${convoId}-init`,
-          senderName: convo?.name || 'মার্কেটপ্লেস সেলার',
-          senderAvatar: convo?.avatar,
-          isSelf: false,
-          text: convo?.lastMessage || 'আসসালামু আলাইকুম! আপনার প্রজেক্টের রিকোয়ারমেন্ট বা সার্ভিস সম্পর্কে জানান।',
-          time: convo?.time || '১০ মিনিট আগে'
-        }
-      ];
       openChatWindow({
         id: convoId,
-        senderName: convo?.name || 'মার্কেটপ্লেস সেলার',
-        senderRole: convo?.role || 'সেলার',
+        senderName: convo?.name || 'মার্কেটপ্লেস মেম্বার',
+        senderRole: convo?.role || 'মেম্বার',
         senderAvatar: convo?.avatar,
-        initialMessage: initMsgs[0]?.text
+        orderId: convo?.orderId
       });
     }
 
-    // Find all matching directMessages and mark them as read
     if (markDirectMessageRead) {
       markDirectMessageRead(convoId);
       if (directMessages) {
-        const cleanConvoSlug = convoId.replace('chat-', '').replace(/-/g, ' ').toLowerCase();
         directMessages.forEach(m => {
-          const matchesId = m.id === convoId || m.orderId === convoId || convoId.includes(m.id) || m.id.includes(convoId);
-          const mSenderLower = (m.senderName || '').toLowerCase();
-          const matchesName = cleanConvoSlug && (mSenderLower.includes(cleanConvoSlug) || cleanConvoSlug.includes(mSenderLower.split(' ')[0]));
-          if ((matchesId || matchesName) && !m.read) {
+          if ((m.id === convoId || m.conversationId === convoId || m.orderId === convoId) && !m.read) {
             markDirectMessageRead(m.id);
           }
         });
@@ -459,8 +399,8 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
     }
   };
 
-  // Top seller/client stories
-  const sellerStories = [
+  // Top seller/client stories (Dynamic: user note + real active conversations only)
+  const topSellers = [
     {
       id: 'my-note',
       name: 'Your note',
@@ -468,204 +408,22 @@ export const FloatingMessengerWindows: React.FC<FloatingMessengerWindowsProps> =
       isMe: true,
       noteText: userNote
     },
-    {
-      id: 'story-sohag',
-      name: 'Sohag (Client)',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-      isOnline: true,
-      convoId: 'chat-client-sohag'
-    },
-    {
-      id: 'story-tanjim',
-      name: 'Tanjim (Buyer)',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80',
-      isOnline: true,
-      convoId: 'chat-client-tanjim'
-    },
-    {
-      id: 'story-sumaiya',
-      name: 'Sumaiya (App)',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80',
-      isOnline: true,
-      convoId: 'chat-client-sumaiya'
-    },
-    {
-      id: 'story-ariful',
-      name: 'Ariful (Logo)',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80',
-      isOnline: false,
-      convoId: 'chat-client-ariful'
-    }
+    ...conversationList.map(c => ({
+      id: `story-${c.id}`,
+      name: c.name.split(' ')[0] || c.name,
+      avatar: c.avatar,
+      isOnline: c.isOnline,
+      convoId: c.id
+    }))
   ];
-
-  const buyerStories = [
-    {
-      id: 'my-note',
-      name: 'Your note',
-      avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80',
-      isMe: true,
-      noteText: userNote
-    },
-    {
-      id: 'story-tanvir',
-      name: 'Tanvir (Top)',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-      isOnline: true,
-      convoId: 'chat-tanvir-ahmed'
-    },
-    {
-      id: 'story-creative',
-      name: 'Pixels (UI)',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80',
-      isOnline: true,
-      convoId: 'chat-creative-pixels'
-    },
-    {
-      id: 'story-shahin',
-      name: 'Shahinur (Dev)',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80',
-      isOnline: true,
-      convoId: 'chat-shahinur-rahman'
-    },
-    {
-      id: 'story-sadia',
-      name: 'Sadia (SEO)',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80',
-      isOnline: true,
-      convoId: 'chat-sadia-afrin'
-    },
-    {
-      id: 'story-zubair',
-      name: 'Zubair (App)',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=100&q=80',
-      isOnline: true,
-      convoId: 'chat-zubair-hossain'
-    }
-  ];
-
-  const topSellers = isSellerMode ? sellerStories : buyerStories;
-
-  // Rich per-conversation message thread histories for realistic marketplace communication
-  const initialThreadHistories: Record<string, ChatMessage[]> = {
-    'chat-tanvir-ahmed': [
-      {
-        id: 'msg-tanvir-1',
-        senderName: 'Tanvir Ahmed',
-        senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-        isSelf: false,
-        text: 'আসসালামু আলাইকুম! আপনার ওয়েব ডেভেলপমেন্ট প্রজেক্টের রিকোয়ারমেন্ট পেয়েছি।',
-        time: '১৫ মিনিট আগে'
-      },
-      {
-        id: 'msg-tanvir-2',
-        senderName: 'আমি',
-        isSelf: true,
-        text: 'ওয়ালাইকুম আসসালাম! লাইভ ডেমো লিংকটি কি শেয়ার করতে পারবেন?',
-        time: '১২ মিনিট আগে'
-      },
-      {
-        id: 'msg-tanvir-3',
-        senderName: 'Tanvir Ahmed',
-        senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80',
-        isSelf: false,
-        text: 'প্রজেক্টের সোর্স কোড ও লাইভ প্রিভিউ লিংক পাঠিয়েছি, চেক করে জানাবেন।',
-        time: '১০ মিনিট আগে'
-      }
-    ],
-    'chat-creative-pixels': [
-      {
-        id: 'msg-pixels-1',
-        senderName: 'Creative Pixels Agency',
-        senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-        isSelf: false,
-        text: 'UI/UX রিডিজাইনের ১ম ড্রাফট সম্পূর্ণ তৈরি হয়েছে।',
-        time: '১ ঘণ্টা আগে'
-      },
-      {
-        id: 'msg-pixels-2',
-        senderName: 'Creative Pixels Agency',
-        senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80',
-        isSelf: false,
-        text: 'Figma ডিজাইন ফাইল আপডেট করা হয়েছে, ক্লায়েন্ট রিভিশন রেডি।',
-        time: '৪৫ মিনিট আগে'
-      }
-    ],
-    'chat-piten-support': [
-      {
-        id: 'msg-support-1',
-        senderName: 'PiTen Marketplace Official',
-        senderAvatar: 'https://images.unsplash.com/photo-1556742049-0a67e557224f?auto=format&fit=crop&w=120&q=80',
-        isSelf: false,
-        text: 'স্বাগতম! আপনার অর্ডার ও একাউন্ট সিকিউরিটি সম্পূর্ণ এনক্রিপ্টেড।',
-        time: '৩ ঘণ্টা আগে'
-      },
-      {
-        id: 'msg-support-2',
-        senderName: 'PiTen Marketplace Official',
-        senderAvatar: 'https://images.unsplash.com/photo-1556742049-0a67e557224f?auto=format&fit=crop&w=120&q=80',
-        isSelf: false,
-        text: 'অর্ডার #PT-8942 এর এস্ক্রো পেমেন্ট ভেরিফিকেশন সফল হয়েছে।',
-        time: '২ ঘণ্টা আগে'
-      }
-    ],
-    'chat-shahinur-rahman': [
-      {
-        id: 'msg-shahinur-1',
-        senderName: 'Shahinur Rahman',
-        senderAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80',
-        isSelf: false,
-        text: 'পেমেন্ট গেটওয়ে এবং ডাটাবেস এপিআই ইন্টিগ্রেশন সম্পন্ন।',
-        time: '৩ ঘণ্টা আগে'
-      }
-    ],
-    'chat-zubair-hossain': [
-      {
-        id: 'msg-zubair-1',
-        senderName: 'Zubair Hossain',
-        senderAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=120&q=80',
-        isSelf: false,
-        text: 'Android APK ও iOS টেস্টফ্লাইট বিল্ড ডাউনলোড লিংক পাঠানো হয়েছে।',
-        time: '৫ ঘণ্টা আগে'
-      }
-    ],
-    'chat-sadia-afrin': [
-      {
-        id: 'msg-sadia-1',
-        senderName: 'Sadia Afrin',
-        senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80',
-        isSelf: false,
-        text: 'অন-পেজ এসইও ও কিওয়ার্ড র‍্যাংকিং অডিট রিপোর্ট পাঠানো হয়েছে।',
-        time: '১ দিন আগে'
-      }
-    ],
-    'chat-mouson-art': [
-      {
-        id: 'msg-mouson-1',
-        senderName: 'Mouson Branding Studio',
-        senderAvatar: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=120&q=80',
-        isSelf: false,
-        text: 'লোগো ভেক্টর ফাইল ও ব্র্যান্ডিং কিট প্যাকেজ রেডি।',
-        time: '১ দিন আগে'
-      }
-    ]
-  };
 
   const currentActiveWin = activeChatWindows?.find(w => w.id === selectedConversationId) || (
     selectedConversationId ? {
       id: selectedConversationId,
-      senderName: conversationList.find(c => c.id === selectedConversationId)?.name || 'মার্কেটপ্লেস সেলার',
-      senderRole: conversationList.find(c => c.id === selectedConversationId)?.role || 'টপ রেটেড সেলার',
+      senderName: conversationList.find(c => c.id === selectedConversationId)?.name || 'মার্কেটপ্লেস মেম্বার',
+      senderRole: conversationList.find(c => c.id === selectedConversationId)?.role || 'মেম্বার',
       senderAvatar: conversationList.find(c => c.id === selectedConversationId)?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-      messages: initialThreadHistories[selectedConversationId] || [
-        {
-          id: `msg-${selectedConversationId}-1`,
-          senderName: conversationList.find(c => c.id === selectedConversationId)?.name || 'সেলার',
-          senderAvatar: conversationList.find(c => c.id === selectedConversationId)?.avatar,
-          isSelf: false,
-          text: conversationList.find(c => c.id === selectedConversationId)?.lastMessage || 'আসসালামু আলাইকুম! আপনার প্রজেক্টের রিকোয়ারমেন্ট বা সার্ভিস সম্পর্কে জানান।',
-          time: conversationList.find(c => c.id === selectedConversationId)?.time || '১০ মিনিট আগে'
-        }
-      ]
+      messages: []
     } : null
   );
 
@@ -2437,9 +2195,16 @@ const SingleChatWindow: React.FC<SingleChatWindowProps> = ({
   );
   const isOrderCompleted = linkedOrder?.status === 'completed';
 
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState(win.initialDraft || '');
   const [showEmojis, setShowEmojis] = useState(false);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (win.initialDraft && !inputText) {
+      setInputText(win.initialDraft);
+    }
+  }, [win.initialDraft]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -2635,6 +2400,15 @@ const SingleChatWindow: React.FC<SingleChatWindowProps> = ({
 
           {/* Messages Feed */}
           <div className="h-68 sm:h-76 overflow-y-auto p-3 space-y-2.5 bg-slate-50 dark:bg-[#121B24] text-xs">
+            {win.messages.length === 0 && (
+              <div className="h-full min-h-[180px] flex flex-col items-center justify-center text-center p-4 text-slate-400 select-none">
+                <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-slate-800 text-[#0084FF] flex items-center justify-center mb-2">
+                  <Mail className="w-5 h-5 stroke-[1.5]" />
+                </div>
+                <p className="font-bold text-xs text-slate-700 dark:text-slate-300">কোনো পূর্ববর্তী বার্তা নেই</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">আপনার বার্তা লিখে সেন্ড করুন</p>
+              </div>
+            )}
             {win.messages.map((m) => (
               <div
                 key={m.id}

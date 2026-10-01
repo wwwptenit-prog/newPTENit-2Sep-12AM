@@ -471,68 +471,24 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     imageUrl?: string;
     fileName?: string;
     fileUrl?: string;
-  }>>([
-    {
-      id: '1',
-      sender: 'PTENit Admin',
-      text: 'নতুন সেমিস্টার কোর্স কনটেন্ট আপডেট নির্দেশিকা: সম্মানিত ট্রেইনারবৃন্দ, দয়া করে আগামী ব্যাচের মডিউল ও কুইজসমূহ আগামী ১৫ আগস্টের মধ্যে টিচার ড্যাশবোর্ডে আপলোড নিশ্চিত করুন।',
-      time: '10:30 AM',
-      isTeacher: false,
-      read: false,
-      imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: '2',
-      sender: 'অ্যাকাডেমিক ক্লায়েন্ট সাপোর্ট',
-      text: 'স্যার, ক্লায়েন্ট সার্ভিসেস ও বিশেষ ট্রেনিং সেশনের তালিকা শিট সংযুক্ত করা হয়েছে। বিস্তারিত দেখতে ইমেজে ক্লিক করুন।',
-      time: '11:15 AM',
-      isTeacher: false,
-      read: false,
-      imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80'
+  }>>(() => {
+    try {
+      const saved = currentUser ? localStorage.getItem(`ptenit_teacher_chats_${currentUser.id}`) : null;
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
     }
-  ]);
+  });
 
   // Combined Teacher Notifications State (Includes Student Assignment Submissions & Admin Notices)
-  const [teacherNotificationsList, setTeacherNotificationsList] = useState([
-    {
-      id: 'notif-asgn-1',
-      title: 'নতুন অ্যাসাইনমেন্ট জমা ও কমেন্ট (আরিফ হোসেন)',
-      message: 'শিক্ষার্থী আরিফ হোসেন "PTE Speaking Describe Image Task Practice" অ্যাসাইনমেন্ট জমা ও কমেন্ট করেছেন: "স্যার আমার ডেসক্রাইব ইমেজ টাস্কের ফাইল ও প্র্যাকটিস নোট জমা দিয়েছি, ফিডব্যাক ও রিভিউ রিপ্লাই দিলে কৃতজ্ঞ থাকবো।"',
-      time: '৫ মিনিট আগে',
-      read: false,
-      type: 'assignment',
-      assignmentId: 'asgn-1',
-      submissionId: 'sub-1',
-      studentName: 'আরিফ হোসেন'
-    },
-    {
-      id: 'notif-asgn-2',
-      title: 'অ্যাসাইনমেন্ট ২ উত্তরপত্র জমা (রাফসান)',
-      message: 'শিক্ষার্থী রাফসান "React Components & Tailwind Layout" অ্যাসাইনমেন্টে ফাইল আপলোড করে প্রশ্ন কমেন্ট জমা দিয়েছেন।',
-      time: '২৫ মিনিট আগে',
-      read: false,
-      type: 'assignment',
-      assignmentId: 'asgn-2',
-      submissionId: 'sub-2',
-      studentName: 'রাফসান'
-    },
-    {
-      id: 'notif-admin-1',
-      title: 'PTENit এডমিন অফিশিয়াল গাইডলাইন নোটিশ',
-      message: 'সম্মানিত কোর্স ইনস্ট্রাক্টরবৃন্দ, নতুন ব্যাচের মডিউল, লেকচার স্লাইড ও কুইজ সম্পর্কিত নির্দেশিকা প্রকাশ করা হলো।',
-      time: '১ ঘন্টা আগে',
-      read: false,
-      type: 'admin'
-    },
-    {
-      id: 'notif-admin-2',
-      title: 'ক্লাস শিডিউল ও রেজাল্ট সিস্টেম আপডেট',
-      message: 'আগামী সেমিস্টারের ক্লাস রুটিং টিচার প্যানেলে যুক্ত করা হয়েছে।',
-      time: '২ ঘন্টা আগে',
-      read: false,
-      type: 'admin'
+  const [teacherNotificationsList, setTeacherNotificationsList] = useState<any[]>(() => {
+    try {
+      const saved = currentUser ? localStorage.getItem(`ptenit_teacher_notifs_${currentUser.id}`) : null;
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
     }
-  ]);
+  });
 
   // Sound Synthesizer for Notifications & Offer Actions
   const playChimeSound = (type: 'notification' | 'accept' | 'decline' = 'notification') => {

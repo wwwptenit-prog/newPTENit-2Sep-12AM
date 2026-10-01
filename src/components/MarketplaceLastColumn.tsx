@@ -70,6 +70,7 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
     setActiveMessengerConversationId,
     unreadMarketplaceMsgCount,
     roleScopedNotifications,
+    roleScopedDirectMessages,
     playAppSound,
     openMessengerInbox,
     closeMessengerInbox,
@@ -106,9 +107,9 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
       });
     });
 
-    // 2. Add real directMessages for current user or scoped
-    if (directMessages && directMessages.length > 0) {
-      directMessages.forEach(dm => {
+    // 2. Add real directMessages strictly scoped to current user & mode
+    if (roleScopedDirectMessages && roleScopedDirectMessages.length > 0) {
+      roleScopedDirectMessages.forEach(dm => {
         const isDmRead = dm.read || (readConversationIds && readConversationIds.includes(dm.id));
         if (map.has(dm.id)) {
           const item = map.get(dm.id)!;
@@ -134,7 +135,7 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
     }
 
     return Array.from(map.values());
-  }, [activeChatWindows, directMessages, readConversationIds, isSellerMode]);
+  }, [activeChatWindows, roleScopedDirectMessages, readConversationIds, isSellerMode]);
 
   // Filter conversations
   const filteredConversations = useMemo(() => {
@@ -154,29 +155,10 @@ export const MarketplaceLastColumn: React.FC<MarketplaceLastColumnProps> = ({
     });
   }, [mergedConversations, msgSearchQuery, msgFilter]);
 
-  // Notifications strictly scoped to isSellerMode
+  // Notifications strictly scoped to isSellerMode and currentUser
   const effectiveNotifications = useMemo(() => {
-    const list = roleScopedNotifications || notifications || [];
-    return list.filter(n => {
-      if (n.mode === 'selling') return isSellerMode;
-      if (n.mode === 'buying') return !isSellerMode;
-      if (n.recipientRole) {
-        if (n.recipientRole === 'all') return true;
-        return isSellerMode ? n.recipientRole === 'seller' : n.recipientRole === 'buyer';
-      }
-      const cat = (n.category || '').toLowerCase();
-      const title = (n.title || '').toLowerCase();
-      const isSellerSpecific = cat === 'seller' || cat === 'payout' || title.includes('সেলার') || title.includes('উইথড্র') || title.includes('ক্লাইন্ট') || title.includes('ক্লায়েন্ট');
-      const isBuyerSpecific = cat === 'buyer' || cat === 'course' || title.includes('বায়ার') || title.includes('কোর্স') || title.includes('অ্যাসাইনমেন্ট');
-      if (isSellerMode) {
-        if (isBuyerSpecific && !isSellerSpecific) return false;
-        return true;
-      } else {
-        if (isSellerSpecific && !isBuyerSpecific) return false;
-        return true;
-      }
-    });
-  }, [roleScopedNotifications, notifications, isSellerMode]);
+    return roleScopedNotifications || [];
+  }, [roleScopedNotifications]);
 
   const unreadNotifCount = effectiveNotifications.filter(n => !n.read).length;
 

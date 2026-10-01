@@ -34,7 +34,8 @@ import {
   FileText,
   BadgeCheck,
   Sparkle,
-  ShoppingBag
+  ShoppingBag,
+  Mail
 } from 'lucide-react';
 
 const getDirectOfferFromMessage = (m: { text: string; id: string; directOffer?: DirectOfferMeta }, winSenderName: string, winSenderId?: string): DirectOfferMeta | null => {
@@ -103,6 +104,8 @@ export const MarketplaceMessengerView: React.FC<MarketplaceMessengerViewProps> =
     createGoogleMeetCall,
     currentUser,
     directMessages,
+    roleScopedDirectMessages,
+    marketplaceMode,
     openChatWindow,
     activeMessengerConversationId,
     setActiveMessengerConversationId,
@@ -187,31 +190,24 @@ export const MarketplaceMessengerView: React.FC<MarketplaceMessengerViewProps> =
   const allConversationsMap = new Map<string, ConversationItem>();
   activeWindowsAsConversations.forEach(c => allConversationsMap.set(c.id, c));
 
-  // Add real direct messages scoped to current user
-  if (directMessages && directMessages.length > 0) {
-    directMessages.forEach(dm => {
-      const isForMe = Boolean(
-        currentUser && (
-          dm.recipientId === currentUser.id ||
-          dm.senderId === currentUser.id ||
-          (dm.recipientEmail && currentUser.email && dm.recipientEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
-          (dm.senderEmail && currentUser.email && dm.senderEmail.toLowerCase() === currentUser.email.toLowerCase())
-        )
-      );
-      if (isForMe && !allConversationsMap.has(dm.id)) {
+  // Add real direct messages strictly scoped to current user & mode
+  if (roleScopedDirectMessages && roleScopedDirectMessages.length > 0) {
+    roleScopedDirectMessages.forEach(dm => {
+      const isSeller = marketplaceMode === 'selling';
+      if (!allConversationsMap.has(dm.id)) {
         allConversationsMap.set(dm.id, {
           id: dm.id,
           name: dm.senderName || 'ইউজার',
           avatar: dm.senderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80',
-          role: dm.senderRole || 'মার্কেটপ্লেস মেম্বার',
-          badge: 'Member',
+          role: dm.senderRole || (isSeller ? 'বায়ার' : 'মার্কেটপ্লেস মেম্বার'),
+          badge: isSeller ? 'Buyer' : 'Member',
           rating: 5.0,
           ordersCount: 1,
-          lastMessage: dm.message,
+          lastMessage: dm.text || (dm as any).message || 'চ্যাট শুরু হয়েছে...',
           time: dm.time || 'এইমাত্র',
           unreadCount: dm.read ? 0 : (dm.unreadCount || 1),
           isOnline: true,
-          category: dm.category || 'sellers',
+          category: dm.category || (isSeller ? 'orders' : 'sellers'),
           orderId: dm.orderId
         });
       }
@@ -251,19 +247,10 @@ export const MarketplaceMessengerView: React.FC<MarketplaceMessengerViewProps> =
   const currentActiveWin = activeChatWindows?.find(w => w.id === selectedConversationId) || (
     selectedConversationId ? {
       id: selectedConversationId,
-      senderName: conversationList.find(c => c.id === selectedConversationId)?.name || 'মার্কেটপ্লেস সেলার',
-      senderRole: conversationList.find(c => c.id === selectedConversationId)?.role || 'টপ রেটেড সেলার',
+      senderName: conversationList.find(c => c.id === selectedConversationId)?.name || 'মার্কেটপ্লেস মেম্বার',
+      senderRole: conversationList.find(c => c.id === selectedConversationId)?.role || 'মেম্বার',
       senderAvatar: conversationList.find(c => c.id === selectedConversationId)?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-      messages: [
-        {
-          id: 'msg-default-1',
-          senderName: conversationList.find(c => c.id === selectedConversationId)?.name || 'সেলার',
-          senderAvatar: conversationList.find(c => c.id === selectedConversationId)?.avatar,
-          isSelf: false,
-          text: conversationList.find(c => c.id === selectedConversationId)?.lastMessage || 'আসসালামু আলাইকুম! আপনার প্রজেক্টের রিকোয়ারমেন্ট বা সার্ভিস সম্পর্কে জানান।',
-          time: conversationList.find(c => c.id === selectedConversationId)?.time || '১০ মিনিট আগে'
-        }
-      ]
+      messages: []
     } : null
   );
 
@@ -979,9 +966,15 @@ const EmbeddedChatThread: React.FC<EmbeddedChatThreadProps> = ({
     sendChatMessage 
   } = useData();
 
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState(win.initialDraft || '');
   const [showEmojis, setShowEmojis] = useState(false);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (win.initialDraft && !inputText) {
+      setInputText(win.initialDraft);
+    }
+  }, [win.initialDraft]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1196,6 +1189,16 @@ const EmbeddedChatThread: React.FC<EmbeddedChatThreadProps> = ({
             </span>
           </div>
         </div>
+
+        {win.messages.length === 0 && (
+          <div className="py-14 text-center space-y-2 select-none">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 text-[#006A4E] mx-auto flex items-center justify-center">
+              <Mail className="w-6 h-6 stroke-[1.5]" />
+            </div>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">কোনো পূর্ববর্তী বার্তা নেই</p>
+            <p className="text-xs text-slate-400">আপনার প্রজেক্টের রিকোয়ারমেন্ট বা সার্ভিস সম্পর্কে নিচে বার্তা লিখে পাঠান...</p>
+          </div>
+        )}
 
         {win.messages.map((m) => (
           <div
